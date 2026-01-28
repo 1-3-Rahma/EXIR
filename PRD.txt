@@ -1,0 +1,335 @@
+📄 Product Requirements Document (PRD)
+1. Product Overview
+Product Name
+EXIR – Smart Healthcare Monitoring System
+Product Type
+Web Application (with future Mobile App support)
+Description
+EXIR is a smart healthcare monitoring system designed to enhance patient safety and reduce staff workload through:
+•	Real-time vitals monitoring using IoT sensors
+•	Role-based dashboards (Doctor, Nurse, Patient, Receptionist)
+•	Critical event detection and alerting
+•	Centralized medical and financial records
+•	AI-ready architecture for future predictive analytics
+________________________________________
+2. Goals & Objectives
+Primary Goals
+•	Continuous monitoring of patient vitals
+•	Early detection of critical health events
+•	Efficient nurse assignment and workload management
+•	Transparency for patients regarding medical history and billing
+•	Scalable system architecture for predictive AI integration
+Success Metrics
+•	Reduced nurse response time
+•	Early detection of abnormal vitals
+•	Clear role separation and access control
+•	System stability and data accuracy
+________________________________________
+3. Target Users & Roles
+3.1 Doctor
+•	Assign patients to nurses based on active shifts
+•	View patient vitals and history
+•	Update treatment plans
+•	Close patient cases
+•	Trigger notifications on updates
+3.2 Nurse
+•	View assigned patients
+•	Monitor vitals (read-only)
+•	Receive critical alerts
+•	Cannot visit patient unless a critical event occurs
+•	No manual update of vitals
+3.3 Patient
+•	View vitals history
+•	View medical history
+•	Download lab results (PDF / Images)
+•	View financial status before discharge
+•	Receive notifications for treatment updates
+3.4 Receptionist
+•	Register patient data
+•	View patient financial status
+•	View patient hospital visit history
+•	No medical decision accesses
+________________________________________
+4. User Flows
+4.1 Patient Flow
+1.	Login (national ID)
+2.	View dashboard (vitals summary)
+3.	View/download medical history
+4.	View billing details
+5.	Receive notifications on updates
+________________________________________
+4.2 Nurse Flow
+1.	Login (HospitalID + privateID)
+2.	View assigned patients
+3.	Monitor live vitals (from sensors)
+4.	Receive critical alerts
+5.	Navigate to patient only during critical events
+________________________________________
+4.3 Doctor Flow
+1.	Login (HospitalID + privateID)
+2.	View logged-in nurses by shift
+3.	Assign patient to nurse
+4.	Monitor patient status
+5.	Update treatment (notification sent)
+6.	Close case (case locked)
+________________________________________
+4.4 Receptionist Flow
+1.	Login (HospitalID + ReceptionistID)
+2.	Enter / update patient demographic data
+3.	View billing & hospital visit history
+4.	Inform patient about payment status
+________________________________________
+5. Functional Requirements
+5.1 Authentication & Authorization
+The system uses minimal login credentials per role to ensure:
+•	Fast access
+•	Accountability
+•	Cross-hospital data linkage
+•	Reduced human error
+________________________________________
+🧾 Login Credentials per Role
+🟣 Receptionist Login
+Credentials:
+•	PrivateReceptionistID (Unique per Receptionist)
+•	Hospital ID 
+Purpose:
+•	Track which receptionist registered or updated patient data
+•	Ensure accountability for registration and billing actions
+•	Support auditing and internal hospital reports
+System Behavior:
+•	Every patient registration is tagged with registeredByReceptionistId
+________________________________________
+🟦 Doctor Login
+Credentials:
+•	DoctorSpecialID (Unique per Dr)
+•	Hospital ID
+Purpose:
+•	Clear doctor identification inside any hospital
+•	Accurate assignment and treatment accountability
+•	Link medical decisions to specific doctors
+________________________________________
+🟩 Nurse Login
+Credentials:
+•	NurseID (Unique per Nurse)
+•	Hospital ID
+Purpose:
+•	Identify responsible nurse per patient
+•	Enable shift-based assignment
+•	Control nurse access by active shift
+________________________________________
+🟨 Patient Login
+Credentials:
+•	NationalID
+•	Phone number
+•	OTP
+Purpose:
+•	Connect medical history across all hospitals
+•	Prevent duplicate patient profiles
+•	Enable lifelong medical record tracking
+System Behavior:
+•	Patient medical data is unified using NationalID
+•	Hospitals access only authorized records
+________________________________________
+🔑 Authentication Method
+•	JWT-based authentication
+•	Role-based access control
+•	Session expiration handling
+•	Secure password hashing
+Soft Lock After Failed Attempts
+•	Lock account after 3 failed logins
+•	Improves security
+•	Important for medical systems
+
+________________________________________
+5.2 Vitals Monitoring (IoT Integration)
+•	Sensors measure:
+o	Heart Rate
+o	SpO2
+o	Temperature
+•	Data sent automatically to backend
+•	No manual edits allowed
+•	Every reading stored with timestamp
+•	Critical threshold detection
+________________________________________
+5.3 Critical Events
+•	Automatically triggered on abnormal vitals
+•	Nurse + Doctor notified immediately
+•	Logged as system events
+________________________________________
+5.4 Notifications System
+•	Triggered on:
+o	Critical events
+o	Treatment updates
+o	Case closure
+•	Stored in database
+•	Read/unread state
+________________________________________
+5.5 Medical Records
+•	Full vitals history (time-series)
+•	Lab results upload:
+o	PDF
+o	Images
+•	Downloadable by patient
+•	Filter by date or hospital
+________________________________________
+5.6 Financial Module
+•	Patient billing summary
+•	View-only access
+•	Required before discharge
+________________________________________
+6. Non-Functional Requirements
+•	Secure data storage
+•	Scalable architecture
+•	High availability
+•	API-based modular design
+•	GDPR / HIPAA awareness (conceptual)
+________________________________________
+7. System Architecture
+Tech Stack
+•	Frontend: React.js
+•	Backend: Node.js + Express
+•	Database: MongoDB
+•	Future AI Service: Python + FastAPI (separate microservice)
+Architecture Style
+•	Modular Monolith (AI-ready)
+•	RESTful APIs
+•	Event-driven notifications
+________________________________________
+8. API Design (High-Level)
+Auth
+•	POST /auth/login
+•	POST /auth/logout
+Doctor
+•	GET /doctor/nurses-on-shift
+•	POST /doctor/assign-patient
+•	PUT /doctor/update-treatment
+•	POST /doctor/close-case
+Nurse
+•	GET /nurse/assigned-patients
+•	GET /nurse/critical-events
+Patient
+•	GET /patient/vitals
+•	GET /patient/medical-history
+•	GET /patient/billing
+•	GET /patient/download-records
+•	GET / patient/download-labResults
+Vitals (Sensors)
+•	POST /vitals/receive
+•	GET /vitals/patient/:id
+Notifications
+•	GET /notifications
+•	PUT /notifications/read
+________________________________________
+9. Database Design (High-Level)
+User
+•	Id
+•	name
+•	role
+•	phone number 
+•	password
+•	shift
+•	isLoggedIn
+Vital
+•	patientId
+•	heartRate
+•	spo2
+•	temperature
+•	source
+•	isCritical
+•	createdAt
+Doctor Assignment
+•	patientId
+•	nurseId
+•	doctorId
+•	shift
+•	assignedAt
+Notification
+•	userId
+•	type
+•	message
+•	read
+•	createdAt
+Case
+•	patientId
+•	status (open/closed)
+•	closedAt
+
+Database Schemas (Auth Related)
+User (Base)
+{
+  _id,
+  role,
+  hospitalId,
+  password,
+  createdAt
+}
+________________________________________
+Doctor
+{
+  doctorSpecialID,
+  hospitalId,
+  specialization
+}
+________________________________________
+Nurse
+{
+  nurseID,
+  hospitalId,
+  shift,
+  isActive
+}
+________________________________________
+Receptionist
+{
+  privateReceptionistID,
+  hospitalId
+}
+________________________________________
+Patient
+{
+  nationalID,
+  fullName,
+  dateOfBirth,
+  contactInfo
+}
+
+________________________________________
+10. AI Readiness (Future Scope)
+•	All vitals stored as time-series
+•	Events logged for ML training
+•	Prediction fields reserved:
+o	riskLevel
+o	confidenceScore
+•	AI service to be integrated as separate API
+•	Initial rule-based risk detection supported
+________________________________________
+11. Testing Strategy
+Basic Testing (Initial Phase)
+•	API testing
+•	Auth & role validation
+•	Critical alert flow
+•	Sensor data ingestion
+________________________________________
+12. Folder Structure (Backend)
+/backend
+ ├── controllers
+ ├── models
+ ├── routes
+ ├── middleware
+ ├── utils
+ ├── config
+ └── server.js
+________________________________________
+13. Assumptions & Constraints
+•	No real-time insurance API integration
+•	Sensors push data automatically
+•	Web-first implementation
+•	Mobile app planned for future
+
+
+
+
+
+
+
+

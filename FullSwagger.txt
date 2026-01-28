@@ -1,0 +1,652 @@
+Full Swagger (all endpoints)
+•	includes roles
+•	vitals, notifications, assignments, medical history, billing
+•	JWT authentication included
+Features included in this Swagger:
+•	Authentication (login/logout)
+•	OTP
+•	Doctor:
+o	Assign nurse
+o	Update treatment
+o	Close case
+•	Nurse:
+o	View assigned patients
+o	View critical events
+•	Patient:
+o	View vitals & medical history
+o	Billing info
+o	Download records
+•	Receptionist:
+o	Register Patient
+o	Get Info
+o	Visits
+o	Billing
+o	Discharge status
+•	Visits
+•	File Uploaded
+•	Audit
+•	Vitals (sensor ingestion)
+•	Notifications
+
+openapi: 3.0.0
+info:
+  title: EXIR Healthcare API
+  version: "1.1"
+  description: Smart Healthcare System API – Doctor, Nurse, Patient, Receptionist
+ 
+servers:
+  - url: https://api.exir-healthcare.com/v1
+    description: Production server
+  - url: http://localhost:5000/v1
+    description: Local dev server
+ 
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+ 
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - role
+        - identifier
+        - password
+      properties:
+        role:
+          type: string
+          enum: [doctor, nurse, patient, receptionist]
+        identifier:
+          type: string
+        password:
+          type: string
+ 
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        role:
+          type: string
+        userId:
+          type: string
+ 
+    Patient:
+      type: object
+      properties:
+        _id:
+          type: string
+        nationalID:
+          type: string
+        fullName:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        contactInfo:
+          type: string
+
+ /auth/request-otp:
+  post:
+    summary: Request OTP
+/auth/verify-otp:
+  post:
+    summary: Verify OTP and login
+
+    Vital:
+      type: object
+      properties:
+        patientId:
+          type: string
+        heartRate:
+          type: number
+        spo2:
+          type: number
+        temperature:
+          type: number
+        source:
+          type: string
+        isCritical:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+ 
+    Assignment:
+      type: object
+      properties:
+        patientId:
+          type: string
+        nurseId:
+          type: string
+        doctorId:
+          type: string
+        shift:
+          type: string
+        assignedAt:
+          type: string
+          format: date-time
+ 
+    Notification:
+      type: object
+      properties:
+        userId:
+          type: string
+        type:
+          type: string
+          enum: [critical, update]
+        message:
+          type: string
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+ 
+paths:
+  /auth/login:
+    post:
+      summary: Login for all roles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+ 
+  /auth/logout:
+    post:
+      summary: Logout for any role
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logout successful
+ 
+  /doctor/nurses-on-shift:
+    get:
+      summary: Get logged-in nurses on current shifts
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of nurses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    nurseId:
+                      type: string
+                    name:
+                      type: string
+                    shift:
+                      type: string
+ 
+  /doctor/assign-patient:
+    post:
+      summary: Assign patient to a nurse
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Assignment"
+      responses:
+        "200":
+          description: Assignment successful
+ 
+  /doctor/update-treatment:
+    put:
+      summary: Update patient treatment plan
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                patientId:
+                  type: string
+                treatmentPlan:
+                  type: string
+      responses:
+        "200":
+          description: Treatment updated and notifications sent
+ 
+  /doctor/close-case:
+    post:
+      summary: Close patient case
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                patientId:
+                  type: string
+      responses:
+        "200":
+          description: Case closed
+ 
+  /nurse/assigned-patients:
+    get:
+      summary: Get patients assigned to nurse
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of assigned patients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Patient"
+ 
+  /nurse/critical-events:
+    get:
+      summary: Get critical events for nurse
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Critical alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+ 
+  /patient/vitals:
+    get:
+      summary: Get vitals history for patient
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Vitals data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Vital"
+ 
+  /patient/medical-history:
+    get:
+      summary: Get medical history
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Medical history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Patient"
+ 
+  /patient/billing:
+    get:
+      summary: Get patient billing summary
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Billing details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalAmount:
+                    type: number
+                  dueAmount:
+                    type: number
+ 
+  /patient/download-records:
+    get:
+      summary: Download medical results (PDF/Image)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: File download link
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fileUrl:
+                    type: string
+ 
+
+
+
+# -------------------------
+# Receptionist Endpoints
+# -------------------------
+
+/receptionist/register-patient:
+  post:
+    summary: Register a new patient in the hospital
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              nationalID:
+                type: string
+              fullName:
+                type: string
+              dateOfBirth:
+                type: string
+                format: date
+              gender:
+                type: string
+              contactInfo:
+                type: string
+              emergencyContact:
+                type: string
+            required:
+              - nationalID
+              - fullName
+    responses:
+      '201':
+        description: Patient registered successfully
+
+
+/receptionist/patient/{patientId}:
+  get:
+    summary: Get basic patient profile
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: patientId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Patient basic data
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Patient'
+
+/receptionist/patient/{patientId}/visits:
+  get:
+    summary: Get patient visit history in this hospital
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: patientId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Visit history
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  visitId:
+                    type: string
+                  admissionDate:
+                    type: string
+                    format: date-time
+                  dischargeDate:
+                    type: string
+                    format: date-time
+                  status:
+                    type: string
+
+
+/receptionist/patient/{patientId}/billing:
+  get:
+    summary: Get patient financial status
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: patientId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Financial summary
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                totalAmount:
+                  type: number
+                paidAmount:
+                  type: number
+                dueAmount:
+                  type: number
+                paymentStatus:
+                  type: string
+
+/receptionist/patient/{patientId}/discharge-status:
+  get:
+    summary: Check if patient is financially cleared for discharge
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: patientId
+        required: true
+        schema:
+          type: string
+    responses:
+      '200':
+        description: Discharge clearance status
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                isCleared:
+                  type: boolean
+                dueAmount:
+                  type: number
+
+/visits/start:
+  post:
+    summary: Start new hospital visit
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              patientId:
+                type: string
+    responses:
+      '201':
+        description: Visit started
+
+/visits/start:
+  post:
+    summary: Start new hospital visit
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              patientId:
+                type: string
+    responses:
+      '201':
+        description: Visit started
+
+
+/medical-records/upload:
+  post:
+    summary: Upload lab results or medical files
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              patientId:
+                type: string
+              file:
+                type: string
+                format: binary
+              recordType:
+                type: string
+                enum: [lab, imaging]
+    responses:
+      '201':
+        description: File uploaded successfully
+
+
+/medical-records/upload:
+  post:
+    summary: Upload lab results or medical files
+    security:
+      - bearerAuth: []
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              patientId:
+                type: string
+              file:
+                type: string
+                format: binary
+              recordType:
+                type: string
+                enum: [lab, imaging]
+    responses:
+      '201':
+        description: File uploaded successfully
+
+
+
+  /vitals/receive:
+    post:
+      summary: Receive vitals from sensors
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Vital"
+      responses:
+        "201":
+          description: Vitals recorded
+ 
+  /vitals/patient/{patientId}:
+    get:
+      summary: Get vitals by patient
+      parameters:
+        - in: path
+          name: patientId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Patient vitals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Vital"
+ 
+  /notifications:
+    get:
+      summary: Get notifications for logged-in user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+ 
+  /notifications/read:
+    put:
+      summary: Mark notification as read
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notificationId:
+                  type: string
+      responses:
+        "200":
+          description: Notification marked as read
+
+
