@@ -1,0 +1,93 @@
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1',
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+export const nurseAPI = {
+  getAssignedPatients: () => api.get('/nurse/assigned-patients'),
+  getCriticalEvents: () => api.get('/nurse/critical-events'),
+  getPatientVitals: (patientId) => api.get(`/nurse/patient/${patientId}/vitals`),
+  getVitalsOverview: () => api.get('/nurse/vitals-overview'),
+  updateVitals: (patientId, data) => api.put(`/nurse/patient/${patientId}/vitals`, data)
+};
+
+export const doctorAPI = {
+  getNursesOnShift: () => api.get('/doctor/nurses-on-shift'),
+  assignPatient: (data) => api.post('/doctor/assign-patient', data),
+  updateTreatment: (data) => api.put('/doctor/update-treatment', data),
+  closeCase: (data) => api.post('/doctor/close-case', data),
+  getPatients: () => api.get('/doctor/patients'),
+  getCriticalCases: () => api.get('/doctor/critical-cases')
+};
+
+export const patientAPI = {
+  getVitals: () => api.get('/patient/vitals'),
+  getMedicalHistory: () => api.get('/patient/medical-history'),
+  getBilling: () => api.get('/patient/billing'),
+  downloadRecords: () => api.get('/patient/download-records')
+};
+
+export const receptionistAPI = {
+  registerPatient: (data) => api.post('/receptionist/register-patient', data),
+  getPatient: (patientId) => api.get(`/receptionist/patient/${patientId}`),
+  searchPatient: (nationalID) => api.get(`/receptionist/patient/search/${nationalID}`),
+  getPatientVisits: (patientId) => api.get(`/receptionist/patient/${patientId}/visits`),
+  getPatientBilling: (patientId) => api.get(`/receptionist/patient/${patientId}/billing`),
+  getDischargeStatus: (patientId) => api.get(`/receptionist/patient/${patientId}/discharge-status`),
+  updatePatient: (patientId, data) => api.put(`/receptionist/patient/${patientId}`, data)
+};
+
+export const vitalsAPI = {
+  receiveVitals: (data) => api.post('/vitals/receive', data),
+  getPatientVitals: (patientId) => api.get(`/vitals/patient/${patientId}`)
+};
+
+export const notificationAPI = {
+  getNotifications: () => api.get('/notifications'),
+  markAsRead: (notificationId) => api.put('/notifications/read', { notificationId }),
+  markAllAsRead: () => api.put('/notifications/read-all')
+};
+
+export const visitAPI = {
+  startVisit: (data) => api.post('/visits/start', data),
+  endVisit: (visitId) => api.put(`/visits/${visitId}/end`)
+};
+
+export const medicalRecordAPI = {
+  uploadRecord: (formData) => api.post('/medical-records/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  getPatientRecords: (patientId) => api.get(`/medical-records/patient/${patientId}`),
+  downloadFile: (recordId) => api.get(`/files/${recordId}`, { responseType: 'blob' })
+};
+
+export default api;
