@@ -4,6 +4,65 @@ const Assignment = require('../models/Assignment');
 const Case = require('../models/Case');
 const Notification = require('../models/Notification');
 
+// @desc    Get nursing staff with assigned patients (for doctor UI)
+// @route   GET /api/v1/doctor/nursing-staff
+// @access  Private (Doctor)
+const getNursingStaff = async (req, res) => {
+  try {
+    const nurses = await User.find({ role: 'nurse', isActive: true })
+      .select('_id identifier fullName shift isLoggedIn')
+      .sort({ fullName: 1 });
+
+    const assignments = await Assignment.find({ isActive: true })
+      .populate('patientId', 'fullName dateOfBirth contactInfo')
+      .populate('nurseId', 'fullName shift');
+
+    const byNurse = {};
+    for (const a of assignments) {
+      if (!a.nurseId || !a.patientId) continue;
+      const nid = a.nurseId._id.toString();
+      if (!byNurse[nid]) {
+        byNurse[nid] = {
+          _id: a.nurseId._id,
+          fullName: a.nurseId.fullName,
+          identifier: a.nurseId.identifier,
+          shift: a.nurseId.shift,
+          assignedPatients: []
+        };
+      }
+      const p = a.patientId;
+      const age = p.dateOfBirth ? Math.floor((new Date() - new Date(p.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000)) : null;
+      byNurse[nid].assignedPatients.push({
+        _id: p._id,
+        fullName: p.fullName,
+        dateOfBirth: p.dateOfBirth,
+        age,
+        room: p.contactInfo || '—',
+        condition: '—'
+      });
+    }
+
+    const staff = nurses.map(n => {
+      const nid = n._id.toString();
+      const assigned = byNurse[nid] ? byNurse[nid].assignedPatients : [];
+      return {
+        _id: n._id,
+        fullName: n.fullName,
+        identifier: n.identifier,
+        shift: n.shift,
+        isLoggedIn: n.isLoggedIn,
+        assignedPatients: assigned,
+        assignedPatientsCount: assigned.length
+      };
+    });
+
+    res.json(staff);
+  } catch (error) {
+    console.error('Get nursing staff error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // @desc    Get logged-in nurses on current shifts
 // @route   GET /api/v1/doctor/nurses-on-shift
 // @access  Private (Doctor)
@@ -210,6 +269,7 @@ const getPatients = async (req, res) => {
 };
 
 module.exports = {
+  getNursingStaff,
   getNursesOnShift,
   assignPatient,
   updateTreatment,
