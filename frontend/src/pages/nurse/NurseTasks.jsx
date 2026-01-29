@@ -1,25 +1,99 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
 import {
-  FiPlus, FiClock, FiCheckCircle, FiUser, FiCalendar,
-  FiX, FiEdit2
+  FiPlus, FiClock, FiCheckCircle, FiUser,
+  FiX, FiEdit2, FiLoader
 } from 'react-icons/fi';
 
-const NurseTasks = () => {
-  const [tasks, setTasks] = useState([
-    { _id: '1', title: 'Administer insulin', patient: 'Patient 4', room: '308D', time: '10:00 AM', priority: 'high', category: 'Medication', status: 'pending', assignedBy: 'Doctor 2', notes: '' },
-    { _id: '2', title: 'Wound dressing change', patient: 'Patient 5', room: '410A', time: '10:30 AM', priority: 'high', category: 'Treatment', status: 'pending', assignedBy: null, notes: 'Use sterile technique. Document wound appearance.' },
-    { _id: '3', title: 'Check vitals', patient: 'Patient 6', room: '215B', time: '11:00 AM', priority: 'medium', category: 'Vitals', status: 'pending', assignedBy: null, notes: '' },
-    { _id: '4', title: 'Update care plan', patient: 'Patient 1', room: '302A', time: '2:00 PM', priority: 'low', category: 'Documentation', status: 'pending', assignedBy: 'Charge Nurse', notes: '' },
-    { _id: '5', title: 'Family consultation', patient: 'Patient 2', room: '405B', time: '11:30 AM', priority: 'medium', category: 'Communication', status: 'in_progress', assignedBy: null, notes: '' },
-    { _id: '6', title: 'Post-op assessment', patient: 'Patient 3', room: '201C', time: '9:00 AM', priority: 'high', category: 'Assessment', status: 'completed', assignedBy: 'Doctor 1', notes: '' }
-  ]);
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
+const NurseTasks = () => {
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
   const [newTask, setNewTask] = useState({
-    title: '', patient: '', room: '', priority: 'medium', category: 'Medication', dueDate: '', notes: ''
+    title: '', patientName: '', room: '', priority: 'medium', category: 'Medication', dueDate: '', notes: ''
   });
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/tasks`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch tasks');
+      }
+
+      const data = await response.json();
+      setTasks(data.data || []);
+    } catch (err) {
+      console.error('Error fetching tasks:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewTask(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCreateTask = async () => {
+    if (!newTask.title.trim()) {
+      alert('Task title is required');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/tasks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: newTask.title,
+          patientName: newTask.patientName || null,
+          room: newTask.room || null,
+          priority: newTask.priority,
+          category: newTask.category,
+          dueDate: newTask.dueDate || null,
+          notes: newTask.notes || ''
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create task');
+      }
+
+      const data = await response.json();
+      setTasks(prev => [data.data, ...prev]);
+      setShowNewTaskModal(false);
+      setNewTask({
+        title: '', patientName: '', room: '', priority: 'medium', category: 'Medication', dueDate: '', notes: ''
+      });
+    } catch (err) {
+      console.error('Error creating task:', err);
+      alert('Failed to create task. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const stats = {
     pending: tasks.filter(t => t.status === 'pending').length,
@@ -36,10 +110,27 @@ const NurseTasks = () => {
     }
   };
 
-  const handleCompleteTask = (id) => {
-    setTasks(tasks.map(task =>
-      task._id === id ? { ...task, status: 'completed' } : task
-    ));
+  const handleCompleteTask = async (id) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/tasks/${id}/complete`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to complete task');
+      }
+
+      setTasks(tasks.map(task =>
+        task._id === id ? { ...task, status: 'completed', completedAt: new Date() } : task
+      ));
+    } catch (err) {
+      console.error('Error completing task:', err);
+      alert('Failed to complete task. Please try again.');
+    }
   };
 
   const filteredTasks = tasks.filter(task => {
@@ -48,14 +139,10 @@ const NurseTasks = () => {
   });
 
   const shiftInfo = {
-    current: { time: '7:00 AM - 3:00 PM', nurse: 'Nurse: Jane Doe, RN', ward: 'ICU Ward', patients: 6 },
-    next: { time: '3:00 PM - 11:00 PM', nurse: 'Nurse: Nurse 2', ward: 'ICU Ward', status: 'Taking over' },
-    notes: [
-      'Room 302A requires frequent BP monitoring',
-      'Room 405B family meeting at 2:00 PM',
-      'New admission expected at 12:00 PM'
-    ],
-    handoff: 'All vitals stable. Room 302A continues to have elevated BP - monitoring ongoing. Room 405B family consulted, awaiting physician rounds.'
+    current: { time: '7:00 AM - 3:00 PM', nurse: 'Current Nurse', ward: 'Ward', patients: 0 },
+    next: { time: '3:00 PM - 11:00 PM', nurse: 'Next Nurse', ward: 'Ward', status: 'Upcoming' },
+    notes: [],
+    handoff: ''
   };
 
   return (
@@ -114,13 +201,30 @@ const NurseTasks = () => {
       {/* Tasks List */}
       <div className="tasks-section">
         <div className="tasks-list">
-          {filteredTasks.map((task) => (
+          {loading ? (
+            <div className="loading-state">
+              <FiLoader className="spin" style={{ fontSize: '32px', color: '#3b82f6' }} />
+              <p>Loading tasks...</p>
+            </div>
+          ) : error ? (
+            <div className="error-state">
+              <p>Error: {error}</p>
+              <button onClick={fetchTasks}>Retry</button>
+            </div>
+          ) : filteredTasks.length === 0 ? (
+            <div className="empty-state">
+              <FiCheckCircle style={{ fontSize: '48px', color: '#94a3b8', marginBottom: '16px' }} />
+              <h3>No tasks yet</h3>
+              <p>Create a new task to get started.</p>
+            </div>
+          ) : filteredTasks.map((task) => (
             <div key={task._id} className={`task-card ${task.status}`} style={{ borderLeftColor: getPriorityColor(task.priority) }}>
               <div className="task-checkbox">
                 <input
                   type="checkbox"
                   checked={task.status === 'completed'}
                   onChange={() => handleCompleteTask(task._id)}
+                  disabled={task.status === 'completed'}
                 />
               </div>
               <div className="task-content">
@@ -134,9 +238,12 @@ const NurseTasks = () => {
                   </div>
                 </div>
                 <div className="task-details">
-                  <span><FiUser /> {task.patient} - Room {task.room}</span>
-                  <span><FiClock /> {task.time}</span>
-                  {task.assignedBy && <span><FiUser /> Assigned by {task.assignedBy}</span>}
+                  {(task.patientName || task.room) && (
+                    <span><FiUser /> {task.patientName || 'N/A'}{task.room ? ` - Room ${task.room}` : ''}</span>
+                  )}
+                  {task.dueDate && (
+                    <span><FiClock /> Due: {new Date(task.dueDate).toLocaleString()}</span>
+                  )}
                 </div>
                 {task.notes && (
                   <p className="task-notes">{task.notes}</p>
@@ -201,22 +308,44 @@ const NurseTasks = () => {
             <div className="modal-body">
               <div className="form-group">
                 <label>Task Title *</label>
-                <input type="text" placeholder="Enter task title" />
+                <input
+                  type="text"
+                  name="title"
+                  value={newTask.title}
+                  onChange={handleInputChange}
+                  placeholder="Enter task title"
+                />
               </div>
               <div className="form-row">
                 <div className="form-group">
                   <label>Patient (Optional)</label>
-                  <input type="text" placeholder="Patient name" />
+                  <input
+                    type="text"
+                    name="patientName"
+                    value={newTask.patientName}
+                    onChange={handleInputChange}
+                    placeholder="Patient name"
+                  />
                 </div>
                 <div className="form-group">
                   <label>Room</label>
-                  <input type="text" placeholder="Room number" />
+                  <input
+                    type="text"
+                    name="room"
+                    value={newTask.room}
+                    onChange={handleInputChange}
+                    placeholder="Room number"
+                  />
                 </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
                   <label>Priority</label>
-                  <select>
+                  <select
+                    name="priority"
+                    value={newTask.priority}
+                    onChange={handleInputChange}
+                  >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
@@ -224,28 +353,47 @@ const NurseTasks = () => {
                 </div>
                 <div className="form-group">
                   <label>Category</label>
-                  <select>
+                  <select
+                    name="category"
+                    value={newTask.category}
+                    onChange={handleInputChange}
+                  >
                     <option value="Medication">Medication</option>
                     <option value="Treatment">Treatment</option>
                     <option value="Documentation">Documentation</option>
                     <option value="Communication">Communication</option>
                     <option value="Vitals">Vitals</option>
                     <option value="Assessment">Assessment</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
               </div>
               <div className="form-group">
                 <label>Due Date & Time</label>
-                <input type="datetime-local" />
+                <input
+                  type="datetime-local"
+                  name="dueDate"
+                  value={newTask.dueDate}
+                  onChange={handleInputChange}
+                />
               </div>
               <div className="form-group">
                 <label>Notes (Optional)</label>
-                <textarea placeholder="Add any additional notes..." />
+                <textarea
+                  name="notes"
+                  value={newTask.notes}
+                  onChange={handleInputChange}
+                  placeholder="Add any additional notes..."
+                />
               </div>
             </div>
             <div className="modal-footer">
-              <button className="cancel-btn" onClick={() => setShowNewTaskModal(false)}>Cancel</button>
-              <button className="submit-btn">Create Task</button>
+              <button className="cancel-btn" onClick={() => setShowNewTaskModal(false)} disabled={submitting}>
+                Cancel
+              </button>
+              <button className="submit-btn" onClick={handleCreateTask} disabled={submitting}>
+                {submitting ? 'Creating...' : 'Create Task'}
+              </button>
             </div>
           </div>
         </div>
@@ -371,6 +519,76 @@ const NurseTasks = () => {
 
         .task-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .task-card.completed { opacity: 0.7; }
+
+        .loading-state {
+          text-align: center;
+          padding: 3rem;
+          background: white;
+          border-radius: 16px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .loading-state p {
+          color: #64748b;
+          font-size: 0.9rem;
+        }
+
+        .spin {
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+
+        .error-state {
+          text-align: center;
+          padding: 2rem;
+          background: #fef2f2;
+          border-radius: 16px;
+          border: 1px solid #fecaca;
+        }
+
+        .error-state p {
+          color: #ef4444;
+          margin-bottom: 1rem;
+        }
+
+        .error-state button {
+          background: #ef4444;
+          color: white;
+          border: none;
+          padding: 0.5rem 1rem;
+          border-radius: 8px;
+          cursor: pointer;
+        }
+
+        .empty-state {
+          text-align: center;
+          padding: 3rem;
+          background: white;
+          border-radius: 16px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .empty-state h3 {
+          color: #1e293b;
+          font-size: 1.25rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .empty-state p {
+          color: #64748b;
+          font-size: 0.9rem;
+        }
 
         .task-checkbox input {
           width: 20px;

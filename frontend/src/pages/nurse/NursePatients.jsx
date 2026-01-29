@@ -23,45 +23,8 @@ const NursePatients = () => {
       setPatients(response.data || []);
     } catch (error) {
       console.error('Failed to fetch patients:', error);
-      // Mock data for demo
-      setPatients([
-        {
-          _id: '1', fullName: 'Patient 1', age: 68, gender: 'Male', room: '302A',
-          status: 'critical', condition: 'Post-operative cardiac surgery',
-          vitals: { bp: '180/110', hr: 95, temp: 98.6, o2: 94 },
-          medication: { name: 'Aspirin', time: '10:00 AM' }
-        },
-        {
-          _id: '2', fullName: 'Patient 2', age: 54, gender: 'Female', room: '405B',
-          status: 'moderate', condition: 'Pneumonia',
-          vitals: { bp: '130/85', hr: 82, temp: 100.2, o2: 88 },
-          medication: { name: 'Antibiotic', time: '11:00 AM' }
-        },
-        {
-          _id: '3', fullName: 'Patient 3', age: 72, gender: 'Male', room: '201C',
-          status: 'stable', condition: 'Diabetes management',
-          vitals: { bp: '125/80', hr: 75, temp: 98.4, o2: 98 },
-          medication: { name: 'Insulin', time: '12:00 PM' }
-        },
-        {
-          _id: '4', fullName: 'Patient 4', age: 45, gender: 'Female', room: '308D',
-          status: 'stable', condition: 'Routine monitoring',
-          vitals: { bp: '120/78', hr: 70, temp: 98.2, o2: 99 },
-          medication: { name: 'Vitamin D', time: '9:00 AM' }
-        },
-        {
-          _id: '5', fullName: 'Patient 5', age: 61, gender: 'Male', room: '410A',
-          status: 'moderate', condition: 'Post-surgery recovery',
-          vitals: { bp: '135/88', hr: 78, temp: 99.1, o2: 95 },
-          medication: { name: 'Pain medication', time: '2:00 PM' }
-        },
-        {
-          _id: '6', fullName: 'Patient 6', age: 38, gender: 'Female', room: '215B',
-          status: 'stable', condition: 'Observation',
-          vitals: { bp: '118/75', hr: 72, temp: 98.5, o2: 98 },
-          medication: { name: 'Multivitamin', time: '8:00 AM' }
-        }
-      ]);
+      // Keep empty state - no mock data
+      setPatients([]);
     } finally {
       setLoading(false);
     }
@@ -144,6 +107,12 @@ const NursePatients = () => {
       {/* Patient Cards Grid */}
       {loading ? (
         <div className="loading-state">Loading patients...</div>
+      ) : patients.length === 0 ? (
+        <div className="empty-state">
+          <FiUser style={{ fontSize: '48px', color: '#94a3b8', marginBottom: '16px' }} />
+          <h3>No patients assigned</h3>
+          <p>You don't have any patients assigned to your care yet.</p>
+        </div>
       ) : (
         <div className="patients-grid">
           {filteredPatients.map((patient) => {
@@ -493,10 +462,31 @@ const NursePatients = () => {
           padding: 0.625rem;
         }
 
-        .loading-state {
+        .loading-state, .empty-state {
           text-align: center;
           padding: 3rem;
           color: #94a3b8;
+        }
+
+        .empty-state {
+          background: white;
+          border-radius: 16px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 4rem 2rem;
+        }
+
+        .empty-state h3 {
+          color: #1e293b;
+          font-size: 1.25rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .empty-state p {
+          color: #64748b;
+          font-size: 0.9rem;
         }
 
         @media (max-width: 1200px) {

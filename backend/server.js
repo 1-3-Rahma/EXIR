@@ -31,6 +31,8 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const visitRoutes = require('./routes/visitRoutes');
 const medicalRecordRoutes = require('./routes/medicalRecordRoutes');
 const fileRoutes = require('./routes/fileRoutes');
+const taskRoutes = require('./routes/taskRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
 app.get('/api/v1/health', (req, res) => {
   res.json({ status: 'ok', message: 'EXIR Healthcare API is running' });
@@ -46,6 +48,8 @@ app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/visits', visitRoutes);
 app.use('/api/v1/medical-records', medicalRecordRoutes);
 app.use('/api/v1/files', fileRoutes);
+app.use('/api/v1/tasks', taskRoutes);
+app.use('/api/v1/chat', chatRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

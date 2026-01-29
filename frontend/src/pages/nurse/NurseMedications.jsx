@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
 import {
   FiClock, FiCheckCircle, FiAlertCircle, FiUser,
-  FiAlertTriangle, FiX
+  FiAlertTriangle, FiPackage
 } from 'react-icons/fi';
 
 const NurseMedications = () => {
@@ -15,46 +15,17 @@ const NurseMedications = () => {
   }, []);
 
   const fetchMedications = async () => {
-    // Mock data for demo
-    setMedications([
-      {
-        _id: '1', name: 'Aspirin', dosage: '81mg', route: 'Oral',
-        patient: 'Patient 1', room: '302A', time: '10:00 AM',
-        priority: 'high', status: 'pending',
-        instructions: 'Take with food. Monitor for bleeding.'
-      },
-      {
-        _id: '2', name: 'Amoxicillin', dosage: '500mg', route: 'Oral',
-        patient: 'Patient 2', room: '405B', time: '10:30 AM',
-        priority: 'high', status: 'pending',
-        instructions: 'Complete full course. Check for allergies.'
-      },
-      {
-        _id: '3', name: 'Insulin', dosage: '10 units', route: 'Subcutaneous',
-        patient: 'Patient 3', room: '201C', time: '11:00 AM',
-        priority: 'medium', status: 'pending',
-        instructions: 'Check blood sugar before administration.'
-      },
-      {
-        _id: '4', name: 'Morphine', dosage: '5mg', route: 'IV',
-        patient: 'Patient 4', room: '308D', time: '11:30 AM',
-        priority: 'high', status: 'pending',
-        instructions: 'Monitor respiratory rate and pain level.'
-      },
-      {
-        _id: '5', name: 'Warfarin', dosage: '2.5mg', route: 'Oral',
-        patient: 'Patient 5', room: '410A', time: '12:00 PM',
-        priority: 'medium', status: 'given',
-        instructions: 'Check INR levels.'
-      },
-      {
-        _id: '6', name: 'Albuterol', dosage: '2 puffs', route: 'Inhalation',
-        patient: 'Patient 6', room: '215B', time: '12:30 PM',
-        priority: 'low', status: 'pending',
-        instructions: 'For asthma. Use as needed.'
-      }
-    ]);
-    setLoading(false);
+    try {
+      // API call would go here
+      // const response = await medicationAPI.getMedications();
+      // setMedications(response.data || []);
+      setMedications([]);
+    } catch (error) {
+      console.error('Failed to fetch medications:', error);
+      setMedications([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const stats = {
@@ -102,6 +73,16 @@ const NurseMedications = () => {
         <p>Manage medication schedules and administration</p>
       </div>
 
+      {loading ? (
+        <div className="loading-state">Loading medications...</div>
+      ) : medications.length === 0 ? (
+        <div className="empty-state">
+          <FiPackage style={{ fontSize: '48px', color: '#94a3b8', marginBottom: '16px' }} />
+          <h3>No medications scheduled</h3>
+          <p>There are no medications to administer at the moment.</p>
+        </div>
+      ) : (
+      <>
       {/* Stats Cards */}
       <div className="stats-row">
         <div className="stat-card-med">
@@ -238,8 +219,37 @@ const NurseMedications = () => {
           </table>
         </div>
       </div>
+      </>
+      )}
 
       <style>{`
+        .loading-state, .empty-state {
+          text-align: center;
+          padding: 3rem;
+          color: #94a3b8;
+        }
+
+        .empty-state {
+          background: white;
+          border-radius: 16px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 4rem 2rem;
+        }
+
+        .empty-state h3 {
+          color: #1e293b;
+          font-size: 1.25rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .empty-state p {
+          color: #64748b;
+          font-size: 0.9rem;
+        }
+
         .stats-row {
           display: grid;
           grid-template-columns: repeat(4, 1fr);

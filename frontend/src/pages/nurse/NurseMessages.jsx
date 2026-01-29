@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Layout from '../../components/common/Layout';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../services/api';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 
 const NurseMessages = () => {
   const { user } = useAuth();
   const [contacts, setContacts] = useState([]);
   const [selectedContact, setSelectedContact] = useState(null);
+  const [currentChatId, setCurrentChatId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -15,58 +18,45 @@ const NurseMessages = () => {
   const [emergencyType, setEmergencyType] = useState('');
   const [emergencyLocation, setEmergencyLocation] = useState('');
   const [emergencyDetails, setEmergencyDetails] = useState('');
+  const [loadingContacts, setLoadingContacts] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
   const messagesEndRef = useRef(null);
+  const pollIntervalRef = useRef(null);
 
-  // Mock contacts data
-  const mockContacts = [
-    { id: 1, name: 'Dr. Ahmed Hassan', role: 'Cardiologist', category: 'doctors', status: 'online', avatar: 'AH', unread: 2 },
-    { id: 2, name: 'Dr. Sarah Mohamed', role: 'Neurologist', category: 'doctors', status: 'online', avatar: 'SM', unread: 0 },
-    { id: 3, name: 'Dr. Omar Khalil', role: 'General Physician', category: 'doctors', status: 'offline', avatar: 'OK', unread: 0 },
-    { id: 4, name: 'Nurse Fatima Ali', role: 'ICU Nurse', category: 'nurses', status: 'online', avatar: 'FA', unread: 1 },
-    { id: 5, name: 'Nurse Youssef Nabil', role: 'Ward Nurse', category: 'nurses', status: 'busy', avatar: 'YN', unread: 0 },
-    { id: 6, name: 'Emergency Department', role: 'Department', category: 'departments', status: 'online', avatar: 'ED', unread: 0 },
-    { id: 7, name: 'Radiology', role: 'Department', category: 'departments', status: 'online', avatar: 'RD', unread: 3 },
-    { id: 8, name: 'Laboratory', role: 'Department', category: 'departments', status: 'online', avatar: 'LB', unread: 0 },
-    { id: 9, name: 'Pharmacy', role: 'Department', category: 'departments', status: 'online', avatar: 'PH', unread: 1 },
-  ];
-
-  // Mock messages for selected contact
-  const mockMessages = {
-    1: [
-      { id: 1, senderId: 1, text: 'Good morning, how is patient Ahmed doing?', time: '09:15 AM', isOwn: false },
-      { id: 2, senderId: 'me', text: 'Good morning Dr. Hassan. Vitals are stable, BP is 120/80', time: '09:17 AM', isOwn: true },
-      { id: 3, senderId: 1, text: 'Excellent. Please continue monitoring and update me if anything changes', time: '09:18 AM', isOwn: false },
-      { id: 4, senderId: 'me', text: 'Will do. His medication schedule is up to date', time: '09:20 AM', isOwn: true },
-      { id: 5, senderId: 1, text: 'Perfect. I will visit him during rounds at 11 AM', time: '09:22 AM', isOwn: false },
-    ],
-    4: [
-      { id: 1, senderId: 4, text: 'Can you cover Room 305 for 15 minutes?', time: '10:30 AM', isOwn: false },
-      { id: 2, senderId: 'me', text: 'Sure, I will head there now', time: '10:32 AM', isOwn: true },
-    ],
-    7: [
-      { id: 1, senderId: 7, text: 'X-ray results for patient ID 12345 are ready', time: '11:00 AM', isOwn: false },
-      { id: 2, senderId: 7, text: 'Please inform Dr. Hassan', time: '11:01 AM', isOwn: false },
-      { id: 3, senderId: 7, text: 'CT scan scheduled for 2 PM', time: '11:05 AM', isOwn: false },
-    ],
-  };
-
-  // Mock alerts
-  const mockAlerts = [
-    { id: 1, type: 'urgent', title: 'Code Blue - Room 401', time: '2 min ago', read: false },
-    { id: 2, type: 'warning', title: 'Lab results ready for Patient #1234', time: '15 min ago', read: false },
-    { id: 3, type: 'info', title: 'Shift change reminder - 3 PM', time: '1 hour ago', read: true },
-    { id: 4, type: 'info', title: 'New medication protocol update', time: '2 hours ago', read: true },
-  ];
 
   useEffect(() => {
     fetchContacts();
     fetchAlerts();
+
+    // Cleanup polling on unmount
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
     if (selectedContact) {
-      fetchMessages(selectedContact.id);
+      fetchChatWithUser(selectedContact._id);
+
+      // Poll for new messages every 5 seconds
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+      pollIntervalRef.current = setInterval(() => {
+        if (currentChatId) {
+          fetchMessagesForChat(currentChatId, false);
+        }
+      }, 5000);
     }
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
   }, [selectedContact]);
 
   useEffect(() => {
@@ -77,58 +67,160 @@ const NurseMessages = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+  };
+
   const fetchContacts = async () => {
     try {
-      const response = await api.get('/nurse/contacts');
-      setContacts(response.data);
+      setLoadingContacts(true);
+      const response = await fetch(`${API_URL}/chat/contacts`, {
+        headers: getAuthHeaders()
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch contacts');
+
+      const data = await response.json();
+      // Transform contacts data
+      const transformedContacts = (data.data || []).map(contact => ({
+        ...contact,
+        id: contact._id,
+        name: contact.fullName,
+        avatar: contact.fullName?.charAt(0) || '?',
+        role: contact.role?.charAt(0).toUpperCase() + contact.role?.slice(1) || 'Staff',
+        status: contact.isLoggedIn ? 'online' : 'offline',
+        category: contact.role === 'doctor' ? 'doctors' : contact.role === 'nurse' ? 'nurses' : 'departments',
+        unread: 0
+      }));
+      setContacts(transformedContacts);
     } catch (error) {
-      console.log('Using mock contacts data');
-      setContacts(mockContacts);
+      console.error('Failed to fetch contacts:', error);
+      setContacts([]);
+    } finally {
+      setLoadingContacts(false);
     }
   };
 
-  const fetchMessages = async (contactId) => {
+  const fetchChatWithUser = async (userId) => {
     try {
-      const response = await api.get(`/nurse/messages/${contactId}`);
-      setMessages(response.data);
+      setLoadingMessages(true);
+      const response = await fetch(`${API_URL}/chat/with/${userId}`, {
+        headers: getAuthHeaders()
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch chat');
+
+      const data = await response.json();
+      const chat = data.data;
+      setCurrentChatId(chat._id);
+
+      // Transform messages
+      const transformedMessages = (chat.messages || []).map(msg => ({
+        id: msg._id,
+        senderId: msg.senderId,
+        text: msg.content,
+        time: new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        isOwn: msg.senderId === user?._id || msg.senderId?._id === user?._id,
+        read: msg.read
+      }));
+      setMessages(transformedMessages);
+
+      // Mark messages as read
+      if (chat._id) {
+        fetch(`${API_URL}/chat/${chat._id}/read`, {
+          method: 'PATCH',
+          headers: getAuthHeaders()
+        }).catch(err => console.error('Failed to mark as read:', err));
+      }
     } catch (error) {
-      console.log('Using mock messages data');
-      setMessages(mockMessages[contactId] || []);
+      console.error('Failed to fetch chat:', error);
+      setMessages([]);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const fetchMessagesForChat = async (chatId, showLoading = true) => {
+    try {
+      if (showLoading) setLoadingMessages(true);
+      const response = await fetch(`${API_URL}/chat/${chatId}/messages`, {
+        headers: getAuthHeaders()
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch messages');
+
+      const data = await response.json();
+      const transformedMessages = (data.data || []).map(msg => ({
+        id: msg._id,
+        senderId: msg.senderId,
+        text: msg.content,
+        time: new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        isOwn: msg.senderId === user?._id || msg.senderId?._id === user?._id,
+        read: msg.read
+      }));
+      setMessages(transformedMessages);
+    } catch (error) {
+      console.error('Failed to fetch messages:', error);
+    } finally {
+      if (showLoading) setLoadingMessages(false);
     }
   };
 
   const fetchAlerts = async () => {
-    try {
-      const response = await api.get('/nurse/alerts');
-      setAlerts(response.data);
-    } catch (error) {
-      console.log('Using mock alerts data');
-      setAlerts(mockAlerts);
-    }
+    // Alerts are not persisted in our current implementation
+    setAlerts([]);
   };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedContact) return;
+    if (!newMessage.trim() || !selectedContact || sendingMessage) return;
 
-    const message = {
+    const messageText = newMessage;
+    setNewMessage('');
+
+    // Optimistic update
+    const optimisticMessage = {
       id: Date.now(),
-      senderId: 'me',
-      text: newMessage,
+      senderId: user?._id,
+      text: messageText,
       time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
       isOwn: true,
     };
-
-    setMessages([...messages, message]);
-    setNewMessage('');
+    setMessages(prev => [...prev, optimisticMessage]);
 
     try {
-      await api.post('/nurse/messages', {
-        recipientId: selectedContact.id,
-        text: newMessage,
+      setSendingMessage(true);
+      const response = await fetch(`${API_URL}/chat/send/${selectedContact._id}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ content: messageText })
       });
+
+      if (!response.ok) throw new Error('Failed to send message');
+
+      const data = await response.json();
+
+      // Update chat ID if we didn't have one
+      if (!currentChatId && data.data?.chatId) {
+        setCurrentChatId(data.data.chatId);
+      }
+
+      // Refresh messages to get server-confirmed message
+      if (currentChatId || data.data?.chatId) {
+        await fetchMessagesForChat(currentChatId || data.data.chatId, false);
+      }
     } catch (error) {
-      console.log('Message sent (mock mode)');
+      console.error('Failed to send message:', error);
+      // Remove optimistic message on failure
+      setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+      setNewMessage(messageText); // Restore the message
+      alert('Failed to send message. Please try again.');
+    } finally {
+      setSendingMessage(false);
     }
   };
 
@@ -583,7 +675,7 @@ const NurseMessages = () => {
   };
 
   return (
-    <div style={styles.container}>
+    <Layout appName="NurseHub" role="nurse">
       <div style={styles.header}>
         <h1 style={styles.title}>Messages & Communication</h1>
         <p style={styles.subtitle}>Stay connected with your team</p>
@@ -842,7 +934,7 @@ const NurseMessages = () => {
           </div>
         </div>
       )}
-    </div>
+    </Layout>
   );
 };
 

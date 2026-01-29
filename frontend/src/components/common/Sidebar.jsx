@@ -117,10 +117,17 @@ const Sidebar = ({ appName, role }) => {
       </nav>
 
       <div className="sidebar-footer">
-        <NavLink to={`/${role}/settings`} className="nav-item">
-          <FiSettings className="nav-icon" />
-          <span>Settings</span>
-        </NavLink>
+        {role === 'nurse' ? (
+          <NavLink to="/nurse/profile" className="nav-item">
+            <FiUser className="nav-icon" />
+            <span>Profile</span>
+          </NavLink>
+        ) : (
+          <NavLink to={`/${role}/settings`} className="nav-item">
+            <FiSettings className="nav-icon" />
+            <span>Settings</span>
+          </NavLink>
+        )}
         {role === 'patient' && (
           <NavLink to="/patient/profile" className="nav-item">
             <FiUser className="nav-icon" />

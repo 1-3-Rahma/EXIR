@@ -3,9 +3,9 @@ import Layout from '../../components/common/Layout';
 import { useAuth } from '../../context/AuthContext';
 import { nurseAPI, notificationAPI } from '../../services/api';
 import {
-  FiUsers, FiAlertTriangle, FiClipboard, FiCalendar,
+  FiUsers, FiAlertTriangle, FiClipboard,
   FiClock, FiArrowRight, FiBell, FiCheckCircle, FiInfo,
-  FiAlertCircle, FiActivity
+  FiAlertCircle
 } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 
@@ -14,8 +14,7 @@ const NurseDashboard = () => {
   const [stats, setStats] = useState({
     totalPatients: 0,
     urgentCases: 0,
-    tasksToday: 0,
-    appointments: 0
+    tasksToday: 0
   });
   const [urgentCases, setUrgentCases] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -39,33 +38,21 @@ const NurseDashboard = () => {
       const notifs = notifRes.data || [];
 
       setStats({
-        totalPatients: patients.length || 6,
-        urgentCases: critical.length || 2,
-        tasksToday: 8,
-        appointments: 4
+        totalPatients: patients.length,
+        urgentCases: critical.length,
+        tasksToday: 0
       });
 
-      setUrgentCases(critical.length > 0 ? critical.slice(0, 3) : [
-        { _id: '1', patientName: 'Patient 1', room: '302A', reason: 'Critical vitals detected - High BP 180/110', createdAt: new Date(Date.now() - 5 * 60000), priority: 'critical' },
-        { _id: '2', patientName: 'Patient 2', room: '405B', reason: 'Fever alert - Temperature 100.2°F', createdAt: new Date(Date.now() - 15 * 60000), priority: 'high' }
-      ]);
-
-      setTasks([
-        { _id: '1', title: 'Administer insulin', patient: 'Patient 4', room: '308D', time: '10:00 AM', priority: 'high', category: 'Medication' },
-        { _id: '2', title: 'Wound dressing change', patient: 'Patient 5', room: '410A', time: '10:30 AM', priority: 'high', category: 'Treatment' },
-        { _id: '3', title: 'Check vitals', patient: 'Patient 6', room: '215B', time: '11:00 AM', priority: 'medium', category: 'Vitals' }
-      ]);
-
-      setNotifications(notifs.length > 0 ? notifs.slice(0, 4) : [
-        { _id: '1', type: 'info', message: 'New lab results available for Patient 1 (Room 302A)', createdAt: new Date(Date.now() - 5 * 60000) },
-        { _id: '2', type: 'success', message: 'Medication order for Room 405B has been approved', createdAt: new Date(Date.now() - 15 * 60000) },
-        { _id: '3', type: 'info', message: 'Dr. Hassan scheduled consult for Room 302A at 2:00 PM', createdAt: new Date(Date.now() - 30 * 60000) },
-        { _id: '4', type: 'critical', message: 'Patient 1 requires immediate BP monitoring', createdAt: new Date(Date.now() - 45 * 60000) }
-      ]);
+      setUrgentCases(critical.slice(0, 3));
+      setTasks([]);
+      setNotifications(notifs.slice(0, 4));
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
-      // Set mock data on error
-      setStats({ totalPatients: 6, urgentCases: 2, tasksToday: 8, appointments: 4 });
+      // Keep empty states on error - no mock data
+      setStats({ totalPatients: 0, urgentCases: 0, tasksToday: 0 });
+      setUrgentCases([]);
+      setTasks([]);
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
@@ -106,7 +93,7 @@ const NurseDashboard = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="stats-grid-4">
+      <div className="stats-grid-3">
         <div className="stat-card-new blue">
           <div className="stat-icon-wrap blue">
             <FiUsers />
@@ -132,15 +119,6 @@ const NurseDashboard = () => {
           <div className="stat-info">
             <span className="stat-value">{stats.tasksToday}</span>
             <span className="stat-label">Tasks Today</span>
-          </div>
-        </div>
-        <div className="stat-card-new orange">
-          <div className="stat-icon-wrap orange">
-            <FiCalendar />
-          </div>
-          <div className="stat-info">
-            <span className="stat-value">{stats.appointments}</span>
-            <span className="stat-label">Appointments</span>
           </div>
         </div>
       </div>
@@ -194,26 +172,30 @@ const NurseDashboard = () => {
               </Link>
             </div>
             <div className="section-body">
-              <div className="task-list">
-                {tasks.map((task) => (
-                  <div key={task._id} className="task-card" style={{ borderLeftColor: getPriorityColor(task.priority) }}>
-                    <div className="task-checkbox">
-                      <input type="checkbox" />
+              {tasks.length === 0 ? (
+                <p className="empty-text">No tasks assigned yet</p>
+              ) : (
+                <div className="task-list">
+                  {tasks.map((task) => (
+                    <div key={task._id} className="task-card" style={{ borderLeftColor: getPriorityColor(task.priority) }}>
+                      <div className="task-checkbox">
+                        <input type="checkbox" />
+                      </div>
+                      <div className="task-info">
+                        <span className="task-title">{task.title}</span>
+                        <span className="task-details">{task.patient} - Room {task.room}</span>
+                        <span className="task-time"><FiClock /> {task.time}</span>
+                      </div>
+                      <div className="task-tags">
+                        <span className="priority-tag" style={{ background: getPriorityColor(task.priority) }}>
+                          {task.priority}
+                        </span>
+                        <span className="category-tag">{task.category}</span>
+                      </div>
                     </div>
-                    <div className="task-info">
-                      <span className="task-title">{task.title}</span>
-                      <span className="task-details">{task.patient} - Room {task.room}</span>
-                      <span className="task-time"><FiClock /> {task.time}</span>
-                    </div>
-                    <div className="task-tags">
-                      <span className="priority-tag" style={{ background: getPriorityColor(task.priority) }}>
-                        {task.priority}
-                      </span>
-                      <span className="category-tag">{task.category}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -224,27 +206,33 @@ const NurseDashboard = () => {
               <span className="notif-count">{notifications.length}</span>
             </div>
             <div className="section-body">
-              <div className="notification-list">
-                {notifications.map((notif) => (
-                  <div key={notif._id} className={`notification-item ${notif.type}`}>
-                    {getNotificationIcon(notif.type)}
-                    <div className="notif-content">
-                      <p className="notif-message">{notif.message}</p>
-                      <span className="notif-time">{formatTime(notif.createdAt)}</span>
-                    </div>
+              {notifications.length === 0 ? (
+                <p className="empty-text">No notifications yet</p>
+              ) : (
+                <>
+                  <div className="notification-list">
+                    {notifications.map((notif) => (
+                      <div key={notif._id} className={`notification-item ${notif.type}`}>
+                        {getNotificationIcon(notif.type)}
+                        <div className="notif-content">
+                          <p className="notif-message">{notif.message}</p>
+                          <span className="notif-time">{formatTime(notif.createdAt)}</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <button className="view-all-btn">View All Notifications</button>
+                  <button className="view-all-btn">View All Notifications</button>
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
 
       <style>{`
-        .stats-grid-4 {
+        .stats-grid-3 {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: repeat(3, 1fr);
           gap: 1.25rem;
           margin-bottom: 1.5rem;
         }
@@ -557,12 +545,12 @@ const NurseDashboard = () => {
         }
 
         @media (max-width: 1200px) {
-          .stats-grid-4 { grid-template-columns: repeat(2, 1fr); }
+          .stats-grid-3 { grid-template-columns: repeat(2, 1fr); }
           .dashboard-row { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 768px) {
-          .stats-grid-4 { grid-template-columns: 1fr; }
+          .stats-grid-3 { grid-template-columns: 1fr; }
         }
       `}</style>
     </Layout>

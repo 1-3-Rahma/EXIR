@@ -21,53 +21,8 @@ const NurseVitals = () => {
       setPatients(response.data || []);
     } catch (error) {
       console.error('Failed to fetch vitals:', error);
-      // Mock data
-      setPatients([
-        {
-          _id: '1', name: 'Patient 1', room: '302A', updatedAt: new Date(Date.now() - 2 * 60000),
-          vitals: {
-            bp: { systolic: 180, diastolic: 110, status: 'critical', trend: 'up' },
-            hr: { value: 95, status: 'warning', trend: 'up' },
-            temp: { value: 98.6, status: 'normal', trend: 'stable' },
-            o2: { value: 94, status: 'warning', trend: 'down' },
-            resp: { value: 22, status: 'normal', trend: 'stable' }
-          },
-          alert: { message: 'Critical vitals detected', action: 'Immediate attention required. Contact physician if condition persists.' }
-        },
-        {
-          _id: '2', name: 'Patient 2', room: '405B', updatedAt: new Date(Date.now() - 5 * 60000),
-          vitals: {
-            bp: { systolic: 130, diastolic: 85, status: 'normal', trend: 'stable' },
-            hr: { value: 82, status: 'normal', trend: 'stable' },
-            temp: { value: 100.2, status: 'warning', trend: 'up' },
-            o2: { value: 88, status: 'critical', trend: 'down' },
-            resp: { value: 20, status: 'normal', trend: 'stable' }
-          },
-          alert: null
-        },
-        {
-          _id: '3', name: 'Patient 3', room: '201C', updatedAt: new Date(Date.now() - 8 * 60000),
-          vitals: {
-            bp: { systolic: 125, diastolic: 80, status: 'normal', trend: 'stable' },
-            hr: { value: 75, status: 'normal', trend: 'stable' },
-            temp: { value: 98.4, status: 'normal', trend: 'stable' },
-            o2: { value: 98, status: 'normal', trend: 'stable' },
-            resp: { value: 18, status: 'normal', trend: 'stable' }
-          },
-          alert: null
-        },
-        {
-          _id: '4', name: 'Patient 4', room: '308D', updatedAt: new Date(Date.now() - 12 * 60000),
-          vitals: {
-            bp: { systolic: 120, diastolic: 78, status: 'normal', trend: 'stable' },
-            hr: { value: 70, status: 'normal', trend: 'stable' },
-            temp: { value: 98.2, status: 'normal', trend: 'stable' },
-            o2: { value: 99, status: 'normal', trend: 'stable' },
-            resp: { value: 16, status: 'normal', trend: 'stable' }
-          },
-          alert: null
-        }
-      ]);
+      // Keep empty state - no mock data
+      setPatients([]);
     } finally {
       setLoading(false);
     }
@@ -106,13 +61,73 @@ const NurseVitals = () => {
     }
   };
 
-  const normalRanges = [
-    { name: 'Blood Pressure', range: '90-120 / 60-80 mmHg', color: '#3b82f6' },
-    { name: 'Heart Rate', range: '60-100 bpm', color: '#ef4444' },
-    { name: 'Temperature', range: '97.8-99.1 °F', color: '#f59e0b' },
-    { name: 'O₂ Saturation', range: '95-100 %', color: '#06b6d4' },
-    { name: 'Respiratory Rate', range: '12-20 /min', color: '#8b5cf6' }
+  // Normal ranges with min/max values for validation
+  const normalRanges = {
+    bp: { systolicMin: 90, systolicMax: 120, diastolicMin: 60, diastolicMax: 80 },
+    hr: { min: 60, max: 100 },
+    temp: { min: 97.8, max: 99.1 },
+    o2: { min: 95, max: 100 },
+    resp: { min: 12, max: 20 }
+  };
+
+  // Reference display data
+  const normalRangesDisplay = [
+    { name: 'Blood Pressure', range: '90-120 / 60-80 mmHg', color: '#3b82f6', icon: 'bp' },
+    { name: 'Heart Rate', range: '60-100 bpm', color: '#ef4444', icon: 'hr' },
+    { name: 'Temperature', range: '97.8-99.1 °F', color: '#f59e0b', icon: 'temp' },
+    { name: 'O₂ Saturation', range: '95-100 %', color: '#06b6d4', icon: 'o2' },
+    { name: 'Respiratory Rate', range: '12-20 /min', color: '#8b5cf6', icon: 'resp' }
   ];
+
+  // Check if vital is out of range
+  const isOutOfRange = (type, value, value2 = null) => {
+    switch (type) {
+      case 'bp':
+        const systolic = value;
+        const diastolic = value2;
+        return systolic < normalRanges.bp.systolicMin || systolic > normalRanges.bp.systolicMax ||
+               diastolic < normalRanges.bp.diastolicMin || diastolic > normalRanges.bp.diastolicMax;
+      case 'hr':
+        return value < normalRanges.hr.min || value > normalRanges.hr.max;
+      case 'temp':
+        return value < normalRanges.temp.min || value > normalRanges.temp.max;
+      case 'o2':
+        return value < normalRanges.o2.min || value > normalRanges.o2.max;
+      case 'resp':
+        return value < normalRanges.resp.min || value > normalRanges.resp.max;
+      default:
+        return false;
+    }
+  };
+
+  // Get warning severity based on how far out of range
+  const getWarningSeverity = (type, value, value2 = null) => {
+    if (!isOutOfRange(type, value, value2)) return 'normal';
+
+    switch (type) {
+      case 'bp': {
+        const systolic = value;
+        const diastolic = value2;
+        // Critical if very far from range
+        if (systolic < 80 || systolic > 140 || diastolic < 50 || diastolic > 100) return 'critical';
+        return 'warning';
+      }
+      case 'hr':
+        if (value < 50 || value > 120) return 'critical';
+        return 'warning';
+      case 'temp':
+        if (value < 96 || value > 101) return 'critical';
+        return 'warning';
+      case 'o2':
+        if (value < 90) return 'critical';
+        return 'warning';
+      case 'resp':
+        if (value < 8 || value > 25) return 'critical';
+        return 'warning';
+      default:
+        return 'warning';
+    }
+  };
 
   return (
     <Layout appName="NurseHub" role="nurse">
@@ -123,6 +138,12 @@ const NurseVitals = () => {
 
       {loading ? (
         <div className="loading-state">Loading vitals data...</div>
+      ) : patients.length === 0 ? (
+        <div className="empty-state">
+          <FiActivity style={{ fontSize: '48px', color: '#94a3b8', marginBottom: '16px' }} />
+          <h3>No vitals data available</h3>
+          <p>There are no patient vitals to monitor at the moment.</p>
+        </div>
       ) : (
         <>
           {/* Patients Vitals List */}
@@ -141,9 +162,12 @@ const NurseVitals = () => {
 
                 <div className="vitals-grid">
                   {/* Blood Pressure */}
-                  <div className="vital-card" style={{ background: getStatusBg(patient.vitals.bp.status) }}>
+                  <div className={`vital-card ${getWarningSeverity('bp', patient.vitals.bp.systolic, patient.vitals.bp.diastolic)}`} style={{ background: getStatusBg(patient.vitals.bp.status) }}>
                     <div className="vital-header">
                       <FiHeart style={{ color: getStatusColor(patient.vitals.bp.status) }} />
+                      {isOutOfRange('bp', patient.vitals.bp.systolic, patient.vitals.bp.diastolic) && (
+                        <FiAlertTriangle className="warning-icon" />
+                      )}
                       {getTrendIcon(patient.vitals.bp.trend)}
                     </div>
                     <span className="vital-label">Blood Pressure</span>
@@ -151,12 +175,16 @@ const NurseVitals = () => {
                       {patient.vitals.bp.systolic}/{patient.vitals.bp.diastolic}
                     </span>
                     <span className="vital-unit">mmHg</span>
+                    <span className="normal-range">Normal: 90-120/60-80</span>
                   </div>
 
                   {/* Heart Rate */}
-                  <div className="vital-card" style={{ background: getStatusBg(patient.vitals.hr.status) }}>
+                  <div className={`vital-card ${getWarningSeverity('hr', patient.vitals.hr.value)}`} style={{ background: getStatusBg(patient.vitals.hr.status) }}>
                     <div className="vital-header">
                       <FiActivity style={{ color: getStatusColor(patient.vitals.hr.status) }} />
+                      {isOutOfRange('hr', patient.vitals.hr.value) && (
+                        <FiAlertTriangle className="warning-icon" />
+                      )}
                       {getTrendIcon(patient.vitals.hr.trend)}
                     </div>
                     <span className="vital-label">Heart Rate</span>
@@ -164,12 +192,16 @@ const NurseVitals = () => {
                       {patient.vitals.hr.value}
                     </span>
                     <span className="vital-unit">bpm</span>
+                    <span className="normal-range">Normal: 60-100</span>
                   </div>
 
                   {/* Temperature */}
-                  <div className="vital-card" style={{ background: getStatusBg(patient.vitals.temp.status) }}>
+                  <div className={`vital-card ${getWarningSeverity('temp', patient.vitals.temp.value)}`} style={{ background: getStatusBg(patient.vitals.temp.status) }}>
                     <div className="vital-header">
                       <FiThermometer style={{ color: getStatusColor(patient.vitals.temp.status) }} />
+                      {isOutOfRange('temp', patient.vitals.temp.value) && (
+                        <FiAlertTriangle className="warning-icon" />
+                      )}
                       {getTrendIcon(patient.vitals.temp.trend)}
                     </div>
                     <span className="vital-label">Temperature</span>
@@ -177,12 +209,16 @@ const NurseVitals = () => {
                       {patient.vitals.temp.value}
                     </span>
                     <span className="vital-unit">°F</span>
+                    <span className="normal-range">Normal: 97.8-99.1</span>
                   </div>
 
                   {/* O2 Saturation */}
-                  <div className="vital-card" style={{ background: getStatusBg(patient.vitals.o2.status) }}>
+                  <div className={`vital-card ${getWarningSeverity('o2', patient.vitals.o2.value)}`} style={{ background: getStatusBg(patient.vitals.o2.status) }}>
                     <div className="vital-header">
                       <FiWind style={{ color: getStatusColor(patient.vitals.o2.status) }} />
+                      {isOutOfRange('o2', patient.vitals.o2.value) && (
+                        <FiAlertTriangle className="warning-icon" />
+                      )}
                       {getTrendIcon(patient.vitals.o2.trend)}
                     </div>
                     <span className="vital-label">O₂ Saturation</span>
@@ -190,12 +226,16 @@ const NurseVitals = () => {
                       {patient.vitals.o2.value}
                     </span>
                     <span className="vital-unit">%</span>
+                    <span className="normal-range">Normal: 95-100</span>
                   </div>
 
                   {/* Respiratory Rate */}
-                  <div className="vital-card" style={{ background: getStatusBg(patient.vitals.resp.status) }}>
+                  <div className={`vital-card ${getWarningSeverity('resp', patient.vitals.resp.value)}`} style={{ background: getStatusBg(patient.vitals.resp.status) }}>
                     <div className="vital-header">
                       <FiActivity style={{ color: getStatusColor(patient.vitals.resp.status) }} />
+                      {isOutOfRange('resp', patient.vitals.resp.value) && (
+                        <FiAlertTriangle className="warning-icon" />
+                      )}
                       {getTrendIcon(patient.vitals.resp.trend)}
                     </div>
                     <span className="vital-label">Resp. Rate</span>
@@ -203,6 +243,7 @@ const NurseVitals = () => {
                       {patient.vitals.resp.value}
                     </span>
                     <span className="vital-unit">/min</span>
+                    <span className="normal-range">Normal: 12-20</span>
                   </div>
                 </div>
 
@@ -225,12 +266,28 @@ const NurseVitals = () => {
 
           {/* Normal Vital Ranges Reference */}
           <div className="reference-card">
-            <h3>Normal Vital Ranges Reference</h3>
+            <div className="reference-header">
+              <h3>Normal Vital Ranges Reference</h3>
+              <div className="legend">
+                <span className="legend-item normal"><span className="dot"></span> Normal</span>
+                <span className="legend-item warning"><span className="dot"></span> Warning</span>
+                <span className="legend-item critical"><span className="dot"></span> Critical</span>
+              </div>
+            </div>
             <div className="ranges-grid">
-              {normalRanges.map((item, index) => (
+              {normalRangesDisplay.map((item, index) => (
                 <div key={index} className="range-item">
-                  <span className="range-name" style={{ color: item.color }}>{item.name}</span>
-                  <span className="range-value">{item.range}</span>
+                  <div className="range-icon" style={{ background: item.color + '20', color: item.color }}>
+                    {item.icon === 'bp' && <FiHeart />}
+                    {item.icon === 'hr' && <FiActivity />}
+                    {item.icon === 'temp' && <FiThermometer />}
+                    {item.icon === 'o2' && <FiWind />}
+                    {item.icon === 'resp' && <FiActivity />}
+                  </div>
+                  <div className="range-info">
+                    <span className="range-name">{item.name}</span>
+                    <span className="range-value">{item.range}</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -294,6 +351,53 @@ const NurseVitals = () => {
           display: flex;
           flex-direction: column;
           border: 1px solid #e2e8f0;
+          position: relative;
+          transition: all 0.3s ease;
+        }
+
+        .vital-card.warning {
+          border: 2px solid #f59e0b;
+          box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+          animation: pulse-warning 2s infinite;
+        }
+
+        .vital-card.critical {
+          border: 2px solid #ef4444;
+          box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+          animation: pulse-critical 1s infinite;
+        }
+
+        @keyframes pulse-warning {
+          0%, 100% { box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1); }
+          50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.2); }
+        }
+
+        @keyframes pulse-critical {
+          0%, 100% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15); }
+          50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.25); }
+        }
+
+        .warning-icon {
+          color: #f59e0b;
+          font-size: 0.9rem;
+          animation: blink 1s infinite;
+        }
+
+        .vital-card.critical .warning-icon {
+          color: #ef4444;
+        }
+
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+
+        .normal-range {
+          font-size: 0.65rem;
+          color: #94a3b8;
+          margin-top: 0.375rem;
+          padding-top: 0.375rem;
+          border-top: 1px dashed #e2e8f0;
         }
 
         .vital-header {
@@ -392,16 +496,48 @@ const NurseVitals = () => {
           border: 1px solid #e2e8f0;
         }
 
+        .reference-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1.25rem;
+          flex-wrap: wrap;
+          gap: 1rem;
+        }
+
         .reference-card h3 {
           font-size: 1rem;
           font-weight: 600;
           color: #1e293b;
-          margin-bottom: 1rem;
+          margin: 0;
         }
+
+        .legend {
+          display: flex;
+          gap: 1rem;
+        }
+
+        .legend-item {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+          font-size: 0.8rem;
+          color: #64748b;
+        }
+
+        .legend-item .dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+        }
+
+        .legend-item.normal .dot { background: #22c55e; }
+        .legend-item.warning .dot { background: #f59e0b; }
+        .legend-item.critical .dot { background: #ef4444; }
 
         .ranges-grid {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(5, 1fr);
           gap: 1rem;
         }
 
@@ -410,30 +546,76 @@ const NurseVitals = () => {
           border-radius: 10px;
           padding: 1rem;
           border: 1px solid #e2e8f0;
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .range-icon {
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.1rem;
+          flex-shrink: 0;
+        }
+
+        .range-info {
+          display: flex;
+          flex-direction: column;
         }
 
         .range-name {
-          display: block;
           font-weight: 600;
-          font-size: 0.9rem;
-          margin-bottom: 0.25rem;
+          font-size: 0.85rem;
+          color: #1e293b;
+          margin-bottom: 0.125rem;
         }
 
         .range-value {
-          font-size: 0.85rem;
+          font-size: 0.8rem;
           color: #64748b;
         }
 
-        .loading-state {
+        .loading-state, .empty-state {
           text-align: center;
           padding: 3rem;
           color: #94a3b8;
+        }
+
+        .empty-state {
+          background: white;
+          border-radius: 16px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 4rem 2rem;
+        }
+
+        .empty-state h3 {
+          color: #1e293b;
+          font-size: 1.25rem;
+          margin-bottom: 0.5rem;
+        }
+
+        .empty-state p {
+          color: #64748b;
+          font-size: 0.9rem;
         }
 
         @media (max-width: 1200px) {
           .vitals-grid {
             grid-template-columns: repeat(3, 1fr);
           }
+          .ranges-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+        }
+
+        @media (max-width: 900px) {
           .ranges-grid {
             grid-template-columns: repeat(2, 1fr);
           }
@@ -449,6 +631,13 @@ const NurseVitals = () => {
           .alert-banner {
             flex-direction: column;
             text-align: center;
+          }
+          .reference-header {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+          .legend {
+            flex-wrap: wrap;
           }
         }
       `}</style>

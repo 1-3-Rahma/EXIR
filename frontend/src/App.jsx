@@ -10,6 +10,7 @@ import NurseCriticalEvents from './pages/nurse/NurseCriticalEvents';
 import NurseMedications from './pages/nurse/NurseMedications';
 import NurseTasks from './pages/nurse/NurseTasks';
 import NurseMessages from './pages/nurse/NurseMessages';
+import NurseProfile from './pages/nurse/NurseProfile';
 
 import DoctorDashboard from './pages/doctor/DoctorDashboard';
 import DoctorNurses from './pages/doctor/DoctorNurses';
@@ -63,6 +64,7 @@ function App() {
       <Route path="/nurse/medications" element={<PrivateRoute allowedRoles={['nurse']}><NurseMedications /></PrivateRoute>} />
       <Route path="/nurse/tasks" element={<PrivateRoute allowedRoles={['nurse']}><NurseTasks /></PrivateRoute>} />
       <Route path="/nurse/messages" element={<PrivateRoute allowedRoles={['nurse']}><NurseMessages /></PrivateRoute>} />
+      <Route path="/nurse/profile" element={<PrivateRoute allowedRoles={['nurse']}><NurseProfile /></PrivateRoute>} />
 
       {/* Doctor Routes */}
       <Route path="/doctor" element={<PrivateRoute allowedRoles={['doctor']}><DoctorDashboard /></PrivateRoute>} />
