@@ -90,9 +90,9 @@ function App() {
       <Route path="/receptionist/billing" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistBilling /></PrivateRoute>} />
       <Route path="/receptionist/visits" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistVisits /></PrivateRoute>} />
 
-      {/* Default redirect */}
-      <Route path="/" element={<Navigate to={getDefaultRoute()} />} />
-      <Route path="*" element={<Navigate to={getDefaultRoute()} />} />
+      {/* Root always opens login; /login redirects to dashboard if already logged in */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to={getDefaultRoute()} replace />} />
     </Routes>
   );
 }
