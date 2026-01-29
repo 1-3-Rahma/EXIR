@@ -47,9 +47,14 @@ const login = async (req, res) => {
 
     res.json({
       token: generateToken(user._id, user.role),
-      role: user.role,
-      userId: user._id,
-      fullName: user.fullName
+      user: {
+        _id: user._id,
+        role: user.role,
+        fullName: user.fullName,
+        identifier: user.identifier,
+        specialization: user.specialization,
+        shift: user.shift
+      }
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -166,10 +171,13 @@ const verifyOTPAndLogin = async (req, res) => {
 
     res.json({
       token: generateToken(user._id, user.role),
-      role: user.role,
-      userId: user._id,
-      patientId: patient?._id,
-      fullName: user.fullName
+      user: {
+        _id: user._id,
+        role: user.role,
+        fullName: user.fullName,
+        identifier: user.identifier,
+        patientId: patient?._id
+      }
     });
   } catch (error) {
     console.error('Verify OTP error:', error);

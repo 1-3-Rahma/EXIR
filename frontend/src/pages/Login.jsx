@@ -28,10 +28,10 @@ const Login = () => {
 
     const result = await login(identifier, password, role);
 
-    if (result.success) {
+    if (result.success && result.user) {
       navigate(`/${result.user.role}`);
     } else {
-      setError(result.message);
+      setError(result.message || 'Login failed');
     }
 
     setLoading(false);

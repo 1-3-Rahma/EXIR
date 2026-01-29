@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import {
   FiGrid, FiUsers, FiActivity, FiAlertTriangle, FiMessageSquare,
   FiSettings, FiUser, FiLogOut, FiFileText, FiDollarSign,
-  FiCalendar, FiClipboard, FiHeart, FiFolder, FiClock
+  FiCalendar, FiClipboard, FiHeart, FiFolder, FiClock, FiPackage
 } from 'react-icons/fi';
 
 const Sidebar = ({ appName, role }) => {
@@ -23,7 +23,7 @@ const Sidebar = ({ appName, role }) => {
           { path: '/nurse', icon: FiGrid, label: 'Dashboard', exact: true },
           { path: '/nurse/patients', icon: FiUsers, label: 'Patients' },
           { path: '/nurse/vitals', icon: FiActivity, label: 'Vitals' },
-          { path: '/nurse/critical', icon: FiAlertTriangle, label: 'Priority Cases' },
+          { path: '/nurse/medications', icon: FiPackage, label: 'Medications' },
           { path: '/nurse/tasks', icon: FiClipboard, label: 'Tasks' },
           { path: '/nurse/messages', icon: FiMessageSquare, label: 'Messages' }
         ];
