@@ -5,7 +5,7 @@ const { protect } = require('../middleware/authMiddleware');
 
 router.use(protect);
 
-// Get all online/available users for chat (nurses and doctors)
+// Get all staff for chat (nurses and doctors) so they can message and call each other
 router.get('/contacts', async (req, res) => {
   try {
     const users = await User.find({
@@ -13,21 +13,25 @@ router.get('/contacts', async (req, res) => {
       role: { $in: ['nurse', 'doctor'] },
       isActive: true
     })
-    .select('fullName role shift isLoggedIn specialization')
+    .select('fullName role shift isLoggedIn specialization phone')
     .sort({ isLoggedIn: -1, fullName: 1 });
 
-    // Format contacts with online status
     const contacts = users.map(user => ({
+      _id: user._id,
       id: user._id,
+      fullName: user.fullName,
       name: user.fullName,
-      role: user.role === 'doctor' ? (user.specialization || 'Doctor') : 'Nurse',
+      role: user.role,
+      roleLabel: user.role === 'doctor' ? (user.specialization || 'Doctor') : 'Nurse',
       category: user.role === 'doctor' ? 'doctors' : 'nurses',
       status: user.isLoggedIn ? 'online' : 'offline',
+      isLoggedIn: user.isLoggedIn,
       avatar: user.fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
-      shift: user.shift
+      shift: user.shift,
+      phone: user.phone || null
     }));
 
-    res.json(contacts);
+    res.json({ data: contacts });
   } catch (error) {
     console.error('Error fetching contacts:', error);
     res.status(500).json({ message: 'Failed to fetch contacts' });
@@ -89,6 +93,7 @@ router.get('/with/:userId', async (req, res) => {
     const chat = await Chat.findOrCreateChat(req.user._id, userId);
 
     res.json({
+      _id: chat._id,
       chatId: chat._id,
       participant: {
         id: otherUser._id,

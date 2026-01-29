@@ -44,7 +44,8 @@ const NurseMessages = () => {
 
   useEffect(() => {
     if (selectedContact) {
-      fetchChatWithUser(selectedContact._id);
+      const contactId = selectedContact._id || selectedContact.id;
+      fetchChatWithUser(contactId);
 
       // Poll for new messages every 5 seconds
       if (pollIntervalRef.current) {
@@ -85,17 +86,23 @@ const NurseMessages = () => {
       setLoadingContacts(true);
       const resp = await api.get('/chat/contacts');
       const data = resp.data;
-      // Transform contacts data
-      const transformedContacts = (data.data || []).filter(c => c._id !== user?._id).map(contact => ({
-        ...contact,
-        id: contact._id,
-        name: contact.fullName,
-        avatar: contact.fullName?.charAt(0) || '?',
-        role: contact.role?.charAt(0).toUpperCase() + contact.role?.slice(1) || 'Staff',
-        status: contact.isLoggedIn ? 'online' : 'offline',
-        category: contact.role === 'doctor' ? 'doctors' : contact.role === 'nurse' ? 'nurses' : 'departments',
-        unread: 0
-      }));
+      const rawList = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+      const currentUserId = user?._id?.toString?.() || user?.id?.toString?.();
+      const transformedContacts = rawList
+        .filter(c => (c._id?.toString?.() || c.id?.toString?.()) !== currentUserId)
+        .map(contact => ({
+          ...contact,
+          _id: contact._id || contact.id,
+          id: contact._id || contact.id,
+          name: contact.name || contact.fullName || 'Unknown',
+          fullName: contact.fullName || contact.name,
+          avatar: (contact.avatar || (contact.fullName || contact.name || '?').charAt(0)).toUpperCase(),
+          role: contact.roleLabel || (contact.role ? contact.role.charAt(0).toUpperCase() + contact.role.slice(1) : 'Staff'),
+          status: contact.status || (contact.isLoggedIn ? 'online' : 'offline'),
+          category: contact.category || (contact.role === 'doctor' ? 'doctors' : contact.role === 'nurse' ? 'nurses' : 'other'),
+          unread: contact.unread ?? 0,
+          phone: contact.phone || null
+        }));
       setContacts(transformedContacts);
     } catch (error) {
       console.error('Failed to fetch contacts:', error);
@@ -106,26 +113,27 @@ const NurseMessages = () => {
   };
 
   const fetchChatWithUser = async (userId) => {
+    const id = userId?.toString?.();
+    if (!id) return;
     try {
       setLoadingMessages(true);
-      const resp = await api.get(`/chat/with/${userId}`);
+      const resp = await api.get(`/chat/with/${id}`);
       const chat = resp.data?.data || resp.data;
-      setCurrentChatId(chat._id);
+      const chatId = chat?._id || chat?.chatId;
+      setCurrentChatId(chatId);
 
-      // Transform messages
       const transformedMessages = (chat.messages || []).map(msg => ({
         id: msg._id,
         senderId: msg.senderId,
         text: msg.content,
         time: new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        isOwn: msg.senderId === user?._id || msg.senderId?._id === user?._id,
+        isOwn: (msg.senderId?.toString?.() || msg.senderId) === (user?._id?.toString?.() || user?.id?.toString?.()),
         read: msg.read
       }));
       setMessages(transformedMessages);
 
-      // Mark messages as read
-      if (chat._id) {
-        api.patch(`/chat/${chat._id}/read`).catch(err => console.error('Failed to mark as read:', err));
+      if (chatId) {
+        api.patch(`/chat/${chatId}/read`).catch(err => console.error('Failed to mark as read:', err));
       }
     } catch (error) {
       console.error('Failed to fetch chat:', error);
@@ -136,18 +144,24 @@ const NurseMessages = () => {
   };
 
   const fetchMessagesForChat = async (chatId, showLoading = true) => {
+    if (!chatId) return;
     try {
       if (showLoading) setLoadingMessages(true);
       const resp = await api.get(`/chat/${chatId}/messages`);
       const data = resp.data;
-      const transformedMessages = (data.data || data || []).map(msg => ({
-        id: msg._id,
-        senderId: msg.senderId,
-        text: msg.content,
-        time: new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        isOwn: msg.senderId === user?._id || msg.senderId?._id === user?._id,
-        read: msg.read
-      }));
+      const list = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+      const currentUserId = user?._id?.toString?.() || user?.id?.toString?.();
+      const transformedMessages = list.map(msg => {
+        const senderIdStr = msg.senderId?.toString?.() || msg.senderId?._id?.toString?.() || '';
+        return {
+          id: msg._id,
+          senderId: msg.senderId,
+          text: msg.content,
+          time: new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          isOwn: senderIdStr === currentUserId,
+          read: msg.read
+        };
+      });
       setMessages(transformedMessages);
     } catch (error) {
       console.error('Failed to fetch messages:', error);
@@ -180,7 +194,8 @@ const NurseMessages = () => {
 
     try {
       setSendingMessage(true);
-      const resp = await api.post(`/chat/send/${selectedContact._id}`, { content: messageText });
+      const contactId = selectedContact._id || selectedContact.id;
+      const resp = await api.post(`/chat/send/${contactId}`, { content: messageText });
       const data = resp.data;
 
       // Update chat ID if we didn't have one
@@ -748,8 +763,12 @@ const NurseMessages = () => {
                   </div>
                 </div>
                 <div style={styles.chatActions}>
-                  <button style={styles.actionBtn}>📞 Call</button>
-                  <button style={styles.actionBtn}>📹 Video</button>
+                  {selectedContact.phone ? (
+                    <a href={`tel:${selectedContact.phone}`} style={{ ...styles.actionBtn, textDecoration: 'none', color: 'inherit' }}>📞 Call</a>
+                  ) : (
+                    <button style={styles.actionBtn} title="No phone number on file">📞 Call</button>
+                  )}
+                  <button style={styles.actionBtn} title="Video call (coming soon)">📹 Video</button>
                 </div>
               </div>
               <div style={styles.chatMessages}>
