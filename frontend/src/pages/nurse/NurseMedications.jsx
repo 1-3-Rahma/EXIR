@@ -5,6 +5,8 @@ import {
   FiAlertTriangle, FiPackage
 } from 'react-icons/fi';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+
 const NurseMedications = () => {
   const [medications, setMedications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,12 +16,39 @@ const NurseMedications = () => {
     fetchMedications();
   }, []);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+  };
+
   const fetchMedications = async () => {
     try {
-      // API call would go here
-      // const response = await medicationAPI.getMedications();
-      // setMedications(response.data || []);
-      setMedications([]);
+      const response = await fetch(`${API_URL}/nurse/medications`, {
+        headers: getAuthHeaders()
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch medications');
+
+      const data = await response.json();
+      // Transform data to expected format
+      const meds = (data.data || []).map(med => ({
+        _id: med._id,
+        name: med.medication,
+        patient: med.patientName,
+        patientId: med.patientId,
+        room: med.room || 'N/A',
+        dosage: med.dosage,
+        frequency: med.frequency,
+        route: med.route || 'Oral',
+        status: med.status === 'active' ? 'pending' : 'given',
+        priority: med.priority || 'medium',
+        time: med.scheduledTime || 'As scheduled',
+        notes: med.notes
+      }));
+      setMedications(meds);
     } catch (error) {
       console.error('Failed to fetch medications:', error);
       setMedications([]);
@@ -58,12 +87,12 @@ const NurseMedications = () => {
   });
 
   const scheduleData = medications.map(med => ({
-    time: med.time,
-    patient: med.patient,
-    room: med.room.replace('Room ', ''),
-    medication: med.name,
-    dosage: med.dosage,
-    status: med.status
+    time: med.time || 'Scheduled',
+    patient: med.patient || 'Unknown',
+    room: (med.room || 'N/A').replace('Room ', ''),
+    medication: med.name || 'Unknown',
+    dosage: med.dosage || 'N/A',
+    status: med.status || 'pending'
   }));
 
   return (

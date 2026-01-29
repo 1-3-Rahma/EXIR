@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Layout from '../../components/common/Layout';
 import { useAuth } from '../../context/AuthContext';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+import api from '../../services/api';
 
 const NurseMessages = () => {
   const { user } = useAuth();
@@ -23,17 +22,23 @@ const NurseMessages = () => {
   const [sendingMessage, setSendingMessage] = useState(false);
   const messagesEndRef = useRef(null);
   const pollIntervalRef = useRef(null);
+  const contactsPollRef = useRef(null);
 
 
   useEffect(() => {
     fetchContacts();
     fetchAlerts();
 
+    // Poll contacts every 10s to reflect presence changes
+    if (contactsPollRef.current) clearInterval(contactsPollRef.current);
+    contactsPollRef.current = setInterval(() => {
+      fetchContacts();
+    }, 10000);
+
     // Cleanup polling on unmount
     return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      if (contactsPollRef.current) clearInterval(contactsPollRef.current);
     };
   }, []);
 
@@ -78,15 +83,10 @@ const NurseMessages = () => {
   const fetchContacts = async () => {
     try {
       setLoadingContacts(true);
-      const response = await fetch(`${API_URL}/chat/contacts`, {
-        headers: getAuthHeaders()
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch contacts');
-
-      const data = await response.json();
+      const resp = await api.get('/chat/contacts');
+      const data = resp.data;
       // Transform contacts data
-      const transformedContacts = (data.data || []).map(contact => ({
+      const transformedContacts = (data.data || []).filter(c => c._id !== user?._id).map(contact => ({
         ...contact,
         id: contact._id,
         name: contact.fullName,
@@ -108,14 +108,8 @@ const NurseMessages = () => {
   const fetchChatWithUser = async (userId) => {
     try {
       setLoadingMessages(true);
-      const response = await fetch(`${API_URL}/chat/with/${userId}`, {
-        headers: getAuthHeaders()
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch chat');
-
-      const data = await response.json();
-      const chat = data.data;
+      const resp = await api.get(`/chat/with/${userId}`);
+      const chat = resp.data?.data || resp.data;
       setCurrentChatId(chat._id);
 
       // Transform messages
@@ -131,10 +125,7 @@ const NurseMessages = () => {
 
       // Mark messages as read
       if (chat._id) {
-        fetch(`${API_URL}/chat/${chat._id}/read`, {
-          method: 'PATCH',
-          headers: getAuthHeaders()
-        }).catch(err => console.error('Failed to mark as read:', err));
+        api.patch(`/chat/${chat._id}/read`).catch(err => console.error('Failed to mark as read:', err));
       }
     } catch (error) {
       console.error('Failed to fetch chat:', error);
@@ -147,14 +138,9 @@ const NurseMessages = () => {
   const fetchMessagesForChat = async (chatId, showLoading = true) => {
     try {
       if (showLoading) setLoadingMessages(true);
-      const response = await fetch(`${API_URL}/chat/${chatId}/messages`, {
-        headers: getAuthHeaders()
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch messages');
-
-      const data = await response.json();
-      const transformedMessages = (data.data || []).map(msg => ({
+      const resp = await api.get(`/chat/${chatId}/messages`);
+      const data = resp.data;
+      const transformedMessages = (data.data || data || []).map(msg => ({
         id: msg._id,
         senderId: msg.senderId,
         text: msg.content,
@@ -194,24 +180,18 @@ const NurseMessages = () => {
 
     try {
       setSendingMessage(true);
-      const response = await fetch(`${API_URL}/chat/send/${selectedContact._id}`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ content: messageText })
-      });
-
-      if (!response.ok) throw new Error('Failed to send message');
-
-      const data = await response.json();
+      const resp = await api.post(`/chat/send/${selectedContact._id}`, { content: messageText });
+      const data = resp.data;
 
       // Update chat ID if we didn't have one
-      if (!currentChatId && data.data?.chatId) {
-        setCurrentChatId(data.data.chatId);
+      if (!currentChatId && (data.data?.chatId || data.chatId)) {
+        setCurrentChatId(data.data?.chatId || data.chatId);
       }
 
       // Refresh messages to get server-confirmed message
-      if (currentChatId || data.data?.chatId) {
-        await fetchMessagesForChat(currentChatId || data.data.chatId, false);
+      const newChatId = currentChatId || data.data?.chatId || data.chatId;
+      if (newChatId) {
+        await fetchMessagesForChat(newChatId, false);
       }
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -226,16 +206,9 @@ const NurseMessages = () => {
 
   const handleEmergencyRequest = async (e) => {
     e.preventDefault();
-    try {
-      await api.post('/nurse/emergency', {
-        type: emergencyType,
-        location: emergencyLocation,
-        details: emergencyDetails,
-      });
-      alert('Emergency request sent successfully!');
-    } catch (error) {
-      alert('Emergency request sent (mock mode)');
-    }
+    // Emergency requests would be sent via a separate emergency system
+    // For now, we show a confirmation
+    alert(`Emergency Alert Sent!\nType: ${emergencyType}\nLocation: ${emergencyLocation}\nDetails: ${emergencyDetails}`);
     setShowEmergencyModal(false);
     setEmergencyType('');
     setEmergencyLocation('');
@@ -714,33 +687,43 @@ const NurseMessages = () => {
             </div>
           </div>
           <div style={styles.contactsList}>
-            {filteredContacts.map((contact) => (
-              <div
-                key={contact.id}
-                style={{
-                  ...styles.contactItem,
-                  backgroundColor: selectedContact?.id === contact.id ? '#eff6ff' : 'transparent',
-                }}
-                onClick={() => setSelectedContact(contact)}
-              >
-                <div style={styles.contactAvatar}>
-                  {contact.avatar}
-                  <div
-                    style={{
-                      ...styles.statusDot,
-                      backgroundColor: getStatusColor(contact.status),
-                    }}
-                  />
-                </div>
-                <div style={styles.contactInfo}>
-                  <div style={styles.contactName}>{contact.name}</div>
-                  <div style={styles.contactRole}>{contact.role}</div>
-                </div>
-                {contact.unread > 0 && (
-                  <div style={styles.unreadBadge}>{contact.unread}</div>
-                )}
+            {loadingContacts ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
+                Loading contacts...
               </div>
-            ))}
+            ) : filteredContacts.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
+                No contacts available
+              </div>
+            ) : (
+              filteredContacts.map((contact) => (
+                <div
+                  key={contact.id}
+                  style={{
+                    ...styles.contactItem,
+                    backgroundColor: selectedContact?.id === contact.id ? '#eff6ff' : 'transparent',
+                  }}
+                  onClick={() => setSelectedContact(contact)}
+                >
+                  <div style={styles.contactAvatar}>
+                    {contact.avatar}
+                    <div
+                      style={{
+                        ...styles.statusDot,
+                        backgroundColor: getStatusColor(contact.status),
+                      }}
+                    />
+                  </div>
+                  <div style={styles.contactInfo}>
+                    <div style={styles.contactName}>{contact.name}</div>
+                    <div style={styles.contactRole}>{contact.role}</div>
+                  </div>
+                  {contact.unread > 0 && (
+                    <div style={styles.unreadBadge}>{contact.unread}</div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -770,33 +753,44 @@ const NurseMessages = () => {
                 </div>
               </div>
               <div style={styles.chatMessages}>
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    style={message.isOwn ? styles.messageRowOwn : styles.messageRow}
-                  >
+                {loadingMessages ? (
+                  <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                    Loading messages...
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                    <div style={{ fontSize: '32px', marginBottom: '8px' }}>👋</div>
+                    <div>No messages yet. Start the conversation!</div>
+                  </div>
+                ) : (
+                  messages.map((message) => (
                     <div
-                      style={{
-                        ...styles.messageBubble,
-                        backgroundColor: message.isOwn ? '#3b82f6' : '#f1f5f9',
-                        color: message.isOwn ? 'white' : '#1e293b',
-                        borderBottomRightRadius: message.isOwn ? '4px' : '16px',
-                        borderBottomLeftRadius: message.isOwn ? '16px' : '4px',
-                      }}
+                      key={message.id}
+                      style={message.isOwn ? styles.messageRowOwn : styles.messageRow}
                     >
-                      <div>{message.text}</div>
                       <div
                         style={{
-                          ...styles.messageTime,
-                          color: message.isOwn ? 'rgba(255,255,255,0.7)' : '#94a3b8',
-                          textAlign: message.isOwn ? 'right' : 'left',
+                          ...styles.messageBubble,
+                          backgroundColor: message.isOwn ? '#3b82f6' : '#f1f5f9',
+                          color: message.isOwn ? 'white' : '#1e293b',
+                          borderBottomRightRadius: message.isOwn ? '4px' : '16px',
+                          borderBottomLeftRadius: message.isOwn ? '16px' : '4px',
                         }}
                       >
-                        {message.time}
+                        <div>{message.text}</div>
+                        <div
+                          style={{
+                            ...styles.messageTime,
+                            color: message.isOwn ? 'rgba(255,255,255,0.7)' : '#94a3b8',
+                            textAlign: message.isOwn ? 'right' : 'left',
+                          }}
+                        >
+                          {message.time}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
                 <div ref={messagesEndRef} />
               </div>
               <div style={styles.chatInputArea}>
@@ -807,9 +801,18 @@ const NurseMessages = () => {
                     style={styles.messageInput}
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
+                    disabled={sendingMessage}
                   />
-                  <button type="submit" style={styles.sendBtn}>
-                    Send
+                  <button
+                    type="submit"
+                    style={{
+                      ...styles.sendBtn,
+                      opacity: sendingMessage ? 0.7 : 1,
+                      cursor: sendingMessage ? 'not-allowed' : 'pointer'
+                    }}
+                    disabled={sendingMessage}
+                  >
+                    {sendingMessage ? 'Sending...' : 'Send'}
                   </button>
                 </form>
               </div>

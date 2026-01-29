@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
 import { useAuth } from '../../context/AuthContext';
-import { nurseAPI, notificationAPI } from '../../services/api';
 import {
   FiUsers, FiAlertTriangle, FiClipboard,
   FiClock, FiArrowRight, FiBell, FiCheckCircle, FiInfo,
   FiAlertCircle
 } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
 const NurseDashboard = () => {
   const { user } = useAuth();
@@ -25,30 +26,59 @@ const NurseDashboard = () => {
     fetchDashboardData();
   }, []);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+  };
+
   const fetchDashboardData = async () => {
     try {
-      const [patientsRes, criticalRes, notifRes] = await Promise.all([
-        nurseAPI.getAssignedPatients(),
-        nurseAPI.getCriticalEvents(),
-        notificationAPI.getNotifications()
+      // Fetch dashboard stats, critical events, tasks, and notifications in parallel
+      const [dashboardRes, criticalRes, tasksRes, notifRes] = await Promise.all([
+        fetch(`${API_URL}/nurse/dashboard`, { headers: getAuthHeaders() }),
+        fetch(`${API_URL}/nurse/critical-events`, { headers: getAuthHeaders() }),
+        fetch(`${API_URL}/tasks`, { headers: getAuthHeaders() }),
+        fetch(`${API_URL}/notifications`, { headers: getAuthHeaders() })
       ]);
 
-      const patients = patientsRes.data || [];
-      const critical = criticalRes.data || [];
-      const notifs = notifRes.data || [];
+      const dashboardData = dashboardRes.ok ? await dashboardRes.json() : null;
+      const criticalData = criticalRes.ok ? await criticalRes.json() : [];
+      const tasksData = tasksRes.ok ? await tasksRes.json() : { data: [] };
+      const notifData = notifRes.ok ? await notifRes.json() : { data: [] };
+
+      // Get pending tasks for today
+      const pendingTasks = (tasksData.data || []).filter(t =>
+        t.status === 'pending' || t.status === 'in_progress'
+      );
 
       setStats({
-        totalPatients: patients.length,
-        urgentCases: critical.length,
-        tasksToday: 0
+        totalPatients: dashboardData?.data?.assignedPatients || 0,
+        urgentCases: dashboardData?.data?.criticalAlerts || 0,
+        tasksToday: dashboardData?.data?.pendingTasks || pendingTasks.length
       });
 
-      setUrgentCases(critical.slice(0, 3));
-      setTasks([]);
+      // Format critical events for display
+      const critical = Array.isArray(criticalData) ? criticalData : (criticalData.data || []);
+      setUrgentCases(critical.slice(0, 3).map(c => ({
+        _id: c._id,
+        patientName: c.relatedPatientId?.fullName || 'Unknown Patient',
+        room: c.room || 'N/A',
+        reason: c.message || c.title,
+        priority: c.type === 'critical' ? 'critical' : 'high',
+        createdAt: c.createdAt
+      })));
+
+      // Get today's tasks
+      setTasks(pendingTasks.slice(0, 4));
+
+      // Format notifications
+      const notifs = notifData.data || [];
       setNotifications(notifs.slice(0, 4));
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
-      // Keep empty states on error - no mock data
       setStats({ totalPatients: 0, urgentCases: 0, tasksToday: 0 });
       setUrgentCases([]);
       setTasks([]);
@@ -179,18 +209,24 @@ const NurseDashboard = () => {
                   {tasks.map((task) => (
                     <div key={task._id} className="task-card" style={{ borderLeftColor: getPriorityColor(task.priority) }}>
                       <div className="task-checkbox">
-                        <input type="checkbox" />
+                        <input type="checkbox" checked={task.status === 'completed'} readOnly />
                       </div>
                       <div className="task-info">
                         <span className="task-title">{task.title}</span>
-                        <span className="task-details">{task.patient} - Room {task.room}</span>
-                        <span className="task-time"><FiClock /> {task.time}</span>
+                        <span className="task-details">
+                          {task.patientName || 'General'}{task.room ? ` - Room ${task.room}` : ''}
+                        </span>
+                        {task.dueDate && (
+                          <span className="task-time">
+                            <FiClock /> Due: {new Date(task.dueDate).toLocaleString()}
+                          </span>
+                        )}
                       </div>
                       <div className="task-tags">
                         <span className="priority-tag" style={{ background: getPriorityColor(task.priority) }}>
                           {task.priority}
                         </span>
-                        <span className="category-tag">{task.category}</span>
+                        <span className="category-tag">{task.category || 'Task'}</span>
                       </div>
                     </div>
                   ))}
