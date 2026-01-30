@@ -9,6 +9,7 @@ const MedicalRecord = require('./MedicalRecord');
 const Billing = require('./Billing');
 const Task = require('./Task');
 const Chat = require('./Chat');
+const Appointment = require('./Appointment');
 
 module.exports = {
   User,
@@ -21,5 +22,6 @@ module.exports = {
   MedicalRecord,
   Billing,
   Task,
-  Chat
+  Chat,
+  Appointment
 };

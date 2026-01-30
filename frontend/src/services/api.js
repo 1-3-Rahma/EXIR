@@ -60,10 +60,21 @@ export const receptionistAPI = {
   registerPatient: (data) => api.post('/receptionist/register-patient', data),
   getPatient: (patientId) => api.get(`/receptionist/patient/${patientId}`),
   searchPatient: (nationalID) => api.get(`/receptionist/patient/search/${nationalID}`),
+  searchByName: (name) => api.get(`/receptionist/patient/search/name/${name}`),
+  searchByPhone: (phone) => api.get(`/receptionist/patient/search/phone/${phone}`),
   getPatientVisits: (patientId) => api.get(`/receptionist/patient/${patientId}/visits`),
   getPatientBilling: (patientId) => api.get(`/receptionist/patient/${patientId}/billing`),
   getDischargeStatus: (patientId) => api.get(`/receptionist/patient/${patientId}/discharge-status`),
-  updatePatient: (patientId, data) => api.put(`/receptionist/patient/${patientId}`, data)
+  updatePatient: (patientId, data) => api.put(`/receptionist/patient/${patientId}`, data),
+  getDashboardStats: () => api.get('/receptionist/dashboard-stats'),
+  getTodayArrivals: () => api.get('/receptionist/today-arrivals'),
+  checkInPatient: (patientId) => api.post(`/receptionist/patient/${patientId}/checkin`),
+  getAppointments: (date) => api.get('/receptionist/appointments', { params: { date } }),
+  createAppointment: (data) => api.post('/receptionist/appointments', data),
+  updateAppointment: (appointmentId, data) => api.put(`/receptionist/appointments/${appointmentId}`, data),
+  cancelAppointment: (appointmentId) => api.delete(`/receptionist/appointments/${appointmentId}`),
+  markPaymentComplete: (patientId, paymentData) => api.post(`/receptionist/patient/${patientId}/payment`, paymentData),
+  getPaymentHistory: (patientId) => api.get(`/receptionist/patient/${patientId}/payment-history`)
 };
 
 export const vitalsAPI = {

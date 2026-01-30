@@ -52,8 +52,7 @@ const Sidebar = ({ appName, role }) => {
           { path: '/receptionist/billing', icon: FiDollarSign, label: 'Billing' },
           { path: '/receptionist/visits', icon: FiClock, label: 'Visits' },
           { path: '/receptionist/appointments', icon: FiCalendar, label: 'Appointments' },
-          { path: '/receptionist/documents', icon: FiFolder, label: 'Documents' },
-          { path: '/receptionist/settings', icon: FiSettings, label: 'Settings' }
+          { path: '/receptionist/documents', icon: FiFolder, label: 'Documents' }
         ];
       default:
         return [];

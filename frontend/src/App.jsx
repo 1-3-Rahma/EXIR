@@ -26,6 +26,10 @@ import ReceptionistDashboard from './pages/receptionist/ReceptionistDashboard';
 import ReceptionistPatients from './pages/receptionist/ReceptionistPatients';
 import ReceptionistBilling from './pages/receptionist/ReceptionistBilling';
 import ReceptionistVisits from './pages/receptionist/ReceptionistVisits';
+import PatientRegistration from './pages/receptionist/PatientRegistration';
+import PatientProfile from './pages/receptionist/PatientProfile';
+import ReceptionistAppointments from './pages/receptionist/ReceptionistAppointments';
+import ReceptionistDocuments from './pages/receptionist/ReceptionistDocuments';
 
 import PrivateRoute from './components/common/PrivateRoute';
 
@@ -81,8 +85,15 @@ function App() {
       {/* Receptionist Routes */}
       <Route path="/receptionist" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistDashboard /></PrivateRoute>} />
       <Route path="/receptionist/patients" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistPatients /></PrivateRoute>} />
+      <Route path="/receptionist/patients/register" element={<PrivateRoute allowedRoles={['receptionist']}><PatientRegistration /></PrivateRoute>} />
+      <Route path="/receptionist/patients/:patientId" element={<PrivateRoute allowedRoles={['receptionist']}><PatientProfile /></PrivateRoute>} />
+      <Route path="/receptionist/patients/:patientId/billing" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistBilling /></PrivateRoute>} />
+      <Route path="/receptionist/patients/:patientId/documents" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistDocuments /></PrivateRoute>} />
       <Route path="/receptionist/billing" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistBilling /></PrivateRoute>} />
       <Route path="/receptionist/visits" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistVisits /></PrivateRoute>} />
+      <Route path="/receptionist/appointments" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistAppointments /></PrivateRoute>} />
+      <Route path="/receptionist/appointments/new" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistAppointments /></PrivateRoute>} />
+      <Route path="/receptionist/documents" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistDocuments /></PrivateRoute>} />
 
       {/* Default redirect */}
       <Route path="/" element={<Navigate to={getDefaultRoute()} />} />

@@ -31,6 +31,19 @@ const billingSchema = new mongoose.Schema({
     description: String,
     amount: Number,
     date: { type: Date, default: Date.now }
+  }],
+  paymentHistory: [{
+    amount: Number,
+    paymentMethod: {
+      type: String,
+      enum: ['cash', 'card', 'insurance', 'other'],
+      default: 'cash'
+    },
+    paidAt: { type: Date, default: Date.now },
+    receivedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    }
   }]
 }, {
   timestamps: true
