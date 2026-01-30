@@ -4,8 +4,7 @@ import {
   FiPlus, FiClock, FiCheckCircle, FiUser,
   FiX, FiEdit2, FiLoader
 } from 'react-icons/fi';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+import api from '../../services/api';
 
 const NurseTasks = () => {
   const [tasks, setTasks] = useState([]);
@@ -25,19 +24,8 @@ const NurseTasks = () => {
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/tasks`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch tasks');
-      }
-
-      const data = await response.json();
-      setTasks(data.data || []);
+      const response = await api.get('/tasks');
+      setTasks(response.data?.data || response.data || []);
     } catch (err) {
       console.error('Error fetching tasks:', err);
       setError(err.message);
@@ -59,37 +47,34 @@ const NurseTasks = () => {
 
     try {
       setSubmitting(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/tasks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          title: newTask.title,
-          patientName: newTask.patientName || null,
-          room: newTask.room || null,
-          priority: newTask.priority,
-          category: newTask.category,
-          dueDate: newTask.dueDate || null,
-          notes: newTask.notes || ''
-        })
-      });
+      const payload = {
+        title: newTask.title,
+        patientName: newTask.patientName || null,
+        room: newTask.room || null,
+        priority: newTask.priority,
+        category: newTask.category,
+        dueDate: newTask.dueDate || null,
+        notes: newTask.notes || ''
+      };
 
-      if (!response.ok) {
-        throw new Error('Failed to create task');
+      const response = await api.post('/tasks', payload);
+      const created = response.data?.data || response.data;
+
+      if (created && created._id) {
+        setTasks(prev => [created, ...prev]);
+      } else {
+        // fallback: refresh list
+        await fetchTasks();
       }
 
-      const data = await response.json();
-      setTasks(prev => [data.data, ...prev]);
       setShowNewTaskModal(false);
-      setNewTask({
-        title: '', patientName: '', room: '', priority: 'medium', category: 'Medication', dueDate: '', notes: ''
-      });
+      setNewTask({ title: '', patientName: '', room: '', priority: 'medium', category: 'Medication', dueDate: '', notes: '' });
     } catch (err) {
       console.error('Error creating task:', err);
-      alert('Failed to create task. Please try again.');
+      const msg = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to create task';
+      setError(msg);
+      // show inline modal error and alert for visibility
+      alert(msg);
     } finally {
       setSubmitting(false);
     }
@@ -112,24 +97,15 @@ const NurseTasks = () => {
 
   const handleCompleteTask = async (id) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/tasks/${id}/complete`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to complete task');
-      }
-
-      setTasks(tasks.map(task =>
-        task._id === id ? { ...task, status: 'completed', completedAt: new Date() } : task
+      await api.patch(`/tasks/${id}/complete`);
+      setTasks(prev => prev.map(task =>
+        task._id === id ? { ...task, status: 'completed', completedAt: new Date().toISOString() } : task
       ));
     } catch (err) {
       console.error('Error completing task:', err);
-      alert('Failed to complete task. Please try again.');
+      const msg = err.response?.data?.message || err.message || 'Failed to complete task';
+      setError(msg);
+      alert(msg);
     }
   };
 

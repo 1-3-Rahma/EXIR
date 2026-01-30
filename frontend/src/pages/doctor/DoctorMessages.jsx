@@ -3,7 +3,7 @@ import Layout from '../../components/common/Layout';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 
-const NurseMessages = () => {
+const DoctorMessages = () => {
   const { user } = useAuth();
   const [contacts, setContacts] = useState([]);
   const [selectedContact, setSelectedContact] = useState(null);
@@ -24,18 +24,15 @@ const NurseMessages = () => {
   const pollIntervalRef = useRef(null);
   const contactsPollRef = useRef(null);
 
-
   useEffect(() => {
     fetchContacts();
     fetchAlerts();
 
-    // Poll contacts every 10s to reflect presence changes
     if (contactsPollRef.current) clearInterval(contactsPollRef.current);
     contactsPollRef.current = setInterval(() => {
       fetchContacts();
     }, 10000);
 
-    // Cleanup polling on unmount
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       if (contactsPollRef.current) clearInterval(contactsPollRef.current);
@@ -47,7 +44,6 @@ const NurseMessages = () => {
       const contactId = selectedContact._id || selectedContact.id;
       fetchChatWithUser(contactId);
 
-      // Poll for new messages every 5 seconds
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
       }
@@ -71,14 +67,6 @@ const NurseMessages = () => {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('token');
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    };
   };
 
   const fetchContacts = async () => {
@@ -171,7 +159,6 @@ const NurseMessages = () => {
   };
 
   const fetchAlerts = async () => {
-    // Alerts are not persisted in our current implementation
     setAlerts([]);
   };
 
@@ -182,7 +169,6 @@ const NurseMessages = () => {
     const messageText = newMessage;
     setNewMessage('');
 
-    // Optimistic update
     const optimisticMessage = {
       id: Date.now(),
       senderId: user?._id,
@@ -198,21 +184,18 @@ const NurseMessages = () => {
       const resp = await api.post(`/chat/send/${contactId}`, { content: messageText });
       const data = resp.data;
 
-      // Update chat ID if we didn't have one
       if (!currentChatId && (data.data?.chatId || data.chatId)) {
         setCurrentChatId(data.data?.chatId || data.chatId);
       }
 
-      // Refresh messages to get server-confirmed message
       const newChatId = currentChatId || data.data?.chatId || data.chatId;
       if (newChatId) {
         await fetchMessagesForChat(newChatId, false);
       }
     } catch (error) {
       console.error('Failed to send message:', error);
-      // Remove optimistic message on failure
       setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
-      setNewMessage(messageText); // Restore the message
+      setNewMessage(messageText);
       alert('Failed to send message. Please try again.');
     } finally {
       setSendingMessage(false);
@@ -221,8 +204,6 @@ const NurseMessages = () => {
 
   const handleEmergencyRequest = async (e) => {
     e.preventDefault();
-    // Emergency requests would be sent via a separate emergency system
-    // For now, we show a confirmation
     alert(`Emergency Alert Sent!\nType: ${emergencyType}\nLocation: ${emergencyLocation}\nDetails: ${emergencyDetails}`);
     setShowEmergencyModal(false);
     setEmergencyType('');
@@ -264,413 +245,72 @@ const NurseMessages = () => {
   };
 
   const styles = {
-    container: {
-      padding: '24px',
-      backgroundColor: '#f8fafc',
-      minHeight: 'calc(100vh - 64px)',
-    },
-    header: {
-      marginBottom: '24px',
-    },
-    title: {
-      fontSize: '28px',
-      fontWeight: '700',
-      color: '#1e293b',
-      margin: 0,
-    },
-    subtitle: {
-      color: '#64748b',
-      margin: '4px 0 0 0',
-    },
-    mainGrid: {
-      display: 'grid',
-      gridTemplateColumns: '320px 1fr 300px',
-      gap: '24px',
-      height: 'calc(100vh - 180px)',
-    },
-    // Contacts Panel
-    contactsPanel: {
-      backgroundColor: 'white',
-      borderRadius: '16px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-    },
-    contactsHeader: {
-      padding: '20px',
-      borderBottom: '1px solid #e2e8f0',
-    },
-    searchInput: {
-      width: '100%',
-      padding: '12px 16px',
-      border: '1px solid #e2e8f0',
-      borderRadius: '12px',
-      fontSize: '14px',
-      marginBottom: '12px',
-      outline: 'none',
-    },
-    filterTabs: {
-      display: 'flex',
-      gap: '8px',
-    },
-    filterTab: {
-      padding: '8px 12px',
-      border: 'none',
-      borderRadius: '20px',
-      fontSize: '12px',
-      fontWeight: '500',
-      cursor: 'pointer',
-      transition: 'all 0.2s',
-    },
-    contactsList: {
-      flex: 1,
-      overflowY: 'auto',
-      padding: '12px',
-    },
-    contactItem: {
-      display: 'flex',
-      alignItems: 'center',
-      padding: '12px',
-      borderRadius: '12px',
-      cursor: 'pointer',
-      marginBottom: '4px',
-      transition: 'all 0.2s',
-    },
-    contactAvatar: {
-      width: '48px',
-      height: '48px',
-      borderRadius: '50%',
-      backgroundColor: '#3b82f6',
-      color: 'white',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontWeight: '600',
-      fontSize: '14px',
-      marginRight: '12px',
-      position: 'relative',
-    },
-    statusDot: {
-      position: 'absolute',
-      bottom: '2px',
-      right: '2px',
-      width: '12px',
-      height: '12px',
-      borderRadius: '50%',
-      border: '2px solid white',
-    },
-    contactInfo: {
-      flex: 1,
-    },
-    contactName: {
-      fontWeight: '600',
-      color: '#1e293b',
-      fontSize: '14px',
-      marginBottom: '2px',
-    },
-    contactRole: {
-      color: '#64748b',
-      fontSize: '12px',
-    },
-    unreadBadge: {
-      backgroundColor: '#ef4444',
-      color: 'white',
-      borderRadius: '50%',
-      width: '20px',
-      height: '20px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '11px',
-      fontWeight: '600',
-    },
-    // Chat Panel
-    chatPanel: {
-      backgroundColor: 'white',
-      borderRadius: '16px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-    },
-    chatHeader: {
-      padding: '16px 20px',
-      borderBottom: '1px solid #e2e8f0',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    chatHeaderInfo: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-    },
-    chatActions: {
-      display: 'flex',
-      gap: '8px',
-    },
-    actionBtn: {
-      padding: '8px 12px',
-      border: '1px solid #e2e8f0',
-      borderRadius: '8px',
-      backgroundColor: 'white',
-      cursor: 'pointer',
-      fontSize: '14px',
-      transition: 'all 0.2s',
-    },
-    chatMessages: {
-      flex: 1,
-      overflowY: 'auto',
-      padding: '20px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '12px',
-    },
-    emptyChat: {
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: '#94a3b8',
-    },
-    messageRow: {
-      display: 'flex',
-      justifyContent: 'flex-start',
-    },
-    messageRowOwn: {
-      display: 'flex',
-      justifyContent: 'flex-end',
-    },
-    messageBubble: {
-      maxWidth: '70%',
-      padding: '12px 16px',
-      borderRadius: '16px',
-      fontSize: '14px',
-      lineHeight: '1.5',
-    },
-    messageTime: {
-      fontSize: '11px',
-      marginTop: '4px',
-    },
-    chatInputArea: {
-      padding: '16px 20px',
-      borderTop: '1px solid #e2e8f0',
-    },
-    chatForm: {
-      display: 'flex',
-      gap: '12px',
-    },
-    messageInput: {
-      flex: 1,
-      padding: '12px 16px',
-      border: '1px solid #e2e8f0',
-      borderRadius: '24px',
-      fontSize: '14px',
-      outline: 'none',
-    },
-    sendBtn: {
-      padding: '12px 24px',
-      backgroundColor: '#3b82f6',
-      color: 'white',
-      border: 'none',
-      borderRadius: '24px',
-      fontWeight: '600',
-      cursor: 'pointer',
-      transition: 'all 0.2s',
-    },
-    // Right Panel
-    rightPanel: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '16px',
-    },
-    quickActions: {
-      backgroundColor: 'white',
-      borderRadius: '16px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-      padding: '20px',
-    },
-    sectionTitle: {
-      fontSize: '16px',
-      fontWeight: '600',
-      color: '#1e293b',
-      marginBottom: '16px',
-    },
-    quickActionBtns: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '8px',
-    },
-    quickActionBtn: {
-      padding: '12px 16px',
-      border: '1px solid #e2e8f0',
-      borderRadius: '12px',
-      backgroundColor: 'white',
-      cursor: 'pointer',
-      fontSize: '14px',
-      fontWeight: '500',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-      transition: 'all 0.2s',
-    },
-    emergencyBtn: {
-      padding: '14px 16px',
-      backgroundColor: '#ef4444',
-      color: 'white',
-      border: 'none',
-      borderRadius: '12px',
-      cursor: 'pointer',
-      fontSize: '14px',
-      fontWeight: '600',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '8px',
-      marginTop: '8px',
-      transition: 'all 0.2s',
-    },
-    alertsSection: {
-      flex: 1,
-      backgroundColor: 'white',
-      borderRadius: '16px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-      padding: '20px',
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column',
-    },
-    alertsList: {
-      flex: 1,
-      overflowY: 'auto',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '8px',
-    },
-    alertItem: {
-      padding: '12px',
-      borderRadius: '10px',
-      display: 'flex',
-      gap: '10px',
-    },
-    alertContent: {
-      flex: 1,
-    },
-    alertTitle: {
-      fontSize: '13px',
-      fontWeight: '500',
-      color: '#1e293b',
-      marginBottom: '2px',
-    },
-    alertTime: {
-      fontSize: '11px',
-      color: '#64748b',
-    },
-    // Modal
-    modalOverlay: {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-    },
-    modal: {
-      backgroundColor: 'white',
-      borderRadius: '20px',
-      padding: '24px',
-      width: '90%',
-      maxWidth: '450px',
-      boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-    },
-    modalHeader: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: '20px',
-    },
-    modalTitle: {
-      fontSize: '20px',
-      fontWeight: '700',
-      color: '#ef4444',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-    },
-    closeBtn: {
-      background: 'none',
-      border: 'none',
-      fontSize: '24px',
-      cursor: 'pointer',
-      color: '#64748b',
-    },
-    formGroup: {
-      marginBottom: '16px',
-    },
-    label: {
-      display: 'block',
-      marginBottom: '6px',
-      fontWeight: '500',
-      color: '#374151',
-      fontSize: '14px',
-    },
-    select: {
-      width: '100%',
-      padding: '12px',
-      border: '1px solid #e2e8f0',
-      borderRadius: '10px',
-      fontSize: '14px',
-      outline: 'none',
-    },
-    input: {
-      width: '100%',
-      padding: '12px',
-      border: '1px solid #e2e8f0',
-      borderRadius: '10px',
-      fontSize: '14px',
-      outline: 'none',
-      boxSizing: 'border-box',
-    },
-    textarea: {
-      width: '100%',
-      padding: '12px',
-      border: '1px solid #e2e8f0',
-      borderRadius: '10px',
-      fontSize: '14px',
-      outline: 'none',
-      resize: 'vertical',
-      minHeight: '100px',
-      boxSizing: 'border-box',
-    },
-    submitEmergencyBtn: {
-      width: '100%',
-      padding: '14px',
-      backgroundColor: '#ef4444',
-      color: 'white',
-      border: 'none',
-      borderRadius: '10px',
-      fontSize: '16px',
-      fontWeight: '600',
-      cursor: 'pointer',
-      marginTop: '8px',
-    },
+    container: { padding: '24px', backgroundColor: '#f8fafc', minHeight: 'calc(100vh - 64px)' },
+    header: { marginBottom: '24px' },
+    title: { fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: 0 },
+    subtitle: { color: '#64748b', margin: '4px 0 0 0' },
+    mainGrid: { display: 'grid', gridTemplateColumns: '320px 1fr 300px', gap: '24px', height: 'calc(100vh - 180px)' },
+    contactsPanel: { backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+    contactsHeader: { padding: '20px', borderBottom: '1px solid #e2e8f0' },
+    searchInput: { width: '100%', padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '14px', marginBottom: '12px', outline: 'none' },
+    filterTabs: { display: 'flex', gap: '8px' },
+    filterTab: { padding: '8px 12px', border: 'none', borderRadius: '20px', fontSize: '12px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.2s' },
+    contactsList: { flex: 1, overflowY: 'auto', padding: '12px' },
+    contactItem: { display: 'flex', alignItems: 'center', padding: '12px', borderRadius: '12px', cursor: 'pointer', marginBottom: '4px', transition: 'all 0.2s' },
+    contactAvatar: { width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#0ea5e9', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', fontSize: '14px', marginRight: '12px', position: 'relative' },
+    statusDot: { position: 'absolute', bottom: '2px', right: '2px', width: '12px', height: '12px', borderRadius: '50%', border: '2px solid white' },
+    contactInfo: { flex: 1 },
+    contactName: { fontWeight: '600', color: '#1e293b', fontSize: '14px', marginBottom: '2px' },
+    contactRole: { color: '#64748b', fontSize: '12px' },
+    unreadBadge: { backgroundColor: '#ef4444', color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '600' },
+    chatPanel: { backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+    chatHeader: { padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+    chatHeaderInfo: { display: 'flex', alignItems: 'center', gap: '12px' },
+    chatActions: { display: 'flex', gap: '8px' },
+    actionBtn: { padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px', transition: 'all 0.2s' },
+    chatMessages: { flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' },
+    emptyChat: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' },
+    messageRow: { display: 'flex', justifyContent: 'flex-start' },
+    messageRowOwn: { display: 'flex', justifyContent: 'flex-end' },
+    messageBubble: { maxWidth: '70%', padding: '12px 16px', borderRadius: '16px', fontSize: '14px', lineHeight: '1.5' },
+    messageTime: { fontSize: '11px', marginTop: '4px' },
+    chatInputArea: { padding: '16px 20px', borderTop: '1px solid #e2e8f0' },
+    chatForm: { display: 'flex', gap: '12px' },
+    messageInput: { flex: 1, padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: '24px', fontSize: '14px', outline: 'none' },
+    sendBtn: { padding: '12px 24px', backgroundColor: '#0ea5e9', color: 'white', border: 'none', borderRadius: '24px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' },
+    rightPanel: { display: 'flex', flexDirection: 'column', gap: '16px' },
+    quickActions: { backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '20px' },
+    sectionTitle: { fontSize: '16px', fontWeight: '600', color: '#1e293b', marginBottom: '16px' },
+    quickActionBtns: { display: 'flex', flexDirection: 'column', gap: '8px' },
+    quickActionBtn: { padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: '12px', backgroundColor: 'white', cursor: 'pointer', fontSize: '14px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.2s' },
+    emergencyBtn: { padding: '14px 16px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '8px', transition: 'all 0.2s' },
+    alertsSection: { flex: 1, backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '20px', overflow: 'hidden', display: 'flex', flexDirection: 'column' },
+    alertsList: { flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' },
+    alertItem: { padding: '12px', borderRadius: '10px', display: 'flex', gap: '10px' },
+    alertContent: { flex: 1 },
+    alertTitle: { fontSize: '13px', fontWeight: '500', color: '#1e293b', marginBottom: '2px' },
+    alertTime: { fontSize: '11px', color: '#64748b' },
+    modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+    modal: { backgroundColor: 'white', borderRadius: '20px', padding: '24px', width: '90%', maxWidth: '450px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' },
+    modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
+    modalTitle: { fontSize: '20px', fontWeight: '700', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px' },
+    closeBtn: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b' },
+    formGroup: { marginBottom: '16px' },
+    label: { display: 'block', marginBottom: '6px', fontWeight: '500', color: '#374151', fontSize: '14px' },
+    select: { width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', outline: 'none' },
+    input: { width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' },
+    textarea: { width: '100%', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '14px', outline: 'none', resize: 'vertical', minHeight: '100px', boxSizing: 'border-box' },
+    submitEmergencyBtn: { width: '100%', padding: '14px', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '10px', fontSize: '16px', fontWeight: '600', cursor: 'pointer', marginTop: '8px' },
   };
 
   return (
-    <Layout appName="NurseHub" role="nurse">
+    <Layout appName="EXIR" role="doctor">
       <div style={styles.header}>
         <h1 style={styles.title}>Messages & Communication</h1>
-        <p style={styles.subtitle}>Stay connected with your team</p>
+        <p style={styles.subtitle}>Message nurses and colleagues</p>
       </div>
 
       <div style={styles.mainGrid}>
-        {/* Contacts Panel */}
         <div style={styles.contactsPanel}>
           <div style={styles.contactsHeader}>
             <input
@@ -691,7 +331,7 @@ const NurseMessages = () => {
                   key={tab.key}
                   style={{
                     ...styles.filterTab,
-                    backgroundColor: filterCategory === tab.key ? '#3b82f6' : '#f1f5f9',
+                    backgroundColor: filterCategory === tab.key ? '#0ea5e9' : '#f1f5f9',
                     color: filterCategory === tab.key ? 'white' : '#64748b',
                   }}
                   onClick={() => setFilterCategory(tab.key)}
@@ -703,46 +343,34 @@ const NurseMessages = () => {
           </div>
           <div style={styles.contactsList}>
             {loadingContacts ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
-                Loading contacts...
-              </div>
+              <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>Loading contacts...</div>
             ) : filteredContacts.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
-                No contacts available
-              </div>
+              <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>No contacts available</div>
             ) : (
               filteredContacts.map((contact) => (
                 <div
                   key={contact.id}
                   style={{
                     ...styles.contactItem,
-                    backgroundColor: selectedContact?.id === contact.id ? '#eff6ff' : 'transparent',
+                    backgroundColor: selectedContact?.id === contact.id ? '#e0f2fe' : 'transparent',
                   }}
                   onClick={() => setSelectedContact(contact)}
                 >
                   <div style={styles.contactAvatar}>
                     {contact.avatar}
-                    <div
-                      style={{
-                        ...styles.statusDot,
-                        backgroundColor: getStatusColor(contact.status),
-                      }}
-                    />
+                    <div style={{ ...styles.statusDot, backgroundColor: getStatusColor(contact.status) }} />
                   </div>
                   <div style={styles.contactInfo}>
                     <div style={styles.contactName}>{contact.name}</div>
                     <div style={styles.contactRole}>{contact.role}</div>
                   </div>
-                  {contact.unread > 0 && (
-                    <div style={styles.unreadBadge}>{contact.unread}</div>
-                  )}
+                  {contact.unread > 0 && <div style={styles.unreadBadge}>{contact.unread}</div>}
                 </div>
               ))
             )}
           </div>
         </div>
 
-        {/* Chat Panel */}
         <div style={styles.chatPanel}>
           {selectedContact ? (
             <>
@@ -750,12 +378,7 @@ const NurseMessages = () => {
                 <div style={styles.chatHeaderInfo}>
                   <div style={{ ...styles.contactAvatar, marginRight: 0 }}>
                     {selectedContact.avatar}
-                    <div
-                      style={{
-                        ...styles.statusDot,
-                        backgroundColor: getStatusColor(selectedContact.status),
-                      }}
-                    />
+                    <div style={{ ...styles.statusDot, backgroundColor: getStatusColor(selectedContact.status) }} />
                   </div>
                   <div>
                     <div style={styles.contactName}>{selectedContact.name}</div>
@@ -773,9 +396,7 @@ const NurseMessages = () => {
               </div>
               <div style={styles.chatMessages}>
                 {loadingMessages ? (
-                  <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                    Loading messages...
-                  </div>
+                  <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Loading messages...</div>
                 ) : messages.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
                     <div style={{ fontSize: '32px', marginBottom: '8px' }}>👋</div>
@@ -783,27 +404,18 @@ const NurseMessages = () => {
                   </div>
                 ) : (
                   messages.map((message) => (
-                    <div
-                      key={message.id}
-                      style={message.isOwn ? styles.messageRowOwn : styles.messageRow}
-                    >
+                    <div key={message.id} style={message.isOwn ? styles.messageRowOwn : styles.messageRow}>
                       <div
                         style={{
                           ...styles.messageBubble,
-                          backgroundColor: message.isOwn ? '#3b82f6' : '#f1f5f9',
+                          backgroundColor: message.isOwn ? '#0ea5e9' : '#f1f5f9',
                           color: message.isOwn ? 'white' : '#1e293b',
                           borderBottomRightRadius: message.isOwn ? '4px' : '16px',
                           borderBottomLeftRadius: message.isOwn ? '16px' : '4px',
                         }}
                       >
                         <div>{message.text}</div>
-                        <div
-                          style={{
-                            ...styles.messageTime,
-                            color: message.isOwn ? 'rgba(255,255,255,0.7)' : '#94a3b8',
-                            textAlign: message.isOwn ? 'right' : 'left',
-                          }}
-                        >
+                        <div style={{ ...styles.messageTime, color: message.isOwn ? 'rgba(255,255,255,0.7)' : '#94a3b8', textAlign: message.isOwn ? 'right' : 'left' }}>
                           {message.time}
                         </div>
                       </div>
@@ -824,11 +436,7 @@ const NurseMessages = () => {
                   />
                   <button
                     type="submit"
-                    style={{
-                      ...styles.sendBtn,
-                      opacity: sendingMessage ? 0.7 : 1,
-                      cursor: sendingMessage ? 'not-allowed' : 'pointer'
-                    }}
+                    style={{ ...styles.sendBtn, opacity: sendingMessage ? 0.7 : 1, cursor: sendingMessage ? 'not-allowed' : 'pointer' }}
                     disabled={sendingMessage}
                   >
                     {sendingMessage ? 'Sending...' : 'Send'}
@@ -839,53 +447,29 @@ const NurseMessages = () => {
           ) : (
             <div style={styles.emptyChat}>
               <div style={{ fontSize: '64px', marginBottom: '16px' }}>💬</div>
-              <div style={{ fontSize: '18px', fontWeight: '500', marginBottom: '8px' }}>
-                Select a conversation
-              </div>
-              <div style={{ fontSize: '14px' }}>
-                Choose a contact to start messaging
-              </div>
+              <div style={{ fontSize: '18px', fontWeight: '500', marginBottom: '8px' }}>Select a conversation</div>
+              <div style={{ fontSize: '14px' }}>Choose a nurse or colleague to message</div>
             </div>
           )}
         </div>
 
-        {/* Right Panel */}
         <div style={styles.rightPanel}>
-          {/* Quick Actions */}
           <div style={styles.quickActions}>
             <h3 style={styles.sectionTitle}>Quick Actions</h3>
             <div style={styles.quickActionBtns}>
-              <button style={styles.quickActionBtn}>
-                <span>👥</span> Group Chat
-              </button>
-              <button style={styles.quickActionBtn}>
-                <span>📋</span> Call Directory
-              </button>
-              <button style={styles.quickActionBtn}>
-                <span>📢</span> Broadcast Message
-              </button>
-              <button
-                style={styles.emergencyBtn}
-                onClick={() => setShowEmergencyModal(true)}
-              >
+              <button style={styles.quickActionBtn}><span>👥</span> Group Chat</button>
+              <button style={styles.quickActionBtn}><span>📋</span> Call Directory</button>
+              <button style={styles.quickActionBtn}><span>📢</span> Broadcast Message</button>
+              <button style={styles.emergencyBtn} onClick={() => setShowEmergencyModal(true)}>
                 <span>🚨</span> Emergency Request
               </button>
             </div>
           </div>
-
-          {/* Alerts Section */}
           <div style={styles.alertsSection}>
             <h3 style={styles.sectionTitle}>Recent Updates & Alerts</h3>
             <div style={styles.alertsList}>
               {alerts.map((alert) => (
-                <div
-                  key={alert.id}
-                  style={{
-                    ...styles.alertItem,
-                    backgroundColor: getAlertColor(alert.type),
-                    opacity: alert.read ? 0.7 : 1,
-                  }}
-                >
+                <div key={alert.id} style={{ ...styles.alertItem, backgroundColor: getAlertColor(alert.type), opacity: alert.read ? 0.7 : 1 }}>
                   <span style={{ fontSize: '18px' }}>{getAlertIcon(alert.type)}</span>
                   <div style={styles.alertContent}>
                     <div style={styles.alertTitle}>{alert.title}</div>
@@ -898,27 +482,17 @@ const NurseMessages = () => {
         </div>
       </div>
 
-      {/* Emergency Modal */}
       {showEmergencyModal && (
         <div style={styles.modalOverlay} onClick={() => setShowEmergencyModal(false)}>
           <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div style={styles.modalHeader}>
-              <h2 style={styles.modalTitle}>
-                <span>🚨</span> Emergency Request
-              </h2>
-              <button style={styles.closeBtn} onClick={() => setShowEmergencyModal(false)}>
-                &times;
-              </button>
+              <h2 style={styles.modalTitle}><span>🚨</span> Emergency Request</h2>
+              <button style={styles.closeBtn} onClick={() => setShowEmergencyModal(false)}>&times;</button>
             </div>
             <form onSubmit={handleEmergencyRequest}>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Emergency Type *</label>
-                <select
-                  style={styles.select}
-                  value={emergencyType}
-                  onChange={(e) => setEmergencyType(e.target.value)}
-                  required
-                >
+                <select style={styles.select} value={emergencyType} onChange={(e) => setEmergencyType(e.target.value)} required>
                   <option value="">Select type</option>
                   <option value="code_blue">Code Blue - Cardiac Arrest</option>
                   <option value="code_red">Code Red - Fire</option>
@@ -931,27 +505,13 @@ const NurseMessages = () => {
               </div>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Location *</label>
-                <input
-                  type="text"
-                  style={styles.input}
-                  placeholder="e.g., Room 305, ICU Ward"
-                  value={emergencyLocation}
-                  onChange={(e) => setEmergencyLocation(e.target.value)}
-                  required
-                />
+                <input type="text" style={styles.input} placeholder="e.g., Room 305, ICU Ward" value={emergencyLocation} onChange={(e) => setEmergencyLocation(e.target.value)} required />
               </div>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Details</label>
-                <textarea
-                  style={styles.textarea}
-                  placeholder="Provide any additional details..."
-                  value={emergencyDetails}
-                  onChange={(e) => setEmergencyDetails(e.target.value)}
-                />
+                <textarea style={styles.textarea} placeholder="Provide any additional details..." value={emergencyDetails} onChange={(e) => setEmergencyDetails(e.target.value)} />
               </div>
-              <button type="submit" style={styles.submitEmergencyBtn}>
-                Send Emergency Alert
-              </button>
+              <button type="submit" style={styles.submitEmergencyBtn}>Send Emergency Alert</button>
             </form>
           </div>
         </div>
@@ -960,4 +520,4 @@ const NurseMessages = () => {
   );
 };
 
-export default NurseMessages;
+export default DoctorMessages;

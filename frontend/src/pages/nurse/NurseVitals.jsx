@@ -1,27 +1,40 @@
 import { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
-import { nurseAPI } from '../../services/api';
 import {
   FiHeart, FiActivity, FiThermometer, FiWind,
   FiAlertTriangle, FiTrendingUp, FiTrendingDown, FiMinus, FiClock
 } from 'react-icons/fi';
 
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+
 const NurseVitals = () => {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPatient, setSelectedPatient] = useState(null);
 
   useEffect(() => {
     fetchVitalsData();
   }, []);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+  };
+
   const fetchVitalsData = async () => {
     try {
-      const response = await nurseAPI.getVitalsOverview();
-      setPatients(response.data || []);
+      const response = await fetch(`${API_URL}/nurse/vitals-formatted`, {
+        headers: getAuthHeaders()
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch vitals');
+
+      const data = await response.json();
+      setPatients(data.data || []);
     } catch (error) {
       console.error('Failed to fetch vitals:', error);
-      // Keep empty state - no mock data
       setPatients([]);
     } finally {
       setLoading(false);
@@ -143,9 +156,75 @@ const NurseVitals = () => {
           <FiActivity style={{ fontSize: '48px', color: '#94a3b8', marginBottom: '16px' }} />
           <h3>No vitals data available</h3>
           <p>There are no patient vitals to monitor at the moment.</p>
+          {/* Show normal ranges reference when no data */}
+          <div className="text-reference" style={{ marginTop: '16px' }}>
+            <h3 className="reference-title">Normal Vital Ranges Reference</h3>
+            <hr />
+            <h4>Blood Pressure</h4>
+            <p>90-120 / 60-80 mmHg</p>
+
+            <h4>Heart Rate</h4>
+            <p>60-100 bpm</p>
+
+            <h4>Temperature</h4>
+            <p>97.8-99.1 °F</p>
+
+            <h4>O₂ Saturation</h4>
+            <p>95-100 %</p>
+
+            <h4>Respiratory Rate</h4>
+            <p>12-20 /min</p>
+          </div>
         </div>
       ) : (
         <>
+          {/* Normal Vital Ranges Reference */}
+          <div className="reference-card">
+              <div className="reference-header">
+                <h3>Normal Vital Ranges Reference</h3>
+                <div className="legend">
+                  <span className="legend-item normal"><span className="dot"></span> Normal</span>
+                  <span className="legend-item warning"><span className="dot"></span> Warning</span>
+                  <span className="legend-item critical"><span className="dot"></span> Critical</span>
+                </div>
+              </div>
+
+            <div className="text-reference">
+              <h4>Blood Pressure</h4>
+              <p>90-120 / 60-80 mmHg</p>
+
+              <h4>Heart Rate</h4>
+              <p>60-100 bpm</p>
+
+              <h4>Temperature</h4>
+              <p>97.8-99.1 °F</p>
+
+              <h4>O₂ Saturation</h4>
+              <p>95-100 %</p>
+
+              <h4>Respiratory Rate</h4>
+              <p>12-20 /min</p>
+            </div>
+
+            <div className="ranges-grid">
+              {normalRangesDisplay.map((item, index) => (
+                <div key={index} className="range-item">
+                  <div className="range-icon" style={{ background: item.color + '20', color: item.color }}>
+                    {item.icon === 'bp' && <FiHeart />}
+                    {item.icon === 'hr' && <FiActivity />}
+                    {item.icon === 'temp' && <FiThermometer />}
+                    {item.icon === 'o2' && <FiWind />}
+                    {item.icon === 'resp' && <FiActivity />}
+                  </div>
+                  <div className="range-info">
+                    <span className="range-name">{item.name}</span>
+                    <span className="range-value">{item.range}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Patients Vitals List */}
           <div className="vitals-list">
             {patients.map((patient) => (
@@ -264,38 +343,65 @@ const NurseVitals = () => {
             ))}
           </div>
 
-          {/* Normal Vital Ranges Reference */}
-          <div className="reference-card">
-            <div className="reference-header">
-              <h3>Normal Vital Ranges Reference</h3>
-              <div className="legend">
-                <span className="legend-item normal"><span className="dot"></span> Normal</span>
-                <span className="legend-item warning"><span className="dot"></span> Warning</span>
-                <span className="legend-item critical"><span className="dot"></span> Critical</span>
-              </div>
-            </div>
-            <div className="ranges-grid">
-              {normalRangesDisplay.map((item, index) => (
-                <div key={index} className="range-item">
-                  <div className="range-icon" style={{ background: item.color + '20', color: item.color }}>
-                    {item.icon === 'bp' && <FiHeart />}
-                    {item.icon === 'hr' && <FiActivity />}
-                    {item.icon === 'temp' && <FiThermometer />}
-                    {item.icon === 'o2' && <FiWind />}
-                    {item.icon === 'resp' && <FiActivity />}
-                  </div>
-                  <div className="range-info">
-                    <span className="range-name">{item.name}</span>
-                    <span className="range-value">{item.range}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          
         </>
       )}
 
       <style>{`
+        /* Main container */
+        .vitals-container {
+          background: #ffffff;
+          padding: 24px;
+          border-radius: 12px;
+          box-shadow: 0 0 0 1px #e6eef8;
+          font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+        }
+
+        /* Title */
+        .vitals-container h2 {
+          font-size: 18px;
+          font-weight: 600;
+          margin-bottom: 20px;
+          color: #1f2937;
+        }
+
+        /* Grid layout */
+        .vitals-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+          gap: 16px;
+        }
+
+        /* Card */
+        .vital-card {
+          background: #ffffff;
+          border: 1px solid #e6eef8;
+          border-radius: 10px;
+          padding: 18px;
+          transition: all 0.2s ease;
+        }
+
+        /* Hover effect */
+        .vital-card:hover {
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+          transform: translateY(-2px);
+        }
+
+        /* Vital title */
+        .vital-card h3 {
+          font-size: 15px;
+          font-weight: 600;
+          margin-bottom: 6px;
+          color: #2563eb;
+        }
+
+        /* Vital value */
+        .vital-card p {
+          font-size: 14px;
+          color: #374151;
+          margin: 0;
+        }
+
         .vitals-list {
           display: flex;
           flex-direction: column;
@@ -491,9 +597,10 @@ const NurseVitals = () => {
         .reference-card {
           background: white;
           border-radius: 16px;
-          padding: 1.5rem;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-          border: 1px solid #e2e8f0;
+          padding: 2rem;
+          box-shadow: 0 6px 24px rgba(15, 23, 42, 0.04);
+          border: 1px solid #eef2f6;
+          margin-bottom: 1.5rem;
         }
 
         .reference-header {
@@ -537,28 +644,30 @@ const NurseVitals = () => {
 
         .ranges-grid {
           display: grid;
-          grid-template-columns: repeat(5, 1fr);
-          gap: 1rem;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 1.25rem;
+          margin-top: 1rem;
         }
 
         .range-item {
-          background: #f8fafc;
-          border-radius: 10px;
-          padding: 1rem;
-          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          border-radius: 12px;
+          padding: 1.25rem 1.5rem;
+          border: 1px solid #eef2f6;
           display: flex;
           align-items: center;
-          gap: 0.75rem;
+          gap: 1rem;
+          min-height: 72px;
         }
 
         .range-icon {
-          width: 40px;
-          height: 40px;
+          width: 44px;
+          height: 44px;
           border-radius: 10px;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 1.1rem;
+          font-size: 1.15rem;
           flex-shrink: 0;
         }
 
@@ -569,14 +678,37 @@ const NurseVitals = () => {
 
         .range-name {
           font-weight: 600;
-          font-size: 0.85rem;
-          color: #1e293b;
-          margin-bottom: 0.125rem;
+          font-size: 0.95rem;
+          color: #0f172a;
+          margin-bottom: 0.25rem;
         }
 
         .range-value {
-          font-size: 0.8rem;
-          color: #64748b;
+          font-size: 0.9rem;
+          color: #475569;
+        }
+        .text-reference {
+          background: #f8fafc;
+          border: 1px solid #eef2f6;
+          padding: 1rem;
+          border-radius: 10px;
+          margin-bottom: 1rem;
+        }
+        .text-reference h4 {
+          margin: 0 0 4px 0;
+          font-size: 0.95rem;
+          color: #0f172a;
+        }
+        .text-reference p {
+          margin: 0 0 8px 0;
+          color: #475569;
+          font-size: 0.9rem;
+        }
+        .reference-title {
+          margin: 0 0 8px 0;
+          font-size: 1.125rem;
+          color: #0f172a;
+          font-weight: 600;
         }
 
         .loading-state, .empty-state {

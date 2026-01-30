@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { notificationAPI } from '../../services/api';
 import {
   FiGrid, FiUsers, FiActivity, FiAlertTriangle, FiMessageSquare,
   FiSettings, FiUser, FiLogOut, FiFileText, FiDollarSign,
@@ -10,6 +11,23 @@ import {
 const Sidebar = ({ appName, role }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (role !== 'doctor') return;
+    const fetchUnread = async () => {
+      try {
+        const res = await notificationAPI.getUnreadCount();
+        const count = res.data?.count ?? 0;
+        setUnreadCount(typeof count === 'number' ? count : 0);
+      } catch (_) {
+        setUnreadCount(0);
+      }
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, [role]);
 
   const handleLogout = async () => {
     await logout();
@@ -96,8 +114,8 @@ const Sidebar = ({ appName, role }) => {
           <span className="user-name">{user?.fullName || 'User'}</span>
           <span className="user-role">{getUserSubtitle()}</span>
         </div>
-        {role === 'doctor' && (
-          <div className="notification-badge">4</div>
+        {role === 'doctor' && unreadCount > 0 && (
+          <div className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</div>
         )}
       </div>
 
@@ -116,8 +134,8 @@ const Sidebar = ({ appName, role }) => {
       </nav>
 
       <div className="sidebar-footer">
-        {role === 'nurse' ? (
-          <NavLink to="/nurse/profile" className="nav-item">
+        {(role === 'nurse' || role === 'doctor') ? (
+          <NavLink to={`/${role}/profile`} className="nav-item">
             <FiUser className="nav-icon" />
             <span>Profile</span>
           </NavLink>

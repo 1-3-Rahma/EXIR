@@ -1,29 +1,87 @@
 import { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
-import { nurseAPI } from '../../services/api';
 import {
   FiSearch, FiFilter, FiUser, FiFileText, FiActivity,
   FiMessageSquare, FiChevronDown, FiLink
 } from 'react-icons/fi';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
 const NursePatients = () => {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetchPatients();
   }, []);
 
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    };
+  };
+
   const fetchPatients = async () => {
     try {
-      const response = await nurseAPI.getAssignedPatients();
-      setPatients(response.data || []);
+      // Fetch both patients and their vitals
+      const [patientsRes, vitalsRes] = await Promise.all([
+        fetch(`${API_URL}/nurse/assigned-patients`, { headers: getAuthHeaders() }),
+        fetch(`${API_URL}/nurse/vitals-formatted`, { headers: getAuthHeaders() })
+      ]);
+
+      const patientsData = patientsRes.ok ? await patientsRes.json() : [];
+      const vitalsData = vitalsRes.ok ? await vitalsRes.json() : { data: [] };
+
+      // Combine patient data with vitals
+      const patientsList = Array.isArray(patientsData) ? patientsData : (patientsData.data || []);
+      const vitalsList = vitalsData.data || [];
+
+      const enrichedPatients = patientsList.map(patient => {
+        const vitalData = vitalsList.find(v => v._id === patient._id);
+        const vitals = vitalData?.vitals;
+
+        // Determine status based on vitals
+        let status = 'stable';
+        if (vitals) {
+          if (vitals.bp?.status === 'critical' || vitals.hr?.status === 'critical' ||
+              vitals.o2?.status === 'critical' || vitals.temp?.status === 'critical') {
+            status = 'critical';
+          } else if (vitals.bp?.status === 'warning' || vitals.hr?.status === 'warning' ||
+                     vitals.o2?.status === 'warning' || vitals.temp?.status === 'warning') {
+            status = 'moderate';
+          }
+        }
+
+        // Calculate age from date of birth
+        const age = patient.dateOfBirth
+          ? Math.floor((new Date() - new Date(patient.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000))
+          : 'N/A';
+
+        return {
+          _id: patient._id,
+          fullName: patient.fullName,
+          age: age,
+          gender: patient.gender || 'N/A',
+          room: patient.room || vitalData?.room || 'N/A',
+          condition: patient.condition || patient.diagnosis || 'Under Observation',
+          status: status,
+          assignedDoctor: patient.assignedDoctor,
+          vitals: vitals ? {
+            bp: vitals.bp ? `${vitals.bp.systolic}/${vitals.bp.diastolic}` : 'N/A',
+            hr: vitals.hr?.value || 'N/A',
+            temp: vitals.temp?.value || 'N/A',
+            o2: vitals.o2?.value || 'N/A'
+          } : null
+        };
+      });
+
+      setPatients(enrichedPatients);
     } catch (error) {
       console.error('Failed to fetch patients:', error);
-      // Keep empty state - no mock data
       setPatients([]);
     } finally {
       setLoading(false);

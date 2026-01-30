@@ -41,12 +41,22 @@ export const nurseAPI = {
 };
 
 export const doctorAPI = {
+  getNursingStaff: () => api.get('/doctor/nursing-staff'),
   getNursesOnShift: () => api.get('/doctor/nurses-on-shift'),
   assignPatient: (data) => api.post('/doctor/assign-patient', data),
   updateTreatment: (data) => api.put('/doctor/update-treatment', data),
   closeCase: (data) => api.post('/doctor/close-case', data),
   getPatients: () => api.get('/doctor/patients'),
   getCriticalCases: () => api.get('/doctor/critical-cases')
+};
+
+export const tasksAPI = {
+  getTasks: () => api.get('/tasks'),
+  getTodayTasks: () => api.get('/tasks/today'),
+  createTask: (data) => api.post('/tasks', data),
+  updateTask: (taskId, data) => api.put(`/tasks/${taskId}`, data),
+  completeTask: (taskId) => api.patch(`/tasks/${taskId}/complete`),
+  deleteTask: (taskId) => api.delete(`/tasks/${taskId}`)
 };
 
 export const patientAPI = {
@@ -84,6 +94,7 @@ export const vitalsAPI = {
 
 export const notificationAPI = {
   getNotifications: () => api.get('/notifications'),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
   markAsRead: (notificationId) => api.put('/notifications/read', { notificationId }),
   markAllAsRead: () => api.put('/notifications/read-all')
 };

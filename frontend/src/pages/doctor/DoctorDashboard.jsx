@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
 import StatCard from '../../components/common/StatCard';
 import { useAuth } from '../../context/AuthContext';
-import { doctorAPI } from '../../services/api';
+import { doctorAPI, tasksAPI } from '../../services/api';
 import { FiUsers, FiAlertTriangle, FiClipboard, FiPlus, FiEdit, FiCalendar } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 
@@ -25,16 +25,22 @@ const DoctorDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [patientsRes, nursesRes] = await Promise.all([
+      const [patientsRes, nursesRes, tasksRes] = await Promise.all([
         doctorAPI.getPatients(),
-        doctorAPI.getNursesOnShift()
+        doctorAPI.getNursesOnShift(),
+        tasksAPI.getTasks().catch(() => ({ data: [] }))
       ]);
 
+      const patients = Array.isArray(patientsRes.data) ? patientsRes.data : [];
+      const nurses = Array.isArray(nursesRes.data) ? nursesRes.data : [];
+      const tasks = Array.isArray(tasksRes.data) ? tasksRes.data : [];
+      const pendingTasks = tasks.filter(t => t.status !== 'completed').length;
+
       setStats({
-        totalPatients: patientsRes.data?.length || 6,
-        criticalCases: 1,
-        nursesOnDuty: nursesRes.data?.length || 4,
-        pendingTasks: 2
+        totalPatients: patients.length,
+        criticalCases: 0,
+        nursesOnDuty: nurses.length,
+        pendingTasks
       });
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
@@ -64,7 +70,7 @@ const DoctorDashboard = () => {
   };
 
   return (
-    <Layout appName="Doctor's Hospital" role="doctor">
+    <Layout appName="EXIR" role="doctor">
       <div className="page-header">
         <h1>Dashboard</h1>
         <p>Welcome back, Dr. {user?.fullName || 'Doctor'}</p>

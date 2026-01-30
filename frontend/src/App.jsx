@@ -16,6 +16,9 @@ import DoctorDashboard from './pages/doctor/DoctorDashboard';
 import DoctorNurses from './pages/doctor/DoctorNurses';
 import DoctorPatients from './pages/doctor/DoctorPatients';
 import DoctorPriorityCases from './pages/doctor/DoctorPriorityCases';
+import DoctorMessages from './pages/doctor/DoctorMessages';
+import DoctorTasks from './pages/doctor/DoctorTasks';
+import DoctorProfile from './pages/doctor/DoctorProfile';
 
 import PatientDashboard from './pages/patient/PatientDashboard';
 import PatientHistory from './pages/patient/PatientHistory';
@@ -75,6 +78,9 @@ function App() {
       <Route path="/doctor/nurses" element={<PrivateRoute allowedRoles={['doctor']}><DoctorNurses /></PrivateRoute>} />
       <Route path="/doctor/patients" element={<PrivateRoute allowedRoles={['doctor']}><DoctorPatients /></PrivateRoute>} />
       <Route path="/doctor/priority-cases" element={<PrivateRoute allowedRoles={['doctor']}><DoctorPriorityCases /></PrivateRoute>} />
+      <Route path="/doctor/messages" element={<PrivateRoute allowedRoles={['doctor']}><DoctorMessages /></PrivateRoute>} />
+      <Route path="/doctor/tasks" element={<PrivateRoute allowedRoles={['doctor']}><DoctorTasks /></PrivateRoute>} />
+      <Route path="/doctor/profile" element={<PrivateRoute allowedRoles={['doctor']}><DoctorProfile /></PrivateRoute>} />
 
       {/* Patient Routes */}
       <Route path="/patient" element={<PrivateRoute allowedRoles={['patient']}><PatientDashboard /></PrivateRoute>} />
@@ -95,9 +101,9 @@ function App() {
       <Route path="/receptionist/appointments/new" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistAppointments /></PrivateRoute>} />
       <Route path="/receptionist/documents" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistDocuments /></PrivateRoute>} />
 
-      {/* Default redirect */}
-      <Route path="/" element={<Navigate to={getDefaultRoute()} />} />
-      <Route path="*" element={<Navigate to={getDefaultRoute()} />} />
+      {/* Root always opens login; /login redirects to dashboard if already logged in */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to={getDefaultRoute()} replace />} />
     </Routes>
   );
 }

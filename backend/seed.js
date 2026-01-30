@@ -35,6 +35,7 @@ const seedData = async () => {
       password: 'password123',
       fullName: 'Dr. Ahmed Hassan',
       specialization: 'Cardiology',
+      phone: '+201012345601',
       isActive: true
     });
 
@@ -45,6 +46,7 @@ const seedData = async () => {
       password: 'password123',
       fullName: 'Dr. Sara Mohamed',
       specialization: 'General Medicine',
+      phone: '+201012345602',
       isActive: true
     });
 
@@ -55,6 +57,7 @@ const seedData = async () => {
       password: 'password123',
       fullName: 'Nurse Fatima Ali',
       shift: 'morning',
+      phone: '+201012345603',
       isActive: true,
       isLoggedIn: true
     });
@@ -66,6 +69,7 @@ const seedData = async () => {
       password: 'password123',
       fullName: 'Nurse Omar Khaled',
       shift: 'afternoon',
+      phone: '+201012345604',
       isActive: true,
       isLoggedIn: true
     });
