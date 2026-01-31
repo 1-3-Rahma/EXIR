@@ -88,7 +88,7 @@ const DoctorTasks = () => {
 
   const stats = {
     pending: tasks.filter((t) => t.status === 'pending').length,
-    inProgress: tasks.filter((t) => t.status === 'in_progress').length,
+    // inProgress: tasks.filter((t) => t.status === 'in_progress').length,
     completed: tasks.filter((t) => t.status === 'completed').length
   };
 
@@ -128,13 +128,13 @@ const DoctorTasks = () => {
             <span className="stat-label">Pending</span>
           </div>
         </div>
-        <div className="task-stat">
+        {/* <div className="task-stat">
           <div className="stat-icon blue"><FiEdit2 /></div>
           <div className="stat-info">
             <span className="stat-value">{stats.inProgress}</span>
             <span className="stat-label">In Progress</span>
           </div>
-        </div>
+        </div> */}
         <div className="task-stat">
           <div className="stat-icon green"><FiCheckCircle /></div>
           <div className="stat-info">
@@ -151,9 +151,9 @@ const DoctorTasks = () => {
         <button className={`tab ${filter === 'pending' ? 'active' : ''}`} onClick={() => setFilter('pending')}>
           Pending ({stats.pending})
         </button>
-        <button className={`tab ${filter === 'in_progress' ? 'active' : ''}`} onClick={() => setFilter('in_progress')}>
+        {/* <button className={`tab ${filter === 'in_progress' ? 'active' : ''}`} onClick={() => setFilter('in_progress')}>
           In Progress ({stats.inProgress})
-        </button>
+        </button> */}
         <button className={`tab ${filter === 'completed' ? 'active' : ''}`} onClick={() => setFilter('completed')}>
           Completed ({stats.completed})
         </button>
@@ -232,7 +232,7 @@ const DoctorTasks = () => {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Patient</label>
+                  <label>Patient Name (Optional)</label>
                   <input type="text" name="patientName" value={newTask.patientName} onChange={handleInputChange} placeholder="Patient name" />
                 </div>
                 <div className="form-group">

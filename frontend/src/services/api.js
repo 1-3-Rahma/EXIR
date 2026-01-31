@@ -46,7 +46,7 @@ export const doctorAPI = {
   assignPatient: (data) => api.post('/doctor/assign-patient', data),
   updateTreatment: (data) => api.put('/doctor/update-treatment', data),
   closeCase: (data) => api.post('/doctor/close-case', data),
-  getPatients: () => api.get('/doctor/patients'),
+  getPatients: (search) => api.get('/doctor/patients', { params: search ? { search } : {} }),
   getCriticalCases: () => api.get('/doctor/critical-cases')
 };
 

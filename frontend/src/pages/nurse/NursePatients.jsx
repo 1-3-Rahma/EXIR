@@ -12,9 +12,17 @@ const NursePatients = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetchPatients();
+  }, []);
+
+  // Refetch when tab gets focus so newly assigned patients appear
+  useEffect(() => {
+    const onFocus = () => fetchPatients();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, []);
 
   const getAuthHeaders = () => {

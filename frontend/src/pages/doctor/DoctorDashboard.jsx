@@ -141,18 +141,18 @@ const DoctorDashboard = () => {
           </div>
           <div className="card-body">
             <div className="quick-actions">
-              <Link to="/doctor/patients" className="action-btn primary">
+              {/* <Link to="/doctor/patients" className="action-btn primary">
                 <div className="action-icon"><FiPlus /></div>
                 <div className="action-content">
                   <span>Add New Patient</span>
                   <small>Admit a new patient to the hospital</small>
                 </div>
-              </Link>
+              </Link> */}
 
               <Link to="/doctor/patients" className="action-btn success">
                 <div className="action-icon"><FiEdit /></div>
                 <div className="action-content">
-                  <span>Manage Prescriptions</span>
+                  <span>View Patients</span>
                   <small>View and update patient medications</small>
                 </div>
               </Link>
@@ -160,7 +160,7 @@ const DoctorDashboard = () => {
               <Link to="/doctor/nurses" className="action-btn warning">
                 <div className="action-icon"><FiCalendar /></div>
                 <div className="action-content">
-                  <span>View Schedule</span>
+                  <span>View Nursing Staff</span>
                   <small>Check appointments and tasks</small>
                 </div>
               </Link>

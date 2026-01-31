@@ -507,6 +507,8 @@ body {
 .notification-icon.critical { color: var(--accent-red); }
 .notification-icon.success { color: var(--accent-green); }
 .notification-icon.info { color: var(--accent-blue); }
+.notification-icon.assignment { color: #0ea5e9; }
+.notification-item.assignment { border-left: 3px solid #0ea5e9; }
 
 .notification-content {
   flex: 1;

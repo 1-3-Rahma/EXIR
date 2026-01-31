@@ -14,7 +14,7 @@ const Sidebar = ({ appName, role }) => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (role !== 'doctor') return;
+    if (role !== 'doctor' && role !== 'nurse') return;
     const fetchUnread = async () => {
       try {
         const res = await notificationAPI.getUnreadCount();
@@ -114,7 +114,7 @@ const Sidebar = ({ appName, role }) => {
           <span className="user-name">{user?.fullName || 'User'}</span>
           <span className="user-role">{getUserSubtitle()}</span>
         </div>
-        {role === 'doctor' && unreadCount > 0 && (
+        {(role === 'doctor' || role === 'nurse') && unreadCount > 0 && (
           <div className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</div>
         )}
       </div>

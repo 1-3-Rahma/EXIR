@@ -3,13 +3,20 @@ const Patient = require('../models/Patient');
 const Assignment = require('../models/Assignment');
 const Case = require('../models/Case');
 const Notification = require('../models/Notification');
+const Appointment = require('../models/Appointment');
 
 // @desc    Get nursing staff with assigned patients (for doctor UI)
 // @route   GET /api/v1/doctor/nursing-staff
 // @access  Private (Doctor)
+// Only nurses on the same shift as the doctor appear (e.g. Dr. Ahmed Hassan morning → Nurse Fatima morning)
 const getNursingStaff = async (req, res) => {
   try {
-    const nurses = await User.find({ role: 'nurse', isActive: true })
+    const doctorShift = req.user.shift;
+    const nurseQuery = { role: 'nurse', isActive: true };
+    if (doctorShift) {
+      nurseQuery.shift = doctorShift;
+    }
+    const nurses = await User.find(nurseQuery)
       .select('_id identifier fullName shift isLoggedIn')
       .sort({ fullName: 1 });
 
@@ -63,16 +70,17 @@ const getNursingStaff = async (req, res) => {
   }
 };
 
-// @desc    Get logged-in nurses on current shifts
+// @desc    Get logged-in nurses on current shift (same shift as doctor)
 // @route   GET /api/v1/doctor/nurses-on-shift
 // @access  Private (Doctor)
 const getNursesOnShift = async (req, res) => {
   try {
-    const nurses = await User.find({
-      role: 'nurse',
-      isLoggedIn: true,
-      isActive: true
-    }).select('_id identifier fullName shift');
+    const doctorShift = req.user.shift;
+    const nurseQuery = { role: 'nurse', isLoggedIn: true, isActive: true };
+    if (doctorShift) {
+      nurseQuery.shift = doctorShift;
+    }
+    const nurses = await User.find(nurseQuery).select('_id identifier fullName shift');
 
     const formattedNurses = nurses.map(nurse => ({
       nurseId: nurse._id,
@@ -109,8 +117,13 @@ const assignPatient = async (req, res) => {
       return res.status(404).json({ message: 'Nurse not found' });
     }
 
-    if (!nurse.isActive || !nurse.isLoggedIn) {
-      return res.status(400).json({ message: 'Nurse is not available' });
+    if (!nurse.isActive) {
+      return res.status(400).json({ message: 'Nurse is not active' });
+    }
+
+    // Nurse must be on the same shift as the doctor (e.g. morning doctor → morning nurses only)
+    if (req.user.shift && nurse.shift !== req.user.shift) {
+      return res.status(400).json({ message: `You can only assign patients to nurses on your shift (${req.user.shift}). This nurse is on ${nurse.shift} shift.` });
     }
 
     await Assignment.updateMany(
@@ -130,6 +143,14 @@ const assignPatient = async (req, res) => {
       userId: nurseId,
       type: 'update',
       message: `You have been assigned to patient ${patient.fullName}`,
+      relatedPatientId: patientId
+    });
+
+    // Second alert: prominent assignment notification for nurse
+    await Notification.create({
+      userId: nurseId,
+      type: 'assignment',
+      message: `New patient assigned: ${patient.fullName} (assigned by Dr. ${req.user.fullName})`,
       relatedPatientId: patientId
     });
 
@@ -250,17 +271,82 @@ const closeCase = async (req, res) => {
   }
 };
 
-// @desc    Get all patients under doctor's care
+// @desc    Get all patients under doctor's care (from cases + appointments from receptionist)
 // @route   GET /api/v1/doctor/patients
 // @access  Private (Doctor)
+// Patients assigned to this doctor by receptionist (in appointments) appear here for that doctor's UI.
+// Query: ?search= name or nationalID for dynamic search
 const getPatients = async (req, res) => {
   try {
+    if (!req.user || !req.user._id) {
+      return res.json([]);
+    }
     const doctorId = req.user._id;
+    const search = (req.query.search || '').trim();
 
     const cases = await Case.find({ doctorId, status: 'open' })
       .populate('patientId', 'nationalID fullName dateOfBirth contactInfo');
 
-    const patients = cases.map(c => c.patientId);
+    // Appointments where this doctor is assigned (receptionist assigns patients to this doctor)
+    const appointments = await Appointment.find({
+      doctorId,
+      status: { $nin: ['cancelled'] },
+      patientId: { $exists: true, $ne: null }
+    })
+      .populate('patientId', 'nationalID fullName dateOfBirth contactInfo');
+
+    const patientMap = new Map();
+
+    for (const c of cases) {
+      if (!c.patientId) continue;
+      const pid = c.patientId._id.toString();
+      const activeAssignment = await Assignment.findOne({ patientId: c.patientId._id, isActive: true })
+        .populate('nurseId', 'fullName');
+      patientMap.set(pid, {
+        ...c.patientId.toObject(),
+        caseId: c._id,
+        caseStatus: 'open',
+        assignedNurse: activeAssignment?.nurseId?.fullName || null,
+        appointmentDoctorName: req.user.fullName,
+        appointmentDate: null,
+        appointmentTime: null
+      });
+    }
+
+    for (const apt of appointments) {
+      if (!apt.patientId) continue;
+      const pid = apt.patientId._id.toString();
+      if (patientMap.has(pid)) {
+        const existing = patientMap.get(pid);
+        existing.appointmentDate = apt.date;
+        existing.appointmentTime = apt.time;
+        existing.appointmentDoctorName = apt.doctorName || req.user.fullName;
+      } else {
+        const activeAssignment = await Assignment.findOne({ patientId: apt.patientId._id, isActive: true })
+          .populate('nurseId', 'fullName');
+        patientMap.set(pid, {
+          ...apt.patientId.toObject(),
+          caseId: null,
+          caseStatus: null,
+          assignedNurse: activeAssignment?.nurseId?.fullName || null,
+          appointmentDoctorName: apt.doctorName || req.user.fullName,
+          appointmentDate: apt.date,
+          appointmentTime: apt.time
+        });
+      }
+    }
+
+    let patients = Array.from(patientMap.values());
+
+    if (search) {
+      const re = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      patients = patients.filter(
+        p =>
+          (p.fullName && re.test(p.fullName)) ||
+          (p.nationalID && (p.nationalID.includes(search) || re.test(p.nationalID)))
+      );
+    }
+
     res.json(patients);
   } catch (error) {
     console.error('Get patients error:', error);

@@ -7,6 +7,7 @@ dotenv.config();
 const User = require('./models/User');
 const Patient = require('./models/Patient');
 const Billing = require('./models/Billing');
+const Appointment = require('./models/Appointment');
 
 const connectDB = async () => {
   try {
@@ -25,6 +26,7 @@ const seedData = async () => {
     await User.deleteMany({});
     await Patient.deleteMany({});
     await Billing.deleteMany({});
+    await Appointment.deleteMany({});
 
     console.log('Cleared existing data');
 
@@ -246,6 +248,45 @@ const seedData = async () => {
         { description: 'Consultation', amount: 500 },
         { description: 'X-Ray', amount: 1500 }
       ]
+    });
+
+    // Appointments: receptionist assigns patients to doctors so they appear in doctor UI
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(12, 0, 0, 0);
+
+    await Appointment.create({
+      patientId: patient1._id,
+      patientName: patient1.fullName,
+      doctorId: doctor1._id,
+      doctorName: doctor1.fullName,
+      department: 'Cardiology',
+      date: tomorrow,
+      time: '09:00 AM',
+      status: 'pending',
+      createdBy: receptionist._id
+    });
+    await Appointment.create({
+      patientId: patient2._id,
+      patientName: patient2.fullName,
+      doctorId: doctor1._id,
+      doctorName: doctor1.fullName,
+      department: 'Cardiology',
+      date: tomorrow,
+      time: '10:30 AM',
+      status: 'pending',
+      createdBy: receptionist._id
+    });
+    await Appointment.create({
+      patientId: patient3._id,
+      patientName: patient3.fullName,
+      doctorId: doctor2._id,
+      doctorName: doctor2.fullName,
+      department: 'General Medicine',
+      date: tomorrow,
+      time: '02:00 PM',
+      status: 'pending',
+      createdBy: receptionist._id
     });
 
     console.log('\n========================================');

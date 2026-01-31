@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/common/Layout';
 import { doctorAPI } from '../../services/api';
 import { FiUser, FiFileText, FiEdit, FiCheckCircle, FiAlertCircle, FiSearch } from 'react-icons/fi';
@@ -10,25 +10,33 @@ const DoctorPatients = () => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [showTreatmentModal, setShowTreatmentModal] = useState(false);
 
-  useEffect(() => {
-    fetchPatients();
-  }, []);
-
-  const fetchPatients = async () => {
+  const fetchPatients = useCallback(async (search) => {
     try {
-      const response = await doctorAPI.getPatients();
-      setPatients(response.data);
+      setLoading(true);
+      const response = await doctorAPI.getPatients(search || undefined);
+      setPatients(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Failed to fetch patients:', error);
+      setPatients([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const filteredPatients = patients.filter(p =>
-    p.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.nationalID?.includes(searchTerm)
-  );
+  // Dynamic search: debounced API call when user types (and initial load)
+  useEffect(() => {
+    const timer = setTimeout(
+      () => fetchPatients(searchTerm || undefined),
+      searchTerm ? 300 : 0
+    );
+    return () => clearTimeout(timer);
+  }, [searchTerm, fetchPatients]);
+
+  const formatAppointmentDateTime = (date, time) => {
+    if (!date && !time) return '—';
+    const d = date ? new Date(date).toLocaleDateString() : '';
+    return [d, time].filter(Boolean).join(' ');
+  };
 
   const handleCloseCase = async (patientId, caseId) => {
     try {
@@ -62,7 +70,7 @@ const DoctorPatients = () => {
         <div className="card-body">
           {loading ? (
             <p>Loading patients...</p>
-          ) : filteredPatients.length === 0 ? (
+          ) : patients.length === 0 ? (
             <p className="no-notifications">No patients found</p>
           ) : (
             <div className="patients-table">
@@ -71,13 +79,15 @@ const DoctorPatients = () => {
                   <tr>
                     <th>Patient</th>
                     <th>National ID</th>
+                    <th>Doctor (Appointment)</th>
+                    <th>Appointment</th>
                     <th>Status</th>
                     <th>Assigned Nurse</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredPatients.map((patient) => (
+                  {patients.map((patient) => (
                     <tr key={patient._id}>
                       <td>
                         <div className="patient-cell">
@@ -88,6 +98,8 @@ const DoctorPatients = () => {
                         </div>
                       </td>
                       <td>{patient.nationalID}</td>
+                      <td>{patient.appointmentDoctorName || '—'}</td>
+                      <td>{formatAppointmentDateTime(patient.appointmentDate, patient.appointmentTime)}</td>
                       <td>
                         <span className={`status-pill ${patient.caseStatus || 'open'}`}>
                           {patient.hasCriticalVitals ? (
@@ -99,7 +111,8 @@ const DoctorPatients = () => {
                       </td>
                       <td>{patient.assignedNurse || 'Unassigned'}</td>
                       <td>
-                        <div className="action-buttons">
+                        {/* action column */}
+                        {/* <div className="action-buttons">
                           <button
                             className="action-btn-sm edit"
                             onClick={() => {
@@ -125,7 +138,7 @@ const DoctorPatients = () => {
                               <FiCheckCircle />
                             </button>
                           )}
-                        </div>
+                        </div> */}
                       </td>
                     </tr>
                   ))}

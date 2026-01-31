@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
 import { useAuth } from '../../context/AuthContext';
+import { notificationAPI, tasksAPI } from '../../services/api';
 import {
   FiUsers, FiAlertTriangle, FiClipboard,
   FiClock, FiArrowRight, FiBell, FiCheckCircle, FiInfo,
@@ -36,32 +37,34 @@ const NurseDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch dashboard stats, critical events, tasks, and notifications in parallel
-      const [dashboardRes, criticalRes, tasksRes, notifRes] = await Promise.all([
+      // Fetch dashboard stats and critical events (fetch for nurse/dashboard)
+      const [dashboardRes, criticalRes, tasksTodayRes, notifRes] = await Promise.all([
         fetch(`${API_URL}/nurse/dashboard`, { headers: getAuthHeaders() }),
         fetch(`${API_URL}/nurse/critical-events`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/tasks`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/notifications`, { headers: getAuthHeaders() })
+        tasksAPI.getTodayTasks(),
+        notificationAPI.getNotifications()
       ]);
 
       const dashboardData = dashboardRes.ok ? await dashboardRes.json() : null;
       const criticalData = criticalRes.ok ? await criticalRes.json() : [];
-      const tasksData = tasksRes.ok ? await tasksRes.json() : { data: [] };
-      const notifData = notifRes.ok ? await notifRes.json() : { data: [] };
 
-      // Get pending tasks for today
-      const pendingTasks = (tasksData.data || []).filter(t =>
+      // Backend /tasks/today and /notifications return array directly (axios wraps in response.data)
+      const tasksTodayRaw = tasksTodayRes?.data;
+      const tasksTodayList = Array.isArray(tasksTodayRaw) ? tasksTodayRaw : (tasksTodayRaw?.data || []);
+      const pendingToday = tasksTodayList.filter(t =>
         t.status === 'pending' || t.status === 'in_progress'
       );
+
+      const notifRaw = notifRes?.data;
+      const notifList = Array.isArray(notifRaw) ? notifRaw : (notifRaw?.data || []);
 
       setStats({
         totalPatients: dashboardData?.data?.assignedPatients || 0,
         urgentCases: dashboardData?.data?.criticalAlerts || 0,
-        tasksToday: dashboardData?.data?.pendingTasks || pendingTasks.length
+        tasksToday: pendingToday.length
       });
 
-      // Format critical events for display
-      const critical = Array.isArray(criticalData) ? criticalData : (criticalData.data || []);
+      const critical = Array.isArray(criticalData) ? criticalData : (criticalData?.data || []);
       setUrgentCases(critical.slice(0, 3).map(c => ({
         _id: c._id,
         patientName: c.relatedPatientId?.fullName || 'Unknown Patient',
@@ -71,12 +74,8 @@ const NurseDashboard = () => {
         createdAt: c.createdAt
       })));
 
-      // Get today's tasks
-      setTasks(pendingTasks.slice(0, 4));
-
-      // Format notifications
-      const notifs = notifData.data || [];
-      setNotifications(notifs.slice(0, 4));
+      setTasks(tasksTodayList.slice(0, 6));
+      setNotifications(notifList.slice(0, 6));
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
       setStats({ totalPatients: 0, urgentCases: 0, tasksToday: 0 });
@@ -85,6 +84,19 @@ const NurseDashboard = () => {
       setNotifications([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleNotificationClick = async (notif) => {
+    if (notif.read) return;
+    try {
+      await notificationAPI.markAsRead(notif._id);
+      setNotifications(prev =>
+        prev.map(n => (n._id === notif._id ? { ...n, read: true } : n))
+      );
+      window.dispatchEvent(new CustomEvent('refreshUnreadCount'));
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
     }
   };
 
@@ -102,9 +114,12 @@ const NurseDashboard = () => {
     switch (type) {
       case 'critical': return <FiAlertCircle className="notif-icon critical" />;
       case 'success': return <FiCheckCircle className="notif-icon success" />;
+      case 'assignment': return <FiAlertCircle className="notif-icon assignment" />;
       default: return <FiInfo className="notif-icon info" />;
     }
   };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   const getPriorityColor = (priority) => {
     switch (priority) {

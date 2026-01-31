@@ -27,6 +27,8 @@ const NotificationPanel = ({ limit = 5 }) => {
         return <FiAlertCircle className="notification-icon critical" />;
       case 'success':
         return <FiCheckCircle className="notification-icon success" />;
+      case 'assignment':
+        return <FiAlertCircle className="notification-icon assignment" />;
       default:
         return <FiInfo className="notification-icon info" />;
     }
