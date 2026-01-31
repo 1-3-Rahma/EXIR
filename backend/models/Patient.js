@@ -70,6 +70,14 @@ const patientSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  totalVisits: {
+    type: Number,
+    default: 1
+  },
+  lastVisitDate: {
+    type: Date,
+    default: Date.now
   }
 }, {
   timestamps: true

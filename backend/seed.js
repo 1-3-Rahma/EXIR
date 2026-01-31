@@ -165,7 +165,9 @@ const seedData = async () => {
       emergencyContactName: 'Ahmed Ibrahim',
       emergencyContactPhone: '01098765432',
       emergencyContactRelation: 'Brother',
-      registeredByReceptionistId: receptionist._id
+      registeredByReceptionistId: receptionist._id,
+      totalVisits: 5,
+      lastVisitDate: new Date('2026-01-15')
     });
 
     const patient2 = await Patient.create({
@@ -181,7 +183,9 @@ const seedData = async () => {
       emergencyContactName: 'Fatma Mahmoud',
       emergencyContactPhone: '01198765432',
       emergencyContactRelation: 'Mother',
-      registeredByReceptionistId: receptionist._id
+      registeredByReceptionistId: receptionist._id,
+      totalVisits: 3,
+      lastVisitDate: new Date('2026-01-20')
     });
 
     const patient3 = await Patient.create({
@@ -197,7 +201,9 @@ const seedData = async () => {
       emergencyContactName: 'Sara Youssef',
       emergencyContactPhone: '01298765432',
       emergencyContactRelation: 'Wife',
-      registeredByReceptionistId: receptionist._id
+      registeredByReceptionistId: receptionist._id,
+      totalVisits: 1,
+      lastVisitDate: new Date()
     });
 
     const patientUser1 = await User.create({

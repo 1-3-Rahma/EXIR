@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   registerPatient,
   getPatient,
+  getAllPatients,
   searchPatientByNationalID,
   searchPatientByName,
   searchPatientByPhone,
@@ -32,6 +33,7 @@ router.get('/dashboard-stats', getDashboardStats);
 router.get('/today-arrivals', getTodayArrivals);
 
 // Patient management
+router.get('/patients', getAllPatients);
 router.post('/register-patient', registerPatient);
 router.get('/patient/search/:nationalID', searchPatientByNationalID);
 router.get('/patient/search/name/:name', searchPatientByName);

@@ -1,34 +1,57 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
 import { receptionistAPI } from '../../services/api';
-import { FiUser, FiSearch, FiPlus, FiEdit, FiEye } from 'react-icons/fi';
+import { FiUser, FiSearch, FiPlus, FiPhone, FiCalendar } from 'react-icons/fi';
 
 const ReceptionistPatients = () => {
+  const navigate = useNavigate();
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     nationalID: '',
     fullName: '',
     dateOfBirth: '',
     gender: 'male',
     phone: '',
-    contactInfo: '',
-    emergencyContact: ''
+    email: '',
+    address: '',
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    emergencyContactRelation: ''
   });
 
-  const handleSearch = async () => {
-    if (!searchTerm.trim()) return;
+  useEffect(() => {
+    loadPatients();
+  }, []);
+
+  const loadPatients = async (search = '') => {
     setLoading(true);
     try {
-      const response = await receptionistAPI.searchPatient(searchTerm);
-      setSearchResults([response.data]);
+      const response = await receptionistAPI.getAllPatients(search);
+      setPatients(response.data);
     } catch (error) {
-      setSearchResults([]);
+      console.error('Error loading patients:', error);
+      setPatients([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = () => {
+    loadPatients(searchTerm);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
+  const handlePatientClick = (patientId) => {
+    navigate(`/receptionist/patients/${patientId}`);
   };
 
   const handleRegister = async (e) => {
@@ -44,9 +67,13 @@ const ReceptionistPatients = () => {
         dateOfBirth: '',
         gender: 'male',
         phone: '',
-        contactInfo: '',
-        emergencyContact: ''
+        email: '',
+        address: '',
+        emergencyContactName: '',
+        emergencyContactPhone: '',
+        emergencyContactRelation: ''
       });
+      loadPatients();
     } catch (error) {
       alert(error.response?.data?.message || 'Failed to register patient');
     } finally {
@@ -54,11 +81,20 @@ const ReceptionistPatients = () => {
     }
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
   return (
     <Layout appName="MedHub" role="receptionist">
       <div className="page-header">
         <h1>Patient Management</h1>
-        <p>Search, register, and manage patients</p>
+        <p>View, search, and manage all patients</p>
       </div>
 
       <div className="action-bar">
@@ -66,10 +102,10 @@ const ReceptionistPatients = () => {
           <FiSearch />
           <input
             type="text"
-            placeholder="Search by National ID..."
+            placeholder="Search by name, ID, or phone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            onKeyDown={handleKeyDown}
           />
           <button onClick={handleSearch} disabled={loading}>
             Search
@@ -86,38 +122,58 @@ const ReceptionistPatients = () => {
       <div className="card">
         <div className="card-body">
           {loading ? (
-            <p>Searching...</p>
-          ) : searchResults.length === 0 ? (
+            <div className="loading-state">
+              <p>Loading patients...</p>
+            </div>
+          ) : patients.length === 0 ? (
             <div className="empty-state">
               <FiUser className="empty-icon" />
-              <h3>Search for a Patient</h3>
-              <p>Enter a National ID to find patient records</p>
+              <h3>No Patients Found</h3>
+              <p>{searchTerm ? 'Try a different search term' : 'Register your first patient to get started'}</p>
             </div>
           ) : (
-            <div className="results-list">
-              {searchResults.map((patient) => (
-                <div key={patient._id} className="result-card">
-                  <div className="result-avatar">
-                    <FiUser />
+            <div className="patients-list">
+              <div className="list-header">
+                <span className="col-name">Patient Name</span>
+                <span className="col-id">National ID</span>
+                <span className="col-phone">Phone</span>
+                <span className="col-visits">Visits</span>
+                <span className="col-last-visit">Last Visit</span>
+              </div>
+              {patients.map((patient) => (
+                <div
+                  key={patient._id}
+                  className="patient-row"
+                  onClick={() => handlePatientClick(patient._id)}
+                >
+                  <div className="col-name">
+                    <div className="patient-avatar">
+                      <FiUser />
+                    </div>
+                    <div className="patient-info">
+                      <span className="patient-name">{patient.fullName}</span>
+                      <span className="patient-gender">{patient.gender}</span>
+                    </div>
                   </div>
-                  <div className="result-info">
-                    <h3>{patient.fullName}</h3>
-                    <p>National ID: {patient.nationalID}</p>
-                    <p>Phone: {patient.phone || patient.contactInfo || 'N/A'}</p>
-                  </div>
-                  <div className="result-actions">
-                    <button className="action-btn view">
-                      <FiEye /> View
-                    </button>
-                    <button className="action-btn edit">
-                      <FiEdit /> Edit
-                    </button>
-                  </div>
+                  <span className="col-id">{patient.nationalID}</span>
+                  <span className="col-phone">
+                    <FiPhone className="icon-small" />
+                    {patient.phone || 'N/A'}
+                  </span>
+                  <span className="col-visits">{patient.totalVisits || 1}</span>
+                  <span className="col-last-visit">
+                    <FiCalendar className="icon-small" />
+                    {formatDate(patient.lastVisitDate)}
+                  </span>
                 </div>
               ))}
             </div>
           )}
         </div>
+      </div>
+
+      <div className="patients-count">
+        Showing {patients.length} patient{patients.length !== 1 ? 's' : ''}
       </div>
 
       {showRegisterModal && (
@@ -163,10 +219,11 @@ const ReceptionistPatients = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Gender</label>
+                  <label>Gender *</label>
                   <select
                     value={formData.gender}
                     onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                    required
                   >
                     <option value="male">Male</option>
                     <option value="female">Female</option>
@@ -176,27 +233,62 @@ const ReceptionistPatients = () => {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Phone Number</label>
+                  <label>Phone Number *</label>
                   <input
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="11 digits"
+                    required
                   />
                 </div>
                 <div className="form-group">
-                  <label>Emergency Contact</label>
+                  <label>Email</label>
                   <input
-                    type="text"
-                    value={formData.emergencyContact}
-                    onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
                 </div>
               </div>
               <div className="form-group">
-                <label>Address</label>
+                <label>Address *</label>
                 <textarea
-                  value={formData.contactInfo}
-                  onChange={(e) => setFormData({ ...formData, contactInfo: e.target.value })}
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="section-title">Emergency Contact</div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Contact Name *</label>
+                  <input
+                    type="text"
+                    value={formData.emergencyContactName}
+                    onChange={(e) => setFormData({ ...formData, emergencyContactName: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Contact Phone *</label>
+                  <input
+                    type="tel"
+                    value={formData.emergencyContactPhone}
+                    onChange={(e) => setFormData({ ...formData, emergencyContactPhone: e.target.value })}
+                    placeholder="11 digits"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Relationship *</label>
+                <input
+                  type="text"
+                  value={formData.emergencyContactRelation}
+                  onChange={(e) => setFormData({ ...formData, emergencyContactRelation: e.target.value })}
+                  placeholder="e.g., Spouse, Parent, Sibling"
+                  required
                 />
               </div>
               <div className="modal-footer">
@@ -248,6 +340,10 @@ const ReceptionistPatients = () => {
           border-radius: var(--radius-md);
           cursor: pointer;
         }
+        .search-box button:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+        }
         .register-btn {
           display: flex;
           align-items: center;
@@ -261,6 +357,10 @@ const ReceptionistPatients = () => {
           font-weight: 500;
           cursor: pointer;
         }
+        .register-btn:hover {
+          opacity: 0.9;
+        }
+        .loading-state,
         .empty-state {
           text-align: center;
           padding: 3rem;
@@ -270,62 +370,91 @@ const ReceptionistPatients = () => {
           color: var(--text-muted);
           margin-bottom: 1rem;
         }
-        .results-list {
+        .patients-list {
           display: flex;
           flex-direction: column;
-          gap: 1rem;
         }
-        .result-card {
+        .list-header {
+          display: grid;
+          grid-template-columns: 2fr 1.5fr 1fr 0.5fr 1fr;
+          gap: 1rem;
+          padding: 0.75rem 1rem;
+          background: var(--bg-light);
+          border-radius: var(--radius-md);
+          font-weight: 600;
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+          margin-bottom: 0.5rem;
+        }
+        .patient-row {
+          display: grid;
+          grid-template-columns: 2fr 1.5fr 1fr 0.5fr 1fr;
+          gap: 1rem;
+          padding: 1rem;
+          border-bottom: 1px solid var(--border-color);
+          align-items: center;
+          cursor: pointer;
+          transition: background-color 0.2s;
+        }
+        .patient-row:hover {
+          background-color: var(--bg-light);
+        }
+        .patient-row:last-child {
+          border-bottom: none;
+        }
+        .col-name {
           display: flex;
           align-items: center;
-          gap: 1rem;
-          padding: 1.25rem;
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-lg);
+          gap: 0.75rem;
         }
-        .result-avatar {
-          width: 56px;
-          height: 56px;
+        .patient-avatar {
+          width: 40px;
+          height: 40px;
           background: var(--bg-light);
           border-radius: var(--radius-full);
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 1.5rem;
-          color: var(--text-secondary);
-        }
-        .result-info {
-          flex: 1;
-        }
-        .result-info h3 {
           font-size: 1.1rem;
-          margin-bottom: 0.25rem;
-        }
-        .result-info p {
-          font-size: 0.85rem;
           color: var(--text-secondary);
         }
-        .result-actions {
+        .patient-info {
           display: flex;
-          gap: 0.5rem;
+          flex-direction: column;
         }
-        .action-btn {
+        .patient-name {
+          font-weight: 500;
+          color: var(--text-primary);
+        }
+        .patient-gender {
+          font-size: 0.8rem;
+          color: var(--text-muted);
+          text-transform: capitalize;
+        }
+        .col-id {
+          font-family: monospace;
+          font-size: 0.9rem;
+        }
+        .col-phone,
+        .col-last-visit {
           display: flex;
           align-items: center;
           gap: 0.375rem;
-          padding: 0.5rem 0.875rem;
-          border: none;
-          border-radius: var(--radius-md);
-          font-size: 0.8rem;
-          cursor: pointer;
+          font-size: 0.9rem;
+          color: var(--text-secondary);
         }
-        .action-btn.view {
-          background: rgba(59, 130, 246, 0.1);
-          color: var(--accent-blue);
+        .col-visits {
+          font-weight: 500;
+          text-align: center;
         }
-        .action-btn.edit {
-          background: rgba(34, 197, 94, 0.1);
-          color: var(--accent-green);
+        .icon-small {
+          font-size: 0.85rem;
+        }
+        .patients-count {
+          text-align: center;
+          padding: 1rem;
+          color: var(--text-muted);
+          font-size: 0.9rem;
         }
         .modal-overlay {
           position: fixed;
@@ -377,6 +506,7 @@ const ReceptionistPatients = () => {
           display: flex;
           flex-direction: column;
           gap: 0.375rem;
+          margin-bottom: 1rem;
         }
         .form-group label {
           font-size: 0.85rem;
@@ -393,6 +523,13 @@ const ReceptionistPatients = () => {
         .form-group textarea {
           min-height: 80px;
           resize: vertical;
+        }
+        .section-title {
+          font-weight: 600;
+          font-size: 0.95rem;
+          margin: 1.5rem 0 1rem;
+          padding-bottom: 0.5rem;
+          border-bottom: 1px solid var(--border-color);
         }
         .modal-footer {
           display: flex;
@@ -414,6 +551,10 @@ const ReceptionistPatients = () => {
           border: none;
           border-radius: var(--radius-md);
           cursor: pointer;
+        }
+        .submit-btn:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
         }
       `}</style>
     </Layout>

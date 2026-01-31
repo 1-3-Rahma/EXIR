@@ -239,7 +239,7 @@ const ReceptionistDashboard = () => {
                       <td>
                         <div
                           className="patient-cell clickable"
-                          onClick={() => arrival.patientId && navigate(`/receptionist/patients/${arrival.patientId._id || arrival.patientId}`)}
+                          onClick={() => navigate(`/receptionist/patients/${arrival.patientId}`)}
                         >
                           <div className="patient-avatar-sm">
                             {arrival.patientName?.charAt(0) || 'P'}
@@ -286,10 +286,8 @@ const ReceptionistDashboard = () => {
                       key={arrival._id || index}
                       className="arrival-item"
                       onClick={() => {
-                        if (arrival.patientId) {
-                          navigate(`/receptionist/patients/${arrival.patientId._id || arrival.patientId}`);
-                          setShowArrivalsModal(false);
-                        }
+                        navigate(`/receptionist/patients/${arrival.patientId}`);
+                        setShowArrivalsModal(false);
                       }}
                     >
                       <div className="arrival-avatar">

@@ -289,6 +289,35 @@ const updatePatient = async (req, res) => {
   }
 };
 
+// @desc    Get all patients
+// @route   GET /api/v1/receptionist/patients
+// @access  Private (Receptionist)
+const getAllPatients = async (req, res) => {
+  try {
+    const { search } = req.query;
+
+    let query = {};
+    if (search && search.trim()) {
+      query = {
+        $or: [
+          { fullName: { $regex: search, $options: 'i' } },
+          { nationalID: { $regex: search, $options: 'i' } },
+          { phone: { $regex: search, $options: 'i' } }
+        ]
+      };
+    }
+
+    const patients = await Patient.find(query)
+      .select('_id nationalID fullName phone gender dateOfBirth totalVisits lastVisitDate createdAt')
+      .sort({ createdAt: -1 });
+
+    res.json(patients);
+  } catch (error) {
+    console.error('Get all patients error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // @desc    Search patient by name
 // @route   GET /api/v1/receptionist/patient/search/name/:name
 // @access  Private (Receptionist)
@@ -333,17 +362,16 @@ const searchPatientByPhone = async (req, res) => {
 // @access  Private (Receptionist)
 const getDashboardStats = async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
     const [todayCheckIns, pendingArrivals, outstandingBills, appointmentsToday] = await Promise.all([
       Visit.countDocuments({
-        admissionDate: { $gte: today, $lt: tomorrow }
+        admissionDate: { $gte: today, $lte: endOfDay }
       }),
       Appointment.countDocuments({
-        date: { $gte: today, $lt: tomorrow },
+        date: { $gte: today, $lte: endOfDay },
         status: 'pending'
       }),
       Billing.aggregate([
@@ -351,7 +379,7 @@ const getDashboardStats = async (req, res) => {
         { $group: { _id: null, total: { $sum: '$dueAmount' } } }
       ]),
       Appointment.countDocuments({
-        date: { $gte: today, $lt: tomorrow }
+        date: { $gte: today, $lte: endOfDay }
       })
     ]);
 
@@ -372,24 +400,28 @@ const getDashboardStats = async (req, res) => {
 // @access  Private (Receptionist)
 const getTodayArrivals = async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
+    // Only get appointments that have a registered patient (patientId exists)
     const appointments = await Appointment.find({
-      date: { $gte: today, $lt: tomorrow }
+      date: { $gte: today, $lte: endOfDay },
+      patientId: { $exists: true, $ne: null }
     })
       .populate('patientId', 'fullName')
       .sort({ time: 1 });
 
-    const arrivals = appointments.map(apt => ({
-      _id: apt._id,
-      patientId: apt.patientId?._id || apt.patientId,
-      patientName: apt.patientId?.fullName || apt.patientName,
-      time: apt.time,
-      status: apt.status
-    }));
+    // Filter out any where populate failed (patient was deleted)
+    const arrivals = appointments
+      .filter(apt => apt.patientId && apt.patientId._id)
+      .map(apt => ({
+        _id: apt._id,
+        patientId: apt.patientId._id,
+        patientName: apt.patientId.fullName || apt.patientName,
+        time: apt.time,
+        status: apt.status
+      }));
 
     res.json(arrivals);
   } catch (error) {
@@ -436,11 +468,11 @@ const getAppointments = async (req, res) => {
 
     let query = {};
     if (date) {
-      const startDate = new Date(date);
-      startDate.setHours(0, 0, 0, 0);
-      const endDate = new Date(startDate);
-      endDate.setDate(endDate.getDate() + 1);
-      query.date = { $gte: startDate, $lt: endDate };
+      // Parse date as YYYY-MM-DD and create start/end of day
+      const [year, month, day] = date.split('-').map(Number);
+      const startDate = new Date(year, month - 1, day, 0, 0, 0, 0);
+      const endDate = new Date(year, month - 1, day, 23, 59, 59, 999);
+      query.date = { $gte: startDate, $lte: endDate };
     }
 
     const appointments = await Appointment.find(query)
@@ -482,10 +514,14 @@ const createAppointment = async (req, res) => {
       return res.status(400).json({ message: 'Patient name, department, date, and time are required' });
     }
 
+    // Parse date as YYYY-MM-DD and create local date at noon to avoid timezone issues
+    const [year, month, day] = date.split('-').map(Number);
+    const appointmentDate = new Date(year, month - 1, day, 12, 0, 0, 0);
+
     const appointmentData = {
       patientName,
       department,
-      date: new Date(date),
+      date: appointmentDate,
       time,
       notes: notes || '',
       status: 'pending',
@@ -504,6 +540,14 @@ const createAppointment = async (req, res) => {
     }
 
     const appointment = await Appointment.create(appointmentData);
+
+    // Update patient's visit count and last visit date if patientId is provided
+    if (appointmentData.patientId) {
+      await Patient.findByIdAndUpdate(appointmentData.patientId, {
+        $inc: { totalVisits: 1 },
+        lastVisitDate: appointmentDate
+      });
+    }
 
     res.status(201).json({
       message: 'Appointment created successfully',
@@ -664,6 +708,7 @@ const getDoctors = async (req, res) => {
 module.exports = {
   registerPatient,
   getPatient,
+  getAllPatients,
   searchPatientByNationalID,
   searchPatientByName,
   searchPatientByPhone,

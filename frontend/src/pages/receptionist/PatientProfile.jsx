@@ -69,13 +69,22 @@ const PatientProfile = () => {
   };
 
   const getLastVisitDate = () => {
-    if (visits.length === 0) return 'No visits yet';
-    const lastVisit = visits[0];
-    return new Date(lastVisit.admissionDate).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    if (patient?.lastVisitDate) {
+      return new Date(patient.lastVisitDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+    // Fallback to registration date if no lastVisitDate
+    if (patient?.createdAt) {
+      return new Date(patient.createdAt).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    }
+    return 'No visits yet';
   };
 
   if (loading) {
@@ -235,7 +244,7 @@ const PatientProfile = () => {
             </div>
             <div className="info-item">
               <span className="info-label">Total Visits</span>
-              <span className="info-value highlight">{visits.length}</span>
+              <span className="info-value highlight">{patient.totalVisits || 1}</span>
             </div>
             <div className="info-item">
               <span className="info-label">Registration Date</span>

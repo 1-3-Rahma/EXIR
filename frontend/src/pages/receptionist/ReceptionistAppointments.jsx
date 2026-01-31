@@ -1,22 +1,24 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
 import { receptionistAPI } from '../../services/api';
 import {
   FiCalendar, FiClock, FiUser, FiPlus, FiX,
-  FiSearch, FiChevronLeft, FiChevronRight, FiLoader, FiAlertCircle
+  FiSearch, FiAlertCircle, FiChevronLeft, FiChevronRight
 } from 'react-icons/fi';
 
 const ReceptionistAppointments = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showNewModal, setShowNewModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchTab, setSearchTab] = useState('name');
-  const [searching, setSearching] = useState(false);
   const [doctors, setDoctors] = useState([]);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
   const [shiftError, setShiftError] = useState('');
+  const [prefilledPatient, setPrefilledPatient] = useState(null);
 
   const [newAppointment, setNewAppointment] = useState({
     patientName: '',
@@ -60,10 +62,44 @@ const ReceptionistAppointments = () => {
     fetchAppointments();
   }, [selectedDate]);
 
+  // Check for patient query parameter (from patient profile)
+  useEffect(() => {
+    const patientId = searchParams.get('patient');
+    if (patientId) {
+      fetchPatientForAppointment(patientId);
+    }
+  }, [searchParams]);
+
+  const fetchPatientForAppointment = async (patientId) => {
+    try {
+      const response = await receptionistAPI.getPatient(patientId);
+      const patient = response.data;
+      setPrefilledPatient(patient);
+      setNewAppointment(prev => ({
+        ...prev,
+        patientName: patient.fullName,
+        patientId: patient._id
+      }));
+      setShowNewModal(true);
+      // Clear the query parameter
+      setSearchParams({});
+    } catch (error) {
+      console.error('Error fetching patient:', error);
+      alert('Failed to load patient information');
+      navigate('/receptionist/appointments');
+    }
+  };
+
   const fetchAppointments = async () => {
     setLoading(true);
     try {
-      const response = await receptionistAPI.getAppointments(selectedDate.toISOString());
+      // Format date as YYYY-MM-DD to avoid timezone issues
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+
+      const response = await receptionistAPI.getAppointments(dateStr);
       setAppointments(response.data || []);
     } catch (error) {
       console.error('Error fetching appointments:', error);
@@ -71,6 +107,12 @@ const ReceptionistAppointments = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const changeDate = (days) => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + days);
+    setSelectedDate(newDate);
   };
 
   // Fetch doctors when department changes
@@ -187,8 +229,8 @@ const ReceptionistAppointments = () => {
       await receptionistAPI.createAppointment(appointmentData);
 
       // Switch to the appointment's date to show it in the list
-      // The useEffect will trigger fetchAppointments when selectedDate changes
-      const appointmentDate = new Date(newAppointment.date + 'T00:00:00');
+      const [year, month, day] = newAppointment.date.split('-').map(Number);
+      const appointmentDate = new Date(year, month - 1, day);
       setSelectedDate(appointmentDate);
 
       setShowNewModal(false);
@@ -215,53 +257,14 @@ const ReceptionistAppointments = () => {
     });
     setShiftError('');
     setDoctors([]);
+    setPrefilledPatient(null);
   };
 
-  const changeDate = (days) => {
-    const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() + days);
-    setSelectedDate(newDate);
-  };
-
-  // Dynamic search
-  const performSearch = useCallback(async (term, tab) => {
-    if (!term.trim()) return;
-
-    setSearching(true);
-    try {
-      let response;
-      switch (tab) {
-        case 'nationalID':
-          response = await receptionistAPI.searchPatient(term);
-          break;
-        case 'phone':
-          response = await receptionistAPI.searchByPhone(term);
-          break;
-        default:
-          response = await receptionistAPI.searchByName(term);
-      }
-      const results = Array.isArray(response.data) ? response.data : [response.data];
-      return results;
-    } catch (error) {
-      return [];
-    } finally {
-      setSearching(false);
-    }
-  }, []);
-
-  // Filter appointments by search
+  // Filter appointments by patient name
   const filteredAppointments = appointments.filter(apt => {
     if (!searchTerm.trim()) return true;
     const term = searchTerm.toLowerCase();
-
-    switch (searchTab) {
-      case 'nationalID':
-        return apt.nationalID?.toLowerCase().includes(term);
-      case 'phone':
-        return apt.phone?.toLowerCase().includes(term);
-      default:
-        return apt.patientName?.toLowerCase().includes(term);
-    }
+    return apt.patientName?.toLowerCase().includes(term);
   });
 
   const formatDate = (dateStr) => {
@@ -307,35 +310,14 @@ const ReceptionistAppointments = () => {
 
       {/* Search Section */}
       <div className="search-section">
-        <div className="search-tabs">
-          <button
-            className={`search-tab ${searchTab === 'name' ? 'active' : ''}`}
-            onClick={() => setSearchTab('name')}
-          >
-            By Name
-          </button>
-          <button
-            className={`search-tab ${searchTab === 'phone' ? 'active' : ''}`}
-            onClick={() => setSearchTab('phone')}
-          >
-            By Phone
-          </button>
-          <button
-            className={`search-tab ${searchTab === 'nationalID' ? 'active' : ''}`}
-            onClick={() => setSearchTab('nationalID')}
-          >
-            By National ID
-          </button>
-        </div>
         <div className="search-input-wrapper">
           <FiSearch />
           <input
             type="text"
-            placeholder={`Search by ${searchTab === 'nationalID' ? 'National ID' : searchTab}...`}
+            placeholder="Search by patient name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          {searching && <FiLoader className="search-loader spin" />}
         </div>
       </div>
 
@@ -352,7 +334,7 @@ const ReceptionistAppointments = () => {
             <div className="empty-state">
               <FiCalendar className="empty-icon" />
               <h3>No Appointments</h3>
-              <p>No appointments found for this day</p>
+              <p>{searchTerm ? 'No appointments found matching your search' : 'No appointments scheduled for this day'}</p>
             </div>
           ) : (
             <div className="appointments-table">
@@ -411,16 +393,31 @@ const ReceptionistAppointments = () => {
               </button>
             </div>
             <form onSubmit={handleCreateAppointment} className="modal-body">
-              <div className="form-group">
-                <label>Patient Name *</label>
-                <input
-                  type="text"
-                  value={newAppointment.patientName}
-                  onChange={(e) => setNewAppointment({ ...newAppointment, patientName: e.target.value })}
-                  placeholder="Enter patient name"
-                  required
-                />
-              </div>
+              {prefilledPatient && (
+                <div className="patient-info-banner">
+                  <div className="patient-avatar-small">
+                    {prefilledPatient.fullName?.charAt(0) || 'P'}
+                  </div>
+                  <div className="patient-details">
+                    <span className="patient-name-display">{prefilledPatient.fullName}</span>
+                    <span className="patient-id-display">ID: {prefilledPatient.nationalID}</span>
+                  </div>
+                </div>
+              )}
+
+              {!prefilledPatient && (
+                <div className="form-group">
+                  <label>Patient Name *</label>
+                  <input
+                    type="text"
+                    value={newAppointment.patientName}
+                    onChange={(e) => setNewAppointment({ ...newAppointment, patientName: e.target.value })}
+                    placeholder="Enter patient name"
+                    required
+                  />
+                  <span className="field-hint warning">Tip: Schedule from a patient's profile for better tracking</span>
+                </div>
+              )}
 
               <div className="form-row">
                 <div className="form-group">
@@ -617,30 +614,6 @@ const ReceptionistAppointments = () => {
           border: 1px solid var(--border-color);
           margin-bottom: 1.5rem;
         }
-        .search-tabs {
-          display: flex;
-          gap: 0.5rem;
-          margin-bottom: 1rem;
-        }
-        .search-tab {
-          padding: 0.5rem 1rem;
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-full);
-          background: none;
-          color: var(--text-secondary);
-          font-size: 0.85rem;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .search-tab:hover {
-          border-color: var(--accent-blue);
-          color: var(--accent-blue);
-        }
-        .search-tab.active {
-          background: var(--accent-blue);
-          border-color: var(--accent-blue);
-          color: white;
-        }
         .search-input-wrapper {
           display: flex;
           align-items: center;
@@ -656,15 +629,6 @@ const ReceptionistAppointments = () => {
           background: none;
           font-size: 0.9rem;
           flex: 1;
-        }
-        .search-loader {
-          color: var(--accent-blue);
-        }
-        .spin {
-          animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
         }
         .card-header {
           display: flex;
@@ -866,6 +830,45 @@ const ReceptionistAppointments = () => {
           color: var(--text-secondary);
           margin-top: 0.25rem;
         }
+        .field-hint.warning {
+          color: var(--accent-orange);
+        }
+        .patient-info-banner {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          padding: 1rem;
+          background: rgba(59, 130, 246, 0.1);
+          border-radius: var(--radius-md);
+          margin-bottom: 1.5rem;
+          border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+        .patient-avatar-small {
+          width: 48px;
+          height: 48px;
+          background: var(--accent-blue);
+          color: white;
+          border-radius: var(--radius-full);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.25rem;
+          font-weight: 600;
+        }
+        .patient-details {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+        .patient-name-display {
+          font-weight: 600;
+          font-size: 1rem;
+          color: var(--text-primary);
+        }
+        .patient-id-display {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+        }
         .shift-info {
           display: inline-flex;
           align-items: center;
@@ -929,9 +932,6 @@ const ReceptionistAppointments = () => {
         @media (max-width: 768px) {
           .form-row {
             grid-template-columns: 1fr;
-          }
-          .search-tabs {
-            flex-wrap: wrap;
           }
         }
       `}</style>
