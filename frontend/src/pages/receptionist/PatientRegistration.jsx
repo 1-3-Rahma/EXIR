@@ -12,11 +12,12 @@ const PatientRegistration = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [idType, setIdType] = useState('nationalID'); // 'nationalID' or 'passport'
 
   const [formData, setFormData] = useState({
     fullName: '',
-    age: '',
-    gender: 'male',
+    dateOfBirth: '',
+    gender: '',
     phone: '',
     email: '',
     nationalID: '',
@@ -32,14 +33,89 @@ const PatientRegistration = () => {
     setError('');
   };
 
+  // Validate National ID: exactly 14 digits
+  const validateNationalID = (id) => {
+    const nationalIDRegex = /^\d{14}$/;
+    return nationalIDRegex.test(id);
+  };
+
+  // Validate Passport: 1 letter + 7 or 8 numbers (total 8 or 9 characters)
+  const validatePassport = (passport) => {
+    const passportRegex = /^[A-Za-z]\d{7,8}$/;
+    return passportRegex.test(passport);
+  };
+
+  // Validate phone number: exactly 11 digits
+  const validatePhone = (phone) => {
+    const phoneRegex = /^\d{11}$/;
+    return phoneRegex.test(phone);
+  };
+
   const validateForm = () => {
     if (!formData.fullName.trim()) return 'Full name is required';
-    if (!formData.nationalID.trim()) return 'National ID is required';
-    if (!formData.phone.trim()) return 'Phone number is required';
-    if (formData.age && (isNaN(formData.age) || formData.age < 0 || formData.age > 150)) {
-      return 'Please enter a valid age';
+
+    if (!formData.nationalID.trim()) {
+      return idType === 'nationalID' ? 'National ID is required' : 'Passport number is required';
     }
+
+    // Validate ID based on type
+    if (idType === 'nationalID') {
+      if (!validateNationalID(formData.nationalID)) {
+        return 'National ID must be exactly 14 digits';
+      }
+    } else {
+      if (!validatePassport(formData.nationalID)) {
+        return 'Passport must be 1 letter followed by 7 or 8 numbers (e.g., A12345678)';
+      }
+    }
+
+    if (!formData.gender) return 'Gender is required';
+    if (!formData.phone.trim()) return 'Phone number is required';
+
+    // Validate phone number is exactly 11 digits
+    if (!validatePhone(formData.phone)) {
+      return 'Phone number must be exactly 11 digits';
+    }
+
+    if (!formData.dateOfBirth) return 'Date of birth is required';
+
+    // Validate date of birth is not in the future
+    const dob = new Date(formData.dateOfBirth);
+    if (dob > new Date()) {
+      return 'Date of birth cannot be in the future';
+    }
+
+    // Validate email format if provided
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      return 'Please enter a valid email address';
+    }
+
+    // Address is required
+    if (!formData.address.trim()) return 'Address is required';
+
+    // Emergency contact info is required
+    if (!formData.emergencyContactName.trim()) return 'Emergency contact name is required';
+    if (!formData.emergencyContactPhone.trim()) return 'Emergency contact phone is required';
+
+    // Validate emergency contact phone is exactly 11 digits
+    if (!validatePhone(formData.emergencyContactPhone)) {
+      return 'Emergency contact phone must be exactly 11 digits';
+    }
+
+    if (!formData.emergencyContactRelation) return 'Emergency contact relationship is required';
+
     return null;
+  };
+
+  const calculateAge = (dateOfBirth) => {
+    const today = new Date();
+    const dob = new Date(dateOfBirth);
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    return age;
   };
 
   const handleSubmit = async (e) => {
@@ -56,9 +132,17 @@ const PatientRegistration = () => {
 
     try {
       const response = await receptionistAPI.registerPatient({
-        ...formData,
-        dateOfBirth: formData.age ? calculateDOB(formData.age) : null,
+        nationalID: formData.nationalID.toUpperCase(),
+        fullName: formData.fullName,
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        phone: formData.phone,
+        email: formData.email,
+        address: formData.address,
         contactInfo: formData.address,
+        emergencyContactName: formData.emergencyContactName,
+        emergencyContactPhone: formData.emergencyContactPhone,
+        emergencyContactRelation: formData.emergencyContactRelation,
         emergencyContact: formData.emergencyContactName
           ? `${formData.emergencyContactName} (${formData.emergencyContactRelation}) - ${formData.emergencyContactPhone}`
           : ''
@@ -73,11 +157,6 @@ const PatientRegistration = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const calculateDOB = (age) => {
-    const today = new Date();
-    return new Date(today.getFullYear() - parseInt(age), 0, 1).toISOString();
   };
 
   if (success) {
@@ -159,25 +238,35 @@ const PatientRegistration = () => {
             </div>
 
             <div className="form-group">
-              <label>Age</label>
-              <input
-                type="number"
-                name="age"
-                value={formData.age}
-                onChange={handleChange}
-                placeholder="Enter age"
-                min="0"
-                max="150"
-              />
+              <label>Date of Birth *</label>
+              <div className="input-with-icon">
+                <FiCalendar />
+                <input
+                  type="date"
+                  name="dateOfBirth"
+                  value={formData.dateOfBirth}
+                  onChange={handleChange}
+                  max={new Date().toISOString().split('T')[0]}
+                  required
+                />
+              </div>
+              {formData.dateOfBirth && (
+                <span className="age-display">
+                  Age: {calculateAge(formData.dateOfBirth)} years
+                </span>
+              )}
             </div>
 
             <div className="form-group">
-              <label>Gender</label>
+              <label>Gender *</label>
               <select
                 name="gender"
                 value={formData.gender}
                 onChange={handleChange}
+                required
+                className={!formData.gender ? 'placeholder' : ''}
               >
+                <option value="" disabled>Select gender</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
                 <option value="other">Other</option>
@@ -185,7 +274,27 @@ const PatientRegistration = () => {
             </div>
 
             <div className="form-group full-width">
-              <label>National ID *</label>
+              <label>ID Type *</label>
+              <div className="id-type-toggle">
+                <button
+                  type="button"
+                  className={`toggle-btn ${idType === 'nationalID' ? 'active' : ''}`}
+                  onClick={() => { setIdType('nationalID'); setFormData(prev => ({ ...prev, nationalID: '' })); }}
+                >
+                  National ID (14 digits)
+                </button>
+                <button
+                  type="button"
+                  className={`toggle-btn ${idType === 'passport' ? 'active' : ''}`}
+                  onClick={() => { setIdType('passport'); setFormData(prev => ({ ...prev, nationalID: '' })); }}
+                >
+                  Passport (1 letter + 7-8 numbers)
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group full-width">
+              <label>{idType === 'nationalID' ? 'National ID *' : 'Passport Number *'}</label>
               <div className="input-with-icon">
                 <FiCreditCard />
                 <input
@@ -193,10 +302,17 @@ const PatientRegistration = () => {
                   name="nationalID"
                   value={formData.nationalID}
                   onChange={handleChange}
-                  placeholder="Enter national ID number"
+                  placeholder={idType === 'nationalID' ? 'Enter 14-digit National ID' : 'Enter passport (e.g., A12345678)'}
+                  maxLength={idType === 'nationalID' ? 14 : 9}
                   required
                 />
               </div>
+              <span className="input-hint">
+                {idType === 'nationalID'
+                  ? `${formData.nationalID.length}/14 digits`
+                  : `Format: 1 letter + 7-8 numbers (${formData.nationalID.length}/9 characters)`
+                }
+              </span>
             </div>
           </div>
         </div>
@@ -206,7 +322,7 @@ const PatientRegistration = () => {
           <h3><FiPhone /> Contact Information</h3>
           <div className="form-grid">
             <div className="form-group">
-              <label>Phone Number *</label>
+              <label>Phone Number * (11 digits)</label>
               <div className="input-with-icon">
                 <FiPhone />
                 <input
@@ -214,10 +330,12 @@ const PatientRegistration = () => {
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  placeholder="Enter phone number"
+                  placeholder="Enter 11-digit phone number"
+                  maxLength={11}
                   required
                 />
               </div>
+              <span className="input-hint">{formData.phone.length}/11 digits</span>
             </div>
 
             <div className="form-group">
@@ -235,8 +353,8 @@ const PatientRegistration = () => {
             </div>
 
             <div className="form-group full-width">
-              <label>Address</label>
-              <div className="input-with-icon">
+              <label>Address *</label>
+              <div className="input-with-icon textarea-icon">
                 <FiMapPin />
                 <textarea
                   name="address"
@@ -244,6 +362,7 @@ const PatientRegistration = () => {
                   onChange={handleChange}
                   placeholder="Enter full address"
                   rows={3}
+                  required
                 />
               </div>
             </div>
@@ -252,38 +371,41 @@ const PatientRegistration = () => {
 
         {/* Emergency Contact */}
         <div className="form-section">
-          <h3><FiUsers /> Emergency Contact</h3>
+          <h3><FiUsers /> Emergency Contact *</h3>
           <div className="form-grid">
             <div className="form-group">
-              <label>Contact Name</label>
+              <label>Contact Name *</label>
               <input
                 type="text"
                 name="emergencyContactName"
                 value={formData.emergencyContactName}
                 onChange={handleChange}
                 placeholder="Emergency contact name"
+                required
               />
             </div>
 
             <div className="form-group">
-              <label>Relationship</label>
+              <label>Relationship *</label>
               <select
                 name="emergencyContactRelation"
                 value={formData.emergencyContactRelation}
                 onChange={handleChange}
+                required
+                className={!formData.emergencyContactRelation ? 'placeholder' : ''}
               >
-                <option value="">Select relationship</option>
-                <option value="spouse">Spouse</option>
-                <option value="parent">Parent</option>
-                <option value="child">Child</option>
-                <option value="sibling">Sibling</option>
-                <option value="friend">Friend</option>
-                <option value="other">Other</option>
+                <option value="" disabled>Select relationship</option>
+                <option value="Spouse">Spouse</option>
+                <option value="Parent">Parent</option>
+                <option value="Child">Child</option>
+                <option value="Sibling">Sibling</option>
+                <option value="Friend">Friend</option>
+                <option value="Other">Other</option>
               </select>
             </div>
 
             <div className="form-group full-width">
-              <label>Contact Phone</label>
+              <label>Contact Phone * (11 digits)</label>
               <div className="input-with-icon">
                 <FiPhone />
                 <input
@@ -291,9 +413,12 @@ const PatientRegistration = () => {
                   name="emergencyContactPhone"
                   value={formData.emergencyContactPhone}
                   onChange={handleChange}
-                  placeholder="Emergency contact phone"
+                  maxLength={11}
+                  required
+                  placeholder="Enter 11-digit phone number"
                 />
               </div>
+              <span className="input-hint">{formData.emergencyContactPhone.length}/11 digits</span>
             </div>
           </div>
         </div>
@@ -393,6 +518,9 @@ const PatientRegistration = () => {
           font-size: 0.9rem;
           transition: border-color 0.2s;
         }
+        .form-group select.placeholder {
+          color: var(--text-muted);
+        }
         .form-group input:focus,
         .form-group select:focus,
         .form-group textarea:focus {
@@ -413,15 +541,46 @@ const PatientRegistration = () => {
           transform: translateY(-50%);
           color: var(--text-muted);
         }
+        .input-with-icon.textarea-icon svg {
+          top: 1rem;
+          transform: none;
+        }
         .input-with-icon input,
         .input-with-icon textarea {
           width: 100%;
           padding-left: 2.75rem;
         }
-        .input-with-icon textarea + svg,
-        .input-with-icon svg:has(+ textarea) {
-          top: 1rem;
-          transform: none;
+        .age-display {
+          font-size: 0.8rem;
+          color: var(--accent-blue);
+          font-weight: 500;
+        }
+        .input-hint {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+        }
+        .id-type-toggle {
+          display: flex;
+          gap: 0.5rem;
+        }
+        .toggle-btn {
+          flex: 1;
+          padding: 0.75rem 1rem;
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-md);
+          background: var(--bg-light);
+          color: var(--text-secondary);
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .toggle-btn:hover {
+          border-color: var(--accent-blue);
+        }
+        .toggle-btn.active {
+          background: var(--accent-blue);
+          border-color: var(--accent-blue);
+          color: white;
         }
         .form-actions {
           display: flex;
@@ -466,6 +625,9 @@ const PatientRegistration = () => {
           }
           .form-group.full-width {
             grid-column: 1;
+          }
+          .id-type-toggle {
+            flex-direction: column;
           }
         }
       `}</style>

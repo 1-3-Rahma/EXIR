@@ -18,7 +18,8 @@ const {
   updateAppointment,
   cancelAppointment,
   recordPayment,
-  getPaymentHistory
+  getPaymentHistory,
+  getDoctors
 } = require('../controllers/receptionistController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
@@ -53,5 +54,8 @@ router.get('/appointments', getAppointments);
 router.post('/appointments', createAppointment);
 router.put('/appointments/:appointmentId', updateAppointment);
 router.delete('/appointments/:appointmentId', cancelAppointment);
+
+// Doctors
+router.get('/doctors', getDoctors);
 
 module.exports = router;

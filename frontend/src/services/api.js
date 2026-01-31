@@ -84,7 +84,8 @@ export const receptionistAPI = {
   updateAppointment: (appointmentId, data) => api.put(`/receptionist/appointments/${appointmentId}`, data),
   cancelAppointment: (appointmentId) => api.delete(`/receptionist/appointments/${appointmentId}`),
   markPaymentComplete: (patientId, paymentData) => api.post(`/receptionist/patient/${patientId}/payment`, paymentData),
-  getPaymentHistory: (patientId) => api.get(`/receptionist/patient/${patientId}/payment-history`)
+  getPaymentHistory: (patientId) => api.get(`/receptionist/patient/${patientId}/payment-history`),
+  getDoctors: (department) => api.get('/receptionist/doctors', { params: { department } })
 };
 
 export const vitalsAPI = {

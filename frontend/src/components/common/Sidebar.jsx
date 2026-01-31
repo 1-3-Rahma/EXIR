@@ -134,7 +134,7 @@ const Sidebar = ({ appName, role }) => {
       </nav>
 
       <div className="sidebar-footer">
-        {(role === 'nurse' || role === 'doctor') ? (
+        {(role === 'nurse' || role === 'doctor' || role === 'receptionist') ? (
           <NavLink to={`/${role}/profile`} className="nav-item">
             <FiUser className="nav-icon" />
             <span>Profile</span>

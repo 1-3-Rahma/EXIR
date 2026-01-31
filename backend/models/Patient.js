@@ -17,7 +17,7 @@ const patientSchema = new mongoose.Schema({
   gender: {
     type: String,
     enum: ['male', 'female', 'other'],
-    default: 'other'
+    required: true
   },
   contactInfo: {
     type: String,
@@ -27,7 +27,39 @@ const patientSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  emergencyContactName: {
+    type: String,
+    required: true
+  },
+  emergencyContactPhone: {
+    type: String,
+    required: true,
+    validate: {
+      validator: function(v) {
+        return /^\d{11}$/.test(v);
+      },
+      message: 'Emergency contact phone must be exactly 11 digits'
+    }
+  },
+  emergencyContactRelation: {
+    type: String,
+    required: true
+  },
   phone: {
+    type: String,
+    required: true,
+    validate: {
+      validator: function(v) {
+        return /^\d{11}$/.test(v);
+      },
+      message: 'Phone number must be exactly 11 digits'
+    }
+  },
+  email: {
+    type: String,
+    default: ''
+  },
+  address: {
     type: String,
     required: true
   },

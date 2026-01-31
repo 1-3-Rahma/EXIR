@@ -35,6 +35,8 @@ const seedData = async () => {
       password: 'password123',
       fullName: 'Dr. Ahmed Hassan',
       specialization: 'Cardiology',
+      department: 'Cardiology',
+      shift: 'morning',
       phone: '+201012345601',
       isActive: true
     });
@@ -46,7 +48,61 @@ const seedData = async () => {
       password: 'password123',
       fullName: 'Dr. Sara Mohamed',
       specialization: 'General Medicine',
+      department: 'General Medicine',
+      shift: 'afternoon',
       phone: '+201012345602',
+      isActive: true
+    });
+
+    const doctor3 = await User.create({
+      role: 'doctor',
+      hospitalId: 'HOSP001',
+      identifier: 'DOC003',
+      password: 'password123',
+      fullName: 'Dr. Youssef Ali',
+      specialization: 'Neurology',
+      department: 'Neurology',
+      shift: 'morning',
+      phone: '+201012345605',
+      isActive: true
+    });
+
+    const doctor4 = await User.create({
+      role: 'doctor',
+      hospitalId: 'HOSP001',
+      identifier: 'DOC004',
+      password: 'password123',
+      fullName: 'Dr. Nadia Kamal',
+      specialization: 'Pediatrics',
+      department: 'Pediatrics',
+      shift: 'afternoon',
+      phone: '+201012345606',
+      isActive: true
+    });
+
+    const doctor5 = await User.create({
+      role: 'doctor',
+      hospitalId: 'HOSP001',
+      identifier: 'DOC005',
+      password: 'password123',
+      fullName: 'Dr. Tarek Mostafa',
+      specialization: 'Orthopedics',
+      department: 'Orthopedics',
+      shift: 'night',
+      phone: '+201012345607',
+      isActive: true
+    });
+
+    const doctor6 = await User.create({
+      role: 'doctor',
+      hospitalId: 'HOSP001',
+      identifier: 'DOC006',
+      password: 'password123',
+      fullName: 'Dr. Mariam Fathy',
+      specialization: 'Dermatology',
+      department: 'Dermatology',
+      shift: 'morning',
+      phone: '+201012345608',
       isActive: true
     });
 
@@ -90,8 +146,10 @@ const seedData = async () => {
       hospitalId: 'HOSP001',
       identifier: 'REC001',
       password: 'password123',
-      fullName: 'Receptionist Mona Ahmed',
-      isActive: true
+      fullName: 'Mona Ahmed',
+      isActive: true,
+      phone: '01067731212',
+      email: 'Mona@gmail.com'
     });
 
     const patient1 = await Patient.create({
@@ -101,7 +159,12 @@ const seedData = async () => {
       gender: 'male',
       contactInfo: 'Cairo, Egypt',
       phone: '01012345678',
+      email: 'mohamed.ibrahim@email.com',
+      address: '15 Tahrir Street, Cairo, Egypt',
       emergencyContact: '01098765432',
+      emergencyContactName: 'Ahmed Ibrahim',
+      emergencyContactPhone: '01098765432',
+      emergencyContactRelation: 'Brother',
       registeredByReceptionistId: receptionist._id
     });
 
@@ -112,7 +175,12 @@ const seedData = async () => {
       gender: 'female',
       contactInfo: 'Alexandria, Egypt',
       phone: '01123456789',
+      email: 'hana.mahmoud@email.com',
+      address: '23 Corniche Road, Alexandria, Egypt',
       emergencyContact: '01198765432',
+      emergencyContactName: 'Fatma Mahmoud',
+      emergencyContactPhone: '01198765432',
+      emergencyContactRelation: 'Mother',
       registeredByReceptionistId: receptionist._id
     });
 
@@ -123,7 +191,12 @@ const seedData = async () => {
       gender: 'male',
       contactInfo: 'Giza, Egypt',
       phone: '01234567890',
+      email: 'khaled.youssef@email.com',
+      address: '8 Pyramids Street, Giza, Egypt',
       emergencyContact: '01298765432',
+      emergencyContactName: 'Sara Youssef',
+      emergencyContactPhone: '01298765432',
+      emergencyContactRelation: 'Wife',
       registeredByReceptionistId: receptionist._id
     });
 
@@ -175,8 +248,13 @@ const seedData = async () => {
 
     console.log('TEST CREDENTIALS:');
     console.log('----------------------------------------');
-    console.log('Doctor:');
-    console.log('  Identifier: DOC001');
+    console.log('Doctors:');
+    console.log('  DOC001 - Dr. Ahmed Hassan (Cardiology, Morning)');
+    console.log('  DOC002 - Dr. Sara Mohamed (General Medicine, Afternoon)');
+    console.log('  DOC003 - Dr. Youssef Ali (Neurology, Morning)');
+    console.log('  DOC004 - Dr. Nadia Kamal (Pediatrics, Afternoon)');
+    console.log('  DOC005 - Dr. Tarek Mostafa (Orthopedics, Night)');
+    console.log('  DOC006 - Dr. Mariam Fathy (Dermatology, Morning)');
     console.log('  Password: password123');
     console.log('  Role: doctor');
     console.log('----------------------------------------');
@@ -189,6 +267,8 @@ const seedData = async () => {
     console.log('  Identifier: REC001');
     console.log('  Password: password123');
     console.log('  Role: receptionist');
+    console.log('  Email: Mona@gmail.com');
+    console.log('  Phone: 01067731212');
     console.log('----------------------------------------');
     console.log('Patient (OTP Login):');
     console.log('  National ID: 29901011234567');

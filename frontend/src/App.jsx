@@ -33,6 +33,7 @@ import PatientRegistration from './pages/receptionist/PatientRegistration';
 import PatientProfile from './pages/receptionist/PatientProfile';
 import ReceptionistAppointments from './pages/receptionist/ReceptionistAppointments';
 import ReceptionistDocuments from './pages/receptionist/ReceptionistDocuments';
+import ReceptionistProfile from './pages/receptionist/ReceptionistProfile';
 
 import PrivateRoute from './components/common/PrivateRoute';
 
@@ -100,6 +101,7 @@ function App() {
       <Route path="/receptionist/appointments" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistAppointments /></PrivateRoute>} />
       <Route path="/receptionist/appointments/new" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistAppointments /></PrivateRoute>} />
       <Route path="/receptionist/documents" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistDocuments /></PrivateRoute>} />
+      <Route path="/receptionist/profile" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistProfile /></PrivateRoute>} />
 
       {/* Root always opens login; /login redirects to dashboard if already logged in */}
       <Route path="/" element={<Navigate to="/login" replace />} />

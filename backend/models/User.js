@@ -34,9 +34,25 @@ const userSchema = new mongoose.Schema({
       return this.role === 'patient';
     }
   },
+  email: {
+    type: String,
+    default: ''
+  },
+  department: {
+    type: String,
+    default: ''
+  },
   shift: {
     type: String,
     enum: ['morning', 'afternoon', 'night', null],
+    default: null
+  },
+  shiftStartTime: {
+    type: String,
+    default: null
+  },
+  shiftEndTime: {
+    type: String,
     default: null
   },
   isLoggedIn: {

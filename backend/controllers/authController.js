@@ -53,7 +53,11 @@ const login = async (req, res) => {
         fullName: user.fullName,
         identifier: user.identifier,
         specialization: user.specialization,
-        shift: user.shift
+        shift: user.shift,
+        phone: user.phone,
+        email: user.email,
+        department: user.department,
+        createdAt: user.createdAt
       }
     });
   } catch (error) {

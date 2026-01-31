@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
 import { receptionistAPI } from '../../services/api';
 import {
-  FiUser, FiPhone, FiMail, FiMapPin, FiCreditCard,
-  FiCalendar, FiDollarSign, FiFileText, FiAlertCircle,
-  FiCheckCircle, FiArrowLeft, FiClock, FiActivity
+  FiUser, FiPhone, FiCreditCard, FiCalendar, FiDollarSign,
+  FiFileText, FiAlertCircle, FiCheckCircle, FiArrowLeft, FiUsers
 } from 'react-icons/fi';
 
 const PatientProfile = () => {
@@ -38,6 +37,23 @@ const PatientProfile = () => {
     }
   };
 
+  const calculateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return null;
+    const today = new Date();
+    const dob = new Date(dateOfBirth);
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const formatGender = (gender) => {
+    if (!gender) return 'Not specified';
+    return gender.charAt(0).toUpperCase() + gender.slice(1);
+  };
+
   const getStatus = () => {
     const activeVisit = visits.find(v => v.status === 'active');
     if (activeVisit) return { label: 'Admitted', color: 'blue' };
@@ -50,6 +66,16 @@ const PatientProfile = () => {
 
   const hasPendingPayments = () => {
     return billing?.dueAmount > 0;
+  };
+
+  const getLastVisitDate = () => {
+    if (visits.length === 0) return 'No visits yet';
+    const lastVisit = visits[0];
+    return new Date(lastVisit.admissionDate).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
   if (loading) {
@@ -75,7 +101,7 @@ const PatientProfile = () => {
   }
 
   const status = getStatus();
-  const lastVisit = visits[0];
+  const age = calculateAge(patient.dateOfBirth);
 
   return (
     <Layout appName="MedHub" role="receptionist">
@@ -96,6 +122,9 @@ const PatientProfile = () => {
           <p className="patient-id">
             <FiCreditCard /> {patient.nationalID}
           </p>
+          {age !== null && (
+            <p className="patient-age">{age} years old</p>
+          )}
         </div>
         <div className="profile-status">
           <span className={`status-badge ${status.color}`}>
@@ -136,18 +165,22 @@ const PatientProfile = () => {
               <span className="info-value">{patient.fullName}</span>
             </div>
             <div className="info-item">
-              <span className="info-label">National ID</span>
+              <span className="info-label">National ID / Passport</span>
               <span className="info-value">{patient.nationalID}</span>
             </div>
             <div className="info-item">
               <span className="info-label">Gender</span>
-              <span className="info-value">{patient.gender || 'Not specified'}</span>
+              <span className="info-value">{formatGender(patient.gender)}</span>
             </div>
             <div className="info-item">
               <span className="info-label">Date of Birth</span>
               <span className="info-value">
                 {patient.dateOfBirth
-                  ? new Date(patient.dateOfBirth).toLocaleDateString()
+                  ? `${new Date(patient.dateOfBirth).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })} (${age} years)`
                   : 'Not specified'}
               </span>
             </div>
@@ -159,20 +192,35 @@ const PatientProfile = () => {
           <h3><FiPhone /> Contact Details</h3>
           <div className="info-grid">
             <div className="info-item">
-              <span className="info-label">Phone</span>
-              <span className="info-value">{patient.phone || patient.contactInfo || 'N/A'}</span>
+              <span className="info-label">Phone Number</span>
+              <span className="info-value">{patient.phone || 'N/A'}</span>
             </div>
             <div className="info-item">
-              <span className="info-label">Email</span>
+              <span className="info-label">Email Address</span>
               <span className="info-value">{patient.email || 'N/A'}</span>
             </div>
             <div className="info-item full-width">
               <span className="info-label">Address</span>
               <span className="info-value">{patient.address || patient.contactInfo || 'N/A'}</span>
             </div>
+          </div>
+        </div>
+
+        {/* Emergency Contact */}
+        <div className="profile-section">
+          <h3><FiUsers /> Emergency Contact</h3>
+          <div className="info-grid">
+            <div className="info-item">
+              <span className="info-label">Contact Name</span>
+              <span className="info-value">{patient.emergencyContactName || 'N/A'}</span>
+            </div>
+            <div className="info-item">
+              <span className="info-label">Relationship</span>
+              <span className="info-value">{patient.emergencyContactRelation || 'N/A'}</span>
+            </div>
             <div className="info-item full-width">
-              <span className="info-label">Emergency Contact</span>
-              <span className="info-value">{patient.emergencyContact || 'N/A'}</span>
+              <span className="info-label">Contact Phone</span>
+              <span className="info-value">{patient.emergencyContactPhone || 'N/A'}</span>
             </div>
           </div>
         </div>
@@ -183,15 +231,29 @@ const PatientProfile = () => {
           <div className="info-grid">
             <div className="info-item">
               <span className="info-label">Last Visit</span>
-              <span className="info-value">
-                {lastVisit
-                  ? new Date(lastVisit.admissionDate).toLocaleDateString()
-                  : 'No visits'}
-              </span>
+              <span className="info-value">{getLastVisitDate()}</span>
             </div>
             <div className="info-item">
               <span className="info-label">Total Visits</span>
-              <span className="info-value">{visits.length}</span>
+              <span className="info-value highlight">{visits.length}</span>
+            </div>
+            <div className="info-item">
+              <span className="info-label">Registration Date</span>
+              <span className="info-value">
+                {patient.createdAt
+                  ? new Date(patient.createdAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    })
+                  : 'N/A'}
+              </span>
+            </div>
+            <div className="info-item">
+              <span className="info-label">Current Status</span>
+              <span className={`info-value ${status.color === 'blue' ? 'warning' : 'success'}`}>
+                {status.label}
+              </span>
             </div>
           </div>
           <Link to={`/receptionist/patients/${patientId}/visits`} className="section-link">
@@ -309,6 +371,11 @@ const PatientProfile = () => {
           color: var(--text-secondary);
           font-size: 0.9rem;
         }
+        .patient-age {
+          color: var(--text-muted);
+          font-size: 0.85rem;
+          margin-top: 0.25rem;
+        }
         .status-badge {
           padding: 0.5rem 1rem;
           border-radius: var(--radius-full);
@@ -393,6 +460,11 @@ const PatientProfile = () => {
         .info-value {
           font-size: 0.9rem;
           color: var(--text-primary);
+        }
+        .info-value.highlight {
+          font-size: 1.25rem;
+          font-weight: 600;
+          color: var(--accent-blue);
         }
         .info-value.success { color: var(--accent-green); }
         .info-value.warning { color: var(--accent-orange); }

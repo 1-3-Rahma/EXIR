@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/common/Layout';
 import StatCard from '../../components/common/StatCard';
 import { receptionistAPI } from '../../services/api';
 import {
   FiUsers, FiAlertCircle, FiDollarSign, FiCalendar, FiSearch,
-  FiPlus, FiUserPlus, FiClock, FiCheckCircle, FiLoader
+  FiPlus, FiUserPlus, FiClock, FiCheckCircle, FiLoader, FiX
 } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -22,6 +22,7 @@ const ReceptionistDashboard = () => {
   const [todayArrivals, setTodayArrivals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
+  const [showArrivalsModal, setShowArrivalsModal] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -39,7 +40,7 @@ const ReceptionistDashboard = () => {
         todayCheckIns: statsRes.data?.todayCheckIns ,
         pendingArrivals: statsRes.data?.pendingArrivals ,
         outstandingBills: statsRes.data?.outstandingBills ,
-        appointmentsToday: statsRes.data?.appointmentsToday 
+        appointmentsToday: statsRes.data?.appointmentsToday
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -48,20 +49,25 @@ const ReceptionistDashboard = () => {
     }
   };
 
-  const handleSearch = async () => {
-    if (!searchTerm.trim()) return;
+  // Dynamic search function
+  const performSearch = useCallback(async (term, tab) => {
+    if (!term.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
     setSearching(true);
     try {
       let response;
-      switch (searchTab) {
+      switch (tab) {
         case 'nationalID':
-          response = await receptionistAPI.searchPatient(searchTerm);
+          response = await receptionistAPI.searchPatient(term);
           break;
         case 'phone':
-          response = await receptionistAPI.searchByPhone(searchTerm);
+          response = await receptionistAPI.searchByPhone(term);
           break;
         default:
-          response = await receptionistAPI.searchByName(searchTerm);
+          response = await receptionistAPI.searchByName(term);
       }
       setSearchResults(Array.isArray(response.data) ? response.data : [response.data]);
     } catch (error) {
@@ -69,7 +75,24 @@ const ReceptionistDashboard = () => {
     } finally {
       setSearching(false);
     }
-  };
+  }, []);
+
+  // Debounced search effect - triggers search as user types
+  useEffect(() => {
+    // Clear results if search term is empty
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    // Debounce: wait 300ms after user stops typing before searching
+    const debounceTimer = setTimeout(() => {
+      performSearch(searchTerm, searchTab);
+    }, 300);
+
+    // Cleanup: cancel the timer if user types again before 300ms
+    return () => clearTimeout(debounceTimer);
+  }, [searchTerm, searchTab, performSearch]);
 
   const handlePatientClick = (patientId) => {
     navigate(`/receptionist/patients/${patientId}`);
@@ -97,35 +120,7 @@ const ReceptionistDashboard = () => {
           </div>
         </div>
       </div>
-
-      {/* Stats Cards */}
-      <div className="stats-grid">
-        <StatCard
-          title="Today's Check-ins"
-          value={stats.todayCheckIns}
-          icon={FiUsers}
-          color="blue"
-        />
-        <StatCard
-          title="Pending Arrivals"
-          value={stats.pendingArrivals}
-          icon={FiClock}
-          color="orange"
-        />
-        <StatCard
-          title="Outstanding Bills"
-          value={`$${stats.outstandingBills.toLocaleString()}`}
-          icon={FiDollarSign}
-          color="green"
-        />
-        <StatCard
-          title="Appointments Today"
-          value={stats.appointmentsToday}
-          icon={FiCalendar}
-          color="cyan"
-        />
-      </div>
-
+    
       {/* Quick Actions */}
       <div className="card quick-actions-section">
         <div className="card-header">
@@ -136,10 +131,6 @@ const ReceptionistDashboard = () => {
             <Link to="/receptionist/patients/register" className="quick-action-card purple">
               <FiUserPlus className="action-icon" />
               <span>Register New Patient</span>
-            </Link>
-            <Link to="/receptionist/checkin" className="quick-action-card cyan">
-              <FiCheckCircle className="action-icon" />
-              <span>Check-in Arrivals</span>
             </Link>
             <Link to="/receptionist/appointments/new" className="quick-action-card orange">
               <FiCalendar className="action-icon" />
@@ -158,37 +149,35 @@ const ReceptionistDashboard = () => {
         <div className="search-tabs">
           <button
             className={`search-tab ${searchTab === 'name' ? 'active' : ''}`}
-            onClick={() => { setSearchTab('name'); setSearchResults([]); }}
+            onClick={() => setSearchTab('name')}
           >
             By Name
           </button>
           <button
             className={`search-tab ${searchTab === 'phone' ? 'active' : ''}`}
-            onClick={() => { setSearchTab('phone'); setSearchResults([]); }}
+            onClick={() => setSearchTab('phone')}
           >
             By Phone
           </button>
           <button
             className={`search-tab ${searchTab === 'nationalID' ? 'active' : ''}`}
-            onClick={() => { setSearchTab('nationalID'); setSearchResults([]); }}
+            onClick={() => setSearchTab('nationalID')}
           >
             By National ID
           </button>
         </div>
         <div className="search-input-row">
-          <div className="search-input-wrapper">
+          <div className="search-input-wrapper full-width">
             <FiSearch />
             <input
               type="text"
-              placeholder={`Search patient by ${searchTab === 'nationalID' ? 'National ID' : searchTab}...`}
+              placeholder={`Start typing to search by ${searchTab === 'nationalID' ? 'National ID' : searchTab}...`}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              autoComplete="off"
             />
+            {searching && <FiLoader className="search-loader spin" />}
           </div>
-          <button className="search-btn" onClick={handleSearch} disabled={searching}>
-            {searching ? <FiLoader className="spin" /> : 'Search'}
-          </button>
         </div>
 
         {/* Search Results */}
@@ -222,9 +211,9 @@ const ReceptionistDashboard = () => {
           <h2>
             <FiClock /> Today's Arrivals
           </h2>
-          <Link to="/receptionist/arrivals" className="view-all">
+          <button className="view-all-btn" onClick={() => setShowArrivalsModal(true)}>
             View All →
-          </Link>
+          </button>
         </div>
         <div className="card-body">
           {loading ? (
@@ -241,27 +230,25 @@ const ReceptionistDashboard = () => {
                   <tr>
                     <th>Patient Name</th>
                     <th>Time</th>
-                    <th>Status</th>
                     <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {todayArrivals.slice(0, 5).map((arrival, index) => (
+                  {todayArrivals.slice(0, 4).map((arrival, index) => (
                     <tr key={arrival._id || index}>
                       <td>
-                        <div className="patient-cell">
+                        <div
+                          className="patient-cell clickable"
+                          onClick={() => arrival.patientId && navigate(`/receptionist/patients/${arrival.patientId._id || arrival.patientId}`)}
+                        >
                           <div className="patient-avatar-sm">
                             {arrival.patientName?.charAt(0) || 'P'}
                           </div>
-                          <span>{arrival.patientName || 'Unknown'}</span>
+                          <span className="patient-name-link">{arrival.patientName || 'Unknown'}</span>
                         </div>
                       </td>
                       <td>{arrival.time || '09:00 AM'}</td>
-                      <td>
-                        <span className={`status-badge ${getStatusColor(arrival.status)}`}>
-                          {arrival.status || 'Waiting'}
-                        </span>
-                      </td>
+
                       <td>
                         {arrival.status !== 'Checked-in' && (
                           <button className="checkin-btn">Check In</button>
@@ -275,6 +262,57 @@ const ReceptionistDashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Arrivals Modal */}
+      {showArrivalsModal && (
+        <div className="modal-overlay" onClick={() => setShowArrivalsModal(false)}>
+          <div className="modal-content arrivals-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3><FiClock /> Today's Arrivals</h3>
+              <button className="modal-close" onClick={() => setShowArrivalsModal(false)}>
+                <FiX />
+              </button>
+            </div>
+            <div className="modal-body">
+              {todayArrivals.length === 0 ? (
+                <div className="empty-arrivals">
+                  <FiUsers className="empty-icon" />
+                  <p>No arrivals scheduled for today</p>
+                </div>
+              ) : (
+                <div className="arrivals-list">
+                  {todayArrivals.map((arrival, index) => (
+                    <div
+                      key={arrival._id || index}
+                      className="arrival-item"
+                      onClick={() => {
+                        if (arrival.patientId) {
+                          navigate(`/receptionist/patients/${arrival.patientId._id || arrival.patientId}`);
+                          setShowArrivalsModal(false);
+                        }
+                      }}
+                    >
+                      <div className="arrival-avatar">
+                        {arrival.patientName?.charAt(0) || 'P'}
+                      </div>
+                      <div className="arrival-info">
+                        <span className="arrival-name">{arrival.patientName || 'Unknown'}</span>
+                        <span className="arrival-time">{arrival.time}</span>
+                      </div>
+                      <span className={`status-pill ${arrival.status?.toLowerCase() || 'pending'}`}>
+                        {arrival.status || 'Pending'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <span className="total-count">{todayArrivals.length} patient(s) today</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         .header-with-date {
@@ -305,7 +343,7 @@ const ReceptionistDashboard = () => {
         }
         .quick-actions-grid {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(2, 1fr);
           gap: 1rem;
         }
         .quick-action-card {
@@ -387,21 +425,20 @@ const ReceptionistDashboard = () => {
         }
         .search-input-row .search-input-wrapper {
           flex: 1;
+          position: relative;
         }
-        .search-btn {
-          background: var(--accent-blue);
-          color: white;
-          border: none;
-          padding: 0 1.5rem;
-          border-radius: var(--radius-md);
-          font-size: 0.9rem;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
+        .search-input-row .search-input-wrapper.full-width {
+          width: 100%;
         }
-        .search-btn:disabled {
-          opacity: 0.7;
+        .search-input-wrapper input {
+          padding-right: 2.5rem;
+        }
+        .search-loader {
+          position: absolute;
+          right: 1rem;
+          top: 50%;
+          transform: translateY(-50%);
+          color: var(--accent-blue);
         }
         .spin {
           animation: spin 1s linear infinite;
@@ -480,6 +517,22 @@ const ReceptionistDashboard = () => {
           align-items: center;
           gap: 0.75rem;
         }
+        .patient-cell.clickable {
+          cursor: pointer;
+          padding: 0.25rem;
+          margin: -0.25rem;
+          border-radius: var(--radius-md);
+          transition: background 0.2s;
+        }
+        .patient-cell.clickable:hover {
+          background: var(--bg-light);
+        }
+        .patient-cell.clickable:hover .patient-name-link {
+          color: var(--accent-blue);
+        }
+        .patient-name-link {
+          transition: color 0.2s;
+        }
         .patient-avatar-sm {
           width: 32px;
           height: 32px;
@@ -543,17 +596,190 @@ const ReceptionistDashboard = () => {
           padding: 2rem;
           color: var(--text-muted);
         }
+        .arrivals-section .card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          width: 100%;
+        }
+        .arrivals-section .card-header h2 {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          margin: 0;
+        }
+        .view-all-btn {
+          background: none;
+          border: none;
+          color: var(--accent-blue);
+          font-size: 0.85rem;
+          cursor: pointer;
+          padding: 0.375rem 0.75rem;
+          border-radius: var(--radius-md);
+          transition: background 0.2s, color 0.2s;
+          margin-left: auto;
+        }
+        .view-all-btn:hover {
+          background: rgba(59, 130, 246, 0.15);
+          color: #1d4ed8;
+        }
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          padding: 1rem;
+        }
+        .modal-content {
+          background: white;
+          border-radius: var(--radius-lg);
+          width: 100%;
+          max-width: 500px;
+          max-height: 80vh;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+          animation: modalSlideIn 0.2s ease-out;
+        }
+        @keyframes modalSlideIn {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .modal-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 1.25rem 1.5rem;
+          border-bottom: 1px solid var(--border-color);
+        }
+        .modal-header h3 {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 1.1rem;
+          font-weight: 600;
+          margin: 0;
+        }
+        .modal-close {
+          background: none;
+          border: none;
+          font-size: 1.25rem;
+          color: var(--text-secondary);
+          cursor: pointer;
+          padding: 0.25rem;
+          border-radius: var(--radius-md);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: background 0.2s, color 0.2s;
+        }
+        .modal-close:hover {
+          background: var(--bg-light);
+          color: var(--text-primary);
+        }
+        .modal-body {
+          flex: 1;
+          overflow-y: auto;
+          padding: 1rem 1.5rem;
+        }
+        .arrivals-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+        .arrival-item {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          padding: 0.875rem 1rem;
+          background: var(--bg-light);
+          border-radius: var(--radius-md);
+          cursor: pointer;
+          transition: background 0.2s, transform 0.2s;
+        }
+        .arrival-item:hover {
+          background: #e2e8f0;
+          transform: translateX(4px);
+        }
+        .arrival-avatar {
+          width: 40px;
+          height: 40px;
+          background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+          color: white;
+          border-radius: var(--radius-full);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 600;
+          flex-shrink: 0;
+        }
+        .arrival-info {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 0.125rem;
+        }
+        .arrival-name {
+          font-weight: 500;
+          color: var(--text-primary);
+        }
+        .arrival-time {
+          font-size: 0.8rem;
+          color: var(--text-secondary);
+        }
+        .status-pill {
+          padding: 0.25rem 0.75rem;
+          border-radius: var(--radius-full);
+          font-size: 0.75rem;
+          font-weight: 500;
+          text-transform: capitalize;
+        }
+        .status-pill.pending {
+          background: rgba(249, 115, 22, 0.1);
+          color: #ea580c;
+        }
+        .status-pill.checked-in {
+          background: rgba(34, 197, 94, 0.1);
+          color: #16a34a;
+        }
+        .status-pill.completed {
+          background: rgba(59, 130, 246, 0.1);
+          color: #2563eb;
+        }
+        .status-pill.cancelled {
+          background: rgba(239, 68, 68, 0.1);
+          color: #dc2626;
+        }
+        .modal-footer {
+          padding: 1rem 1.5rem;
+          border-top: 1px solid var(--border-color);
+          text-align: center;
+        }
+        .total-count {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+        }
         @media (max-width: 768px) {
           .quick-actions-grid {
             grid-template-columns: 1fr;
           }
-          .search-input-row {
-            flex-direction: column;
+          .search-tabs {
+            flex-wrap: wrap;
           }
-          .search-btn {
-            width: 100%;
-            justify-content: center;
-            padding: 0.75rem;
+          .modal-content {
+            max-height: 90vh;
           }
         }
       `}</style>

@@ -9,10 +9,58 @@ const Appointment = require('../models/Appointment');
 // @access  Private (Receptionist)
 const registerPatient = async (req, res) => {
   try {
-    const { nationalID, fullName, dateOfBirth, gender, contactInfo, emergencyContact, phone } = req.body;
+    const {
+      nationalID,
+      fullName,
+      dateOfBirth,
+      gender,
+      contactInfo,
+      emergencyContact,
+      emergencyContactName,
+      emergencyContactPhone,
+      emergencyContactRelation,
+      phone,
+      email,
+      address
+    } = req.body;
 
     if (!nationalID || !fullName) {
       return res.status(400).json({ message: 'National ID and full name are required' });
+    }
+
+    if (!gender) {
+      return res.status(400).json({ message: 'Gender is required' });
+    }
+
+    if (!phone) {
+      return res.status(400).json({ message: 'Phone number is required' });
+    }
+
+    // Validate phone number is exactly 11 digits
+    if (!/^\d{11}$/.test(phone)) {
+      return res.status(400).json({ message: 'Phone number must be exactly 11 digits' });
+    }
+
+    if (!address) {
+      return res.status(400).json({ message: 'Address is required' });
+    }
+
+    // Validate emergency contact info
+    if (!emergencyContactName) {
+      return res.status(400).json({ message: 'Emergency contact name is required' });
+    }
+
+    if (!emergencyContactPhone) {
+      return res.status(400).json({ message: 'Emergency contact phone is required' });
+    }
+
+    // Validate emergency contact phone is exactly 11 digits
+    if (!/^\d{11}$/.test(emergencyContactPhone)) {
+      return res.status(400).json({ message: 'Emergency contact phone must be exactly 11 digits' });
+    }
+
+    if (!emergencyContactRelation) {
+      return res.status(400).json({ message: 'Emergency contact relationship is required' });
     }
 
     let patient = await Patient.findOne({ nationalID });
@@ -28,11 +76,35 @@ const registerPatient = async (req, res) => {
       nationalID,
       fullName,
       dateOfBirth: dateOfBirth || null,
-      gender: gender || 'other',
-      contactInfo: contactInfo || '',
-      emergencyContact: emergencyContact || '',
-      phone: phone || contactInfo,
+      gender,
+      contactInfo: contactInfo || address,
+      emergencyContact: emergencyContact || `${emergencyContactName} (${emergencyContactRelation}) - ${emergencyContactPhone}`,
+      emergencyContactName,
+      emergencyContactPhone,
+      emergencyContactRelation,
+      phone,
+      email: email || '',
+      address,
       registeredByReceptionistId: req.user._id
+    });
+
+    // Auto-create today's arrival appointment for the newly registered patient
+    const now = new Date();
+    const currentTime = now.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+
+    await Appointment.create({
+      patientId: patient._id,
+      patientName: fullName,
+      department: 'General',
+      date: now,
+      time: currentTime,
+      status: 'pending',
+      notes: 'New patient registration',
+      createdBy: req.user._id
     });
 
     res.status(201).json({
@@ -57,12 +129,22 @@ const getPatient = async (req, res) => {
       return res.status(404).json({ message: 'Patient not found' });
     }
 
+    // Return all patient fields
     res.json({
       _id: patient._id,
       nationalID: patient.nationalID,
       fullName: patient.fullName,
       dateOfBirth: patient.dateOfBirth,
-      contactInfo: patient.contactInfo
+      gender: patient.gender,
+      phone: patient.phone,
+      email: patient.email,
+      address: patient.address,
+      contactInfo: patient.contactInfo,
+      emergencyContact: patient.emergencyContact,
+      emergencyContactName: patient.emergencyContactName,
+      emergencyContactPhone: patient.emergencyContactPhone,
+      emergencyContactRelation: patient.emergencyContactRelation,
+      createdAt: patient.createdAt
     });
   } catch (error) {
     console.error('Get patient error:', error);
@@ -70,19 +152,24 @@ const getPatient = async (req, res) => {
   }
 };
 
-// @desc    Search patient by National ID
+// @desc    Search patient by National ID (partial match)
 // @route   GET /api/v1/receptionist/patient/search/:nationalID
 // @access  Private (Receptionist)
 const searchPatientByNationalID = async (req, res) => {
   try {
     const { nationalID } = req.params;
 
-    const patient = await Patient.findOne({ nationalID });
-    if (!patient) {
-      return res.status(404).json({ message: 'Patient not found' });
+    // Use regex for partial matching - filter as user types
+    const patients = await Patient.find({
+      nationalID: { $regex: nationalID, $options: 'i' }
+    }).limit(10);
+
+    if (patients.length === 0) {
+      return res.status(404).json({ message: 'No patients found' });
     }
 
-    res.json(patient);
+    // Return array for consistency with other search methods
+    res.json(patients);
   } catch (error) {
     console.error('Search patient error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -298,6 +385,7 @@ const getTodayArrivals = async (req, res) => {
 
     const arrivals = appointments.map(apt => ({
       _id: apt._id,
+      patientId: apt.patientId?._id || apt.patientId,
       patientName: apt.patientId?.fullName || apt.patientName,
       time: apt.time,
       status: apt.status
@@ -356,13 +444,17 @@ const getAppointments = async (req, res) => {
     }
 
     const appointments = await Appointment.find(query)
-      .populate('patientId', 'fullName')
+      .populate('patientId', 'fullName nationalID phone')
       .populate('doctorId', 'fullName specialization')
       .sort({ date: 1, time: 1 });
 
     const formattedAppointments = appointments.map(apt => ({
       _id: apt._id,
+      patientId: apt.patientId?._id,
       patientName: apt.patientId?.fullName || apt.patientName,
+      nationalID: apt.patientId?.nationalID || apt.nationalID,
+      phone: apt.patientId?.phone || apt.phone,
+      doctorId: apt.doctorId?._id,
       doctorName: apt.doctorId?.fullName || apt.doctorName,
       department: apt.department,
       date: apt.date,
@@ -385,18 +477,33 @@ const createAppointment = async (req, res) => {
   try {
     const { patientId, patientName, doctorId, doctorName, department, date, time, notes } = req.body;
 
-    const appointment = await Appointment.create({
-      patientId,
+    // Validate required fields
+    if (!patientName || !department || !date || !time) {
+      return res.status(400).json({ message: 'Patient name, department, date, and time are required' });
+    }
+
+    const appointmentData = {
       patientName,
-      doctorId,
-      doctorName,
       department,
       date: new Date(date),
       time,
-      notes,
+      notes: notes || '',
       status: 'pending',
       createdBy: req.user._id
-    });
+    };
+
+    // Only add patientId if it's a valid value
+    if (patientId && patientId !== '' && patientId !== 'null' && patientId !== null) {
+      appointmentData.patientId = patientId;
+    }
+
+    // Only add doctorId if it's a valid value
+    if (doctorId && doctorId !== '' && doctorId !== 'null' && doctorId !== null) {
+      appointmentData.doctorId = doctorId;
+      appointmentData.doctorName = doctorName;
+    }
+
+    const appointment = await Appointment.create(appointmentData);
 
     res.status(201).json({
       message: 'Appointment created successfully',
@@ -404,7 +511,7 @@ const createAppointment = async (req, res) => {
     });
   } catch (error) {
     console.error('Create appointment error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message || 'Server error' });
   }
 };
 
@@ -526,6 +633,34 @@ const getPaymentHistory = async (req, res) => {
   }
 };
 
+// @desc    Get doctors (optionally filtered by department/specialization)
+// @route   GET /api/v1/receptionist/doctors
+// @access  Private (Receptionist)
+const getDoctors = async (req, res) => {
+  try {
+    const { department } = req.query;
+
+    const query = { role: 'doctor', isActive: true };
+
+    // Filter by specialization or department (doctors use specialization)
+    if (department && department !== 'Other') {
+      query.$or = [
+        { specialization: { $regex: department, $options: 'i' } },
+        { department: { $regex: department, $options: 'i' } }
+      ];
+    }
+
+    const doctors = await User.find(query)
+      .select('_id fullName department specialization shift shiftStartTime shiftEndTime')
+      .sort({ fullName: 1 });
+
+    res.json(doctors);
+  } catch (error) {
+    console.error('Get doctors error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   registerPatient,
   getPatient,
@@ -544,5 +679,6 @@ module.exports = {
   updateAppointment,
   cancelAppointment,
   recordPayment,
-  getPaymentHistory
+  getPaymentHistory,
+  getDoctors
 };
