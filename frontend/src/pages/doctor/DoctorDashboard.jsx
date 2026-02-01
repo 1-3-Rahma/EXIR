@@ -25,20 +25,22 @@ const DoctorDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [patientsRes, nursesRes, tasksRes] = await Promise.all([
+      const [patientsRes, nursesRes, tasksRes, criticalRes] = await Promise.all([
         doctorAPI.getPatients(),
         doctorAPI.getNursesOnShift(),
-        tasksAPI.getTasks().catch(() => ({ data: [] }))
+        tasksAPI.getTasks().catch(() => ({ data: [] })),
+        doctorAPI.getCriticalCases().catch(() => ({ data: [] }))
       ]);
 
       const patients = Array.isArray(patientsRes.data) ? patientsRes.data : [];
       const nurses = Array.isArray(nursesRes.data) ? nursesRes.data : [];
       const tasks = Array.isArray(tasksRes.data) ? tasksRes.data : [];
+      const criticalCases = Array.isArray(criticalRes.data) ? criticalRes.data : [];
       const pendingTasks = tasks.filter(t => t.status !== 'completed').length;
 
       setStats({
         totalPatients: patients.length,
-        criticalCases: 0,
+        criticalCases: criticalCases.length,
         nursesOnDuty: nurses.length,
         pendingTasks
       });

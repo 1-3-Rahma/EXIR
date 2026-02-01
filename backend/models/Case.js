@@ -16,6 +16,11 @@ const caseSchema = new mongoose.Schema({
     enum: ['open', 'closed'],
     default: 'open'
   },
+  patientStatus: {
+    type: String,
+    enum: ['stable', 'critical'],
+    default: 'stable'
+  },
   treatmentPlan: {
     type: String,
     default: ''
@@ -31,7 +36,12 @@ const caseSchema = new mongoose.Schema({
   closedAt: {
     type: Date,
     default: null
-  }
+  },
+  medications: [{
+    medicineName: { type: String, required: true },
+    timesPerDay: { type: Number, required: true },
+    note: { type: String, default: '' }
+  }]
 }, {
   timestamps: true
 });

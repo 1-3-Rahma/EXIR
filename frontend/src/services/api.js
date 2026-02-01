@@ -35,6 +35,7 @@ api.interceptors.response.use(
 export const nurseAPI = {
   getAssignedPatients: () => api.get('/nurse/assigned-patients'),
   getCriticalEvents: () => api.get('/nurse/critical-events'),
+  getUrgentCases: () => api.get('/nurse/urgent-cases'),
   getPatientVitals: (patientId) => api.get(`/nurse/patient/${patientId}/vitals`),
   getVitalsOverview: () => api.get('/nurse/vitals-overview'),
   updateVitals: (patientId, data) => api.put(`/nurse/patient/${patientId}/vitals`, data)
@@ -47,7 +48,9 @@ export const doctorAPI = {
   updateTreatment: (data) => api.put('/doctor/update-treatment', data),
   closeCase: (data) => api.post('/doctor/close-case', data),
   getPatients: (search) => api.get('/doctor/patients', { params: search ? { search } : {} }),
-  getCriticalCases: () => api.get('/doctor/critical-cases')
+  getCriticalCases: () => api.get('/doctor/critical-cases'),
+  setPatientStatus: (data) => api.put('/doctor/patient-status', data),
+  addPrescription: (data) => api.post('/doctor/prescription', data)
 };
 
 export const tasksAPI = {

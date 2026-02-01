@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   getAssignedPatients,
   getCriticalEvents,
+  getUrgentCases,
   getPatientVitals,
   getVitalsOverview,
   getDashboardStats,
@@ -35,5 +36,6 @@ router.get('/medications', getMedications);
 
 // Events/Notifications
 router.get('/critical-events', getCriticalEvents);
+router.get('/urgent-cases', getUrgentCases);
 
 module.exports = router;

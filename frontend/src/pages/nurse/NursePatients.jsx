@@ -18,11 +18,24 @@ const NursePatients = () => {
     fetchPatients();
   }, []);
 
-  // Refetch when tab gets focus so newly assigned patients appear
+  // Refetch when tab gets focus so newly assigned patients and doctor status changes appear
   useEffect(() => {
     const onFocus = () => fetchPatients();
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
+  }, []);
+
+  // Periodic refetch so when doctor (e.g. Ahmed) re-converts patient (e.g. Reham) to stable, nurse (e.g. Fatima) sees it
+  useEffect(() => {
+    const interval = setInterval(fetchPatients, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Real-time: when doctor changes patient status, refetch immediately (no refresh)
+  useEffect(() => {
+    const onStatusChange = () => fetchPatients();
+    window.addEventListener('patientStatusChanged', onStatusChange);
+    return () => window.removeEventListener('patientStatusChanged', onStatusChange);
   }, []);
 
   const getAuthHeaders = () => {
@@ -52,9 +65,13 @@ const NursePatients = () => {
         const vitalData = vitalsList.find(v => v._id === patient._id);
         const vitals = vitalData?.vitals;
 
-        // Determine status based on vitals
+        // Single source of truth: when doctor (e.g. Ahmed) re-converts patient (e.g. Reham) to stable, nurse (Fatima) sees stable here too
         let status = 'stable';
-        if (vitals) {
+        if (patient.patientStatus === 'critical') {
+          status = 'critical';
+        } else if (patient.patientStatus === 'stable') {
+          status = 'stable';
+        } else if (vitals) {
           if (vitals.bp?.status === 'critical' || vitals.hr?.status === 'critical' ||
               vitals.o2?.status === 'critical' || vitals.temp?.status === 'critical') {
             status = 'critical';
@@ -74,7 +91,7 @@ const NursePatients = () => {
           fullName: patient.fullName,
           age: age,
           gender: patient.gender || 'N/A',
-          room: patient.room || vitalData?.room || 'N/A',
+          room: patient.contactInfo || patient.room || vitalData?.room || 'N/A',
           condition: patient.condition || patient.diagnosis || 'Under Observation',
           status: status,
           assignedDoctor: patient.assignedDoctor,

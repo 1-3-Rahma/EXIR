@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import { connectNurseSocket } from './services/socket';
 
 import Login from './pages/Login';
 import NurseDashboard from './pages/nurse/NurseDashboard';
@@ -39,6 +40,16 @@ import PrivateRoute from './components/common/PrivateRoute';
 
 function App() {
   const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (user?.role === 'nurse') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const disconnect = connectNurseSocket(token);
+        return disconnect;
+      }
+    }
+  }, [user?._id, user?.role]);
 
   if (loading) {
     return (

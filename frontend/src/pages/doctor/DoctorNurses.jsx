@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
 import { doctorAPI } from '../../services/api';
-import { FiUser, FiClock, FiMapPin, FiActivity, FiPlus, FiMessageSquare, FiChevronDown, FiChevronUp, FiPackage, FiDroplet } from 'react-icons/fi';
+import { FiUser, FiClock, FiMapPin, FiActivity, FiPlus, FiMessageSquare, FiChevronDown, FiChevronUp, FiPackage, FiDroplet, FiTrash2 } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 
 const shiftLabel = (s) => {
@@ -22,6 +22,10 @@ const DoctorNurses = () => {
   const [assignPatientId, setAssignPatientId] = useState('');
   const [assignShift, setAssignShift] = useState('morning');
   const [assignSubmitting, setAssignSubmitting] = useState(false);
+  const [showRxModal, setShowRxModal] = useState(false);
+  const [selectedPatientForRx, setSelectedPatientForRx] = useState(null);
+  const [rxRows, setRxRows] = useState([{ medicineName: '', timesPerDay: '', note: '' }]);
+  const [rxSubmitting, setRxSubmitting] = useState(false);
 
   useEffect(() => {
     fetchStaff();
@@ -85,6 +89,50 @@ const DoctorNurses = () => {
       alert(err.response?.data?.message || err.message || 'Failed to assign patient');
     } finally {
       setAssignSubmitting(false);
+    }
+  };
+
+  const openAddRx = (patient) => {
+    setSelectedPatientForRx(patient);
+    setRxRows([{ medicineName: '', timesPerDay: '', note: '' }]);
+    setShowRxModal(true);
+  };
+
+  const addRxRow = () => {
+    setRxRows((prev) => [...prev, { medicineName: '', timesPerDay: '', note: '' }]);
+  };
+
+  const removeRxRow = (index) => {
+    setRxRows((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
+  };
+
+  const updateRxRow = (index, field, value) => {
+    setRxRows((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+  };
+
+  const handleRxSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedPatientForRx) return;
+    const medications = rxRows
+      .filter((r) => String(r.medicineName || '').trim() && (r.timesPerDay != null && r.timesPerDay !== ''))
+      .map((r) => ({
+        medicineName: String(r.medicineName || '').trim(),
+        timesPerDay: Number(r.timesPerDay),
+        note: String(r.note || '').trim()
+      }));
+    if (medications.length === 0) {
+      alert('Add at least one medicine with name and times per day.');
+      return;
+    }
+    try {
+      setRxSubmitting(true);
+      await doctorAPI.addPrescription({ patientId: selectedPatientForRx._id, medications });
+      setShowRxModal(false);
+      setSelectedPatientForRx(null);
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'Failed to add prescription');
+    } finally {
+      setRxSubmitting(false);
     }
   };
 
@@ -163,7 +211,7 @@ const DoctorNurses = () => {
                               </div>
                             </div>
                             <div className="patient-actions">
-                              <button type="button" className="btn-add-rx" title="Add prescription">
+                              <button type="button" className="btn-add-rx" title="Add prescription" onClick={() => openAddRx(patient)}>
                                 <FiPackage size={14} /> Add Rx
                               </button>
                               <button type="button" className="btn-add-iv" title="Add IV order">
@@ -259,6 +307,71 @@ const DoctorNurses = () => {
           </div>
         </div>
       )}
+      {showRxModal && selectedPatientForRx && (
+        <div className="modal-overlay" onClick={() => setShowRxModal(false)}>
+          <div className="modal-rx" onClick={(e) => e.stopPropagation()}>
+            <h3>Add Prescription – {selectedPatientForRx.fullName}</h3>
+            <p className="rx-subtitle">Assigned by doctor</p>
+            <form onSubmit={handleRxSubmit}>
+              <div className="rx-table-wrap">
+                <table className="rx-table">
+                  <thead>
+                    <tr>
+                      <th>Medicine name</th>
+                      <th>Times per day</th>
+                      <th>Note</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rxRows.map((row, index) => (
+                      <tr key={index}>
+                        <td>
+                          <input
+                            type="text"
+                            value={row.medicineName}
+                            onChange={(e) => updateRxRow(index, 'medicineName', e.target.value)}
+                            placeholder="e.g. Paracetamol"
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            min={1}
+                            value={row.timesPerDay}
+                            onChange={(e) => updateRxRow(index, 'timesPerDay', e.target.value)}
+                            placeholder="e.g. 2"
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            value={row.note}
+                            onChange={(e) => updateRxRow(index, 'note', e.target.value)}
+                            placeholder="Optional note"
+                          />
+                        </td>
+                        <td>
+                          <button type="button" className="btn-remove-row" onClick={() => removeRxRow(index)} title="Remove row">
+                            <FiTrash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <button type="button" className="btn-add-row" onClick={addRxRow}>
+                <FiPlus size={14} /> Add row
+              </button>
+              <div className="modal-actions">
+                <button type="button" onClick={() => setShowRxModal(false)}>Cancel</button>
+                <button type="submit" disabled={rxSubmitting}>{rxSubmitting ? 'Saving...' : 'Save prescription'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       <style>{`
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
         .modal-assign { background: white; border-radius: 12px; padding: 1.5rem; width: 90%; max-width: 400px; }
@@ -269,6 +382,21 @@ const DoctorNurses = () => {
         .modal-assign .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem; }
         .modal-assign .modal-actions button { padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
         .modal-assign .modal-actions button[type=submit] { background: #0ea5e9; color: white; border: none; }
+        .modal-rx { background: white; border-radius: 12px; padding: 1.5rem; width: 90%; max-width: 640px; max-height: 90vh; overflow-y: auto; }
+        .modal-rx h3 { margin: 0 0 0.25rem 0; font-size: 1.1rem; }
+        .modal-rx .rx-subtitle { margin: 0 0 1rem 0; font-size: 0.85rem; color: #64748b; }
+        .modal-rx .rx-table-wrap { overflow-x: auto; margin-bottom: 0.75rem; }
+        .modal-rx .rx-table { width: 100%; border-collapse: collapse; }
+        .modal-rx .rx-table th, .modal-rx .rx-table td { padding: 0.5rem; border-bottom: 1px solid #e2e8f0; text-align: left; }
+        .modal-rx .rx-table th { font-size: 0.8rem; font-weight: 600; color: #64748b; }
+        .modal-rx .rx-table input { width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem; }
+        .modal-rx .btn-remove-row { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 0.25rem; }
+        .modal-rx .btn-remove-row:hover { color: #ef4444; }
+        .modal-rx .btn-add-row { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.5rem 0.75rem; margin-bottom: 1rem; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; cursor: pointer; }
+        .modal-rx .btn-add-row:hover { background: #e2e8f0; }
+        .modal-rx .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.5rem; }
+        .modal-rx .modal-actions button { padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
+        .modal-rx .modal-actions button[type=submit] { background: #0ea5e9; color: white; border: none; }
       `}</style>
     </Layout>
   );

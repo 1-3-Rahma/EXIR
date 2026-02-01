@@ -1,4 +1,5 @@
 const Assignment = require('../models/Assignment');
+const Case = require('../models/Case');
 const Notification = require('../models/Notification');
 const Vital = require('../models/Vital');
 const Patient = require('../models/Patient');
@@ -47,7 +48,7 @@ const getVitalStatus = (type, value, value2 = null) => {
   }
 };
 
-// @desc    Get patients assigned to nurse
+// @desc    Get patients assigned to nurse (include doctor-set status: Case.patientStatus = single source for both UIs)
 // @route   GET /api/v1/nurse/assigned-patients
 // @access  Private (Nurse)
 const getAssignedPatients = async (req, res) => {
@@ -55,19 +56,32 @@ const getAssignedPatients = async (req, res) => {
     const nurseId = req.user._id;
 
     const assignments = await Assignment.find({ nurseId, isActive: true })
-      .populate('patientId', '_id nationalID fullName dateOfBirth contactInfo')
+      .populate('patientId', '_id nationalID fullName dateOfBirth contactInfo gender')
       .populate('doctorId', 'fullName');
 
-    const patients = assignments.map(a => ({
-      _id: a.patientId._id,
-      nationalID: a.patientId.nationalID,
-      fullName: a.patientId.fullName,
-      dateOfBirth: a.patientId.dateOfBirth,
-      contactInfo: a.patientId.contactInfo,
-      assignedDoctor: a.doctorId?.fullName,
-      shift: a.shift,
-      assignedAt: a.assignedAt
-    }));
+    const patientIds = assignments.map(a => a.patientId._id);
+    const criticalCases = await Case.find({
+      patientId: { $in: patientIds },
+      status: 'open',
+      patientStatus: 'critical'
+    }).select('patientId');
+    const criticalPatientIds = new Set(criticalCases.map(c => c.patientId.toString()));
+
+    const patients = assignments.map(a => {
+      const pid = a.patientId._id.toString();
+      return {
+        _id: a.patientId._id,
+        nationalID: a.patientId.nationalID,
+        fullName: a.patientId.fullName,
+        dateOfBirth: a.patientId.dateOfBirth,
+        contactInfo: a.patientId.contactInfo,
+        gender: a.patientId.gender,
+        assignedDoctor: a.doctorId?.fullName,
+        shift: a.shift,
+        assignedAt: a.assignedAt,
+        patientStatus: criticalPatientIds.has(pid) ? 'critical' : 'stable'
+      };
+    });
 
     res.json(patients);
   } catch (error) {
@@ -76,7 +90,7 @@ const getAssignedPatients = async (req, res) => {
   }
 };
 
-// @desc    Get critical events for nurse
+// @desc    Get critical events for nurse (notifications only, for backwards compat)
 // @route   GET /api/v1/nurse/critical-events
 // @access  Private (Nurse)
 const getCriticalEvents = async (req, res) => {
@@ -89,11 +103,113 @@ const getCriticalEvents = async (req, res) => {
     })
       .sort({ createdAt: -1 })
       .limit(50)
-      .populate('relatedPatientId', 'fullName nationalID');
+      .populate('relatedPatientId', 'fullName nationalID contactInfo');
 
-    res.json(criticalNotifications);
+    const formatted = criticalNotifications.map(n => ({
+      _id: n._id,
+      patientName: n.relatedPatientId?.fullName || 'Unknown Patient',
+      room: n.relatedPatientId?.contactInfo || 'N/A',
+      reason: n.message || n.title || 'Critical alert',
+      type: 'critical',
+      createdAt: n.createdAt,
+      source: 'vitals'
+    }));
+
+    res.json(formatted);
   } catch (error) {
     console.error('Get critical events error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get unified urgent cases for nurse (doctor-marked critical + vital alerts)
+// @route   GET /api/v1/nurse/urgent-cases
+// @access  Private (Nurse)
+// When Dr. Ahmed Hassan marks a patient critical, nurse Fatima sees it here with vitals alerts
+const getUrgentCases = async (req, res) => {
+  try {
+    const nurseId = req.user._id;
+
+    const assignments = await Assignment.find({ nurseId, isActive: true })
+      .select('patientId');
+    const assignedPatientIds = assignments.map(a => a.patientId);
+
+    if (assignedPatientIds.length === 0) {
+      return res.json({ count: 0, list: [] });
+    }
+
+    const criticalCases = await Case.find({
+      patientId: { $in: assignedPatientIds },
+      status: 'open',
+      patientStatus: 'critical'
+    })
+      .populate('patientId', 'fullName contactInfo')
+      .populate('doctorId', 'fullName')
+      .sort({ updatedAt: -1 });
+
+    // When doctor re-converts patient to stable, remove from urgent: exclude these from list and count
+    const stableCases = await Case.find({
+      patientId: { $in: assignedPatientIds },
+      status: 'open',
+      patientStatus: 'stable'
+    }).select('patientId');
+    const stablePatientIds = new Set(stableCases.map(c => c.patientId.toString()));
+
+    const criticalNotifications = await Notification.find({
+      userId: nurseId,
+      type: 'critical',
+      relatedPatientId: { $in: assignedPatientIds }
+    })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .populate('relatedPatientId', 'fullName contactInfo');
+
+    const byPatient = new Map();
+
+    criticalCases.forEach(c => {
+      if (!c.patientId) return;
+      const pid = c.patientId._id.toString();
+      if (!byPatient.has(pid)) {
+        byPatient.set(pid, {
+          _id: `case-${c._id}`,
+          patientId: c.patientId._id,
+          patientName: c.patientId.fullName || 'Unknown Patient',
+          room: c.patientId.contactInfo || 'N/A',
+          reason: `Marked critical by Dr. ${c.doctorId?.fullName || 'Doctor'}`,
+          source: 'doctor',
+          createdAt: c.updatedAt,
+          doctorName: c.doctorId?.fullName
+        });
+      }
+    });
+
+    criticalNotifications.forEach(n => {
+      const patient = n.relatedPatientId;
+      if (!patient || !patient._id) return;
+      const pid = patient._id.toString();
+      if (stablePatientIds.has(pid)) return; // doctor re-converted to stable: remove from urgent list
+      const existing = byPatient.get(pid);
+      if (!existing || new Date(n.createdAt) > new Date(existing.createdAt)) {
+        byPatient.set(pid, {
+          _id: n._id,
+          patientId: patient._id,
+          patientName: patient.fullName || 'Unknown Patient',
+          room: patient.contactInfo || 'N/A',
+          reason: n.message || 'Critical vital alert',
+          source: 'vitals',
+          createdAt: n.createdAt
+        });
+      }
+    });
+
+    // Exclude doctor-reconverted-to-stable: they are not in criticalCases and are skipped in notifications
+    const list = Array.from(byPatient.values()).sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    res.json({ count: list.length, list });
+  } catch (error) {
+    console.error('Get urgent cases error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -411,6 +527,7 @@ const getVitalRanges = async (req, res) => {
 module.exports = {
   getAssignedPatients,
   getCriticalEvents,
+  getUrgentCases,
   getPatientVitals,
   getVitalsOverview,
   getDashboardStats,

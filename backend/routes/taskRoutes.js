@@ -56,13 +56,19 @@ router.get('/today', async (req, res) => {
     endOfDay.setHours(23, 59, 59, 999);
 
     const tasks = await Task.find({
-      $or: [
-        { createdBy: req.user._id },
-        { assignedTo: req.user._id }
-      ],
-      $or: [
-        { dueDate: { $gte: startOfDay, $lte: endOfDay } },
-        { dueDate: null, createdAt: { $gte: startOfDay, $lte: endOfDay } }
+      $and: [
+        {
+          $or: [
+            { createdBy: req.user._id },
+            { assignedTo: req.user._id }
+          ]
+        },
+        {
+          $or: [
+            { dueDate: { $gte: startOfDay, $lte: endOfDay } },
+            { dueDate: null, createdAt: { $gte: startOfDay, $lte: endOfDay } }
+          ]
+        }
       ]
     })
     .populate('patient', 'fullName room')
@@ -78,7 +84,7 @@ router.get('/today', async (req, res) => {
 // Create a new task
 router.post('/', async (req, res) => {
   try {
-    const { title, patientName, room, notes, priority, category, dueDate, patientId } = req.body;
+    const { title, patientName, room, notes, priority, category, dueDate, patientId, assignedTo } = req.body;
 
     if (!title) {
       return res.status(400).json({ message: 'Task title is required' });
@@ -93,6 +99,7 @@ router.post('/', async (req, res) => {
       category: category || 'Other',
       dueDate: dueDate ? new Date(dueDate) : null,
       createdBy: req.user._id,
+      assignedTo: assignedTo || null,
       status: 'pending'
     };
 

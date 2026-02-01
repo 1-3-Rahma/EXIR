@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
 import { nurseAPI } from '../../services/api';
 import { FiAlertTriangle, FiClock, FiCheckCircle } from 'react-icons/fi';
@@ -8,15 +9,26 @@ const NurseCriticalEvents = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchCriticalEvents();
+    fetchUrgentCases();
+    const interval = setInterval(fetchUrgentCases, 30000);
+    return () => clearInterval(interval);
   }, []);
 
-  const fetchCriticalEvents = async () => {
+  // Real-time: when doctor changes patient status, refetch immediately (no refresh)
+  useEffect(() => {
+    const onStatusChange = () => fetchUrgentCases();
+    window.addEventListener('patientStatusChanged', onStatusChange);
+    return () => window.removeEventListener('patientStatusChanged', onStatusChange);
+  }, []);
+
+  const fetchUrgentCases = async () => {
     try {
-      const response = await nurseAPI.getCriticalEvents();
-      setEvents(response.data);
+      const response = await nurseAPI.getUrgentCases();
+      const data = response.data || {};
+      setEvents(Array.isArray(data.list) ? data.list : []);
     } catch (error) {
-      console.error('Failed to fetch critical events:', error);
+      console.error('Failed to fetch urgent cases:', error);
+      setEvents([]);
     } finally {
       setLoading(false);
     }
@@ -32,15 +44,11 @@ const NurseCriticalEvents = () => {
     return new Date(date).toLocaleDateString();
   };
 
-  const handleRespond = (eventId) => {
-    console.log('Responding to event:', eventId);
-  };
-
   return (
     <Layout appName="NurseHub" role="nurse">
       <div className="page-header">
-        <h1>Priority Cases</h1>
-        <p>Critical alerts requiring immediate attention</p>
+        <h1>Priority Cases / Urgent Cases</h1>
+        <p>Patients marked critical by doctor (e.g. Dr. Ahmed Hassan) and critical vital alerts</p>
       </div>
 
       <div className="card">
@@ -64,23 +72,26 @@ const NurseCriticalEvents = () => {
                     <div className="alert-patient">
                       <strong>{event.patientName || `Patient ${index + 1}`}</strong>
                       <span className="room-badge">
-                        Room {event.room || `${300 + index}A`}
+                        Room {event.room || 'N/A'}
                       </span>
+                      {event.source === 'doctor' && (
+                        <span className="source-badge doctor">Doctor</span>
+                      )}
+                      {event.source === 'vitals' && (
+                        <span className="source-badge vitals">Vitals</span>
+                      )}
                     </div>
-                    <p className="alert-reason">{event.reason || event.message}</p>
+                    <p className="alert-reason">{event.reason || 'Critical alert'}</p>
                     <div className="alert-meta">
                       <span className="alert-time">
                         <FiClock /> {formatTime(event.createdAt)}
                       </span>
-                      <span className="alert-type">{event.type || 'Vital Alert'}</span>
+                      <span className="alert-type">
+                        {event.source === 'doctor' ? 'Marked by doctor' : 'Vital Alert'}
+                      </span>
                     </div>
                   </div>
-                  <button
-                    className="respond-btn"
-                    onClick={() => handleRespond(event._id)}
-                  >
-                    Respond
-                  </button>
+                  <Link to="/nurse/patients" className="respond-btn">Respond</Link>
                 </div>
               ))}
             </div>
@@ -148,6 +159,27 @@ const NurseCriticalEvents = () => {
           color: var(--accent-red);
           border-radius: var(--radius-sm);
         }
+        .source-badge {
+          font-size: 0.65rem;
+          padding: 0.15rem 0.4rem;
+          border-radius: 4px;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+        .source-badge.doctor { background: #0ea5e9; color: white; }
+        .source-badge.vitals { background: #f59e0b; color: white; }
+        .respond-btn {
+          display: inline-block;
+          padding: 0.5rem 1rem;
+          background: #3b82f6;
+          color: white;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          font-weight: 500;
+          text-decoration: none;
+          transition: background 0.2s;
+        }
+        .respond-btn:hover { background: #2563eb; color: white; }
         .empty-state {
           text-align: center;
           padding: 3rem;

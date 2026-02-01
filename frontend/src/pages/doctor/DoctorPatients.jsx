@@ -47,6 +47,16 @@ const DoctorPatients = () => {
     }
   };
 
+  const handleSetStatus = async (patientId, caseId, status) => {
+    try {
+      await doctorAPI.setPatientStatus({ patientId, caseId, status });
+      fetchPatients();
+    } catch (error) {
+      console.error('Failed to set patient status:', error);
+      alert(error.response?.data?.message || 'Failed to update status');
+    }
+  };
+
   return (
     <Layout appName="Doctor's Hospital" role="doctor">
       <div className="page-header">
@@ -101,18 +111,33 @@ const DoctorPatients = () => {
                       <td>{patient.appointmentDoctorName || '—'}</td>
                       <td>{formatAppointmentDateTime(patient.appointmentDate, patient.appointmentTime)}</td>
                       <td>
-                        <span className={`status-pill ${patient.caseStatus || 'open'}`}>
-                          {patient.hasCriticalVitals ? (
+                        <span className={`status-pill ${patient.patientStatus === 'critical' ? 'critical' : 'stable'}`}>
+                          {patient.patientStatus === 'critical' ? (
                             <><FiAlertCircle /> Critical</>
                           ) : (
                             <><FiCheckCircle /> Stable</>
                           )}
                         </span>
+                        <div className="status-actions">
+                          <button
+                            type="button"
+                            className={`status-btn ${patient.patientStatus !== 'critical' ? 'active' : ''}`}
+                            onClick={() => handleSetStatus(patient._id, patient.caseId, 'stable')}
+                          >
+                            Stable
+                          </button>
+                          <button
+                            type="button"
+                            className={`status-btn critical ${patient.patientStatus === 'critical' ? 'active' : ''}`}
+                            onClick={() => handleSetStatus(patient._id, patient.caseId, 'critical')}
+                          >
+                            Critical
+                          </button>
+                        </div>
                       </td>
                       <td>{patient.assignedNurse || 'Unassigned'}</td>
                       <td>
-                        {/* action column */}
-                        {/* <div className="action-buttons">
+                        <div className="action-buttons">
                           <button
                             className="action-btn-sm edit"
                             onClick={() => {
@@ -129,7 +154,7 @@ const DoctorPatients = () => {
                           >
                             <FiFileText />
                           </button>
-                          {patient.caseStatus === 'open' && (
+                          {patient.caseStatus === 'open' && patient.caseId && (
                             <button
                               className="action-btn-sm close"
                               onClick={() => handleCloseCase(patient._id, patient.caseId)}
@@ -138,7 +163,7 @@ const DoctorPatients = () => {
                               <FiCheckCircle />
                             </button>
                           )}
-                        </div> */}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -194,14 +219,31 @@ const DoctorPatients = () => {
           font-size: 0.8rem;
           font-weight: 500;
         }
-        .status-pill.open {
+        .status-pill.stable, .status-pill.open {
           background: rgba(34, 197, 94, 0.1);
           color: var(--accent-green);
         }
-        .status-pill:has(.FiAlertCircle) {
+        .status-pill.critical, .status-pill:has(.FiAlertCircle) {
           background: rgba(239, 68, 68, 0.1);
           color: var(--accent-red);
         }
+        .status-actions {
+          display: flex;
+          gap: 0.35rem;
+          margin-top: 0.35rem;
+        }
+        .status-btn {
+          padding: 0.25rem 0.5rem;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          font-size: 0.75rem;
+          cursor: pointer;
+          background: #fff;
+          color: #64748b;
+        }
+        .status-btn:hover { border-color: #3b82f6; color: #3b82f6; }
+        .status-btn.active { background: #22c55e; color: white; border-color: #22c55e; }
+        .status-btn.critical.active { background: #ef4444; color: white; border-color: #ef4444; }
         .action-buttons {
           display: flex;
           gap: 0.5rem;

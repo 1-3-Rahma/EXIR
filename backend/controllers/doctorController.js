@@ -274,7 +274,7 @@ const closeCase = async (req, res) => {
 // @desc    Get all patients under doctor's care (from cases + appointments from receptionist)
 // @route   GET /api/v1/doctor/patients
 // @access  Private (Doctor)
-// Patients assigned to this doctor by receptionist (in appointments) appear here for that doctor's UI.
+// patientStatus (stable/critical) from Case is single source of truth for both doctor and nurse UI.
 // Query: ?search= name or nationalID for dynamic search
 const getPatients = async (req, res) => {
   try {
@@ -306,6 +306,8 @@ const getPatients = async (req, res) => {
         ...c.patientId.toObject(),
         caseId: c._id,
         caseStatus: 'open',
+        patientStatus: c.patientStatus || 'stable',
+        medications: c.medications || [],
         assignedNurse: activeAssignment?.nurseId?.fullName || null,
         appointmentDoctorName: req.user.fullName,
         appointmentDate: null,
@@ -328,6 +330,8 @@ const getPatients = async (req, res) => {
           ...apt.patientId.toObject(),
           caseId: null,
           caseStatus: null,
+          patientStatus: 'stable',
+          medications: [],
           assignedNurse: activeAssignment?.nurseId?.fullName || null,
           appointmentDoctorName: apt.doctorName || req.user.fullName,
           appointmentDate: apt.date,
@@ -354,11 +358,164 @@ const getPatients = async (req, res) => {
   }
 };
 
+// @desc    Set patient status (stable / critical) for a case
+// @route   PUT /api/v1/doctor/patient-status
+// @access  Private (Doctor)
+const setPatientStatus = async (req, res) => {
+  try {
+    const { patientId, caseId, status } = req.body;
+    const doctorId = req.user._id;
+
+    if (!patientId || !status || !['stable', 'critical'].includes(status)) {
+      return res.status(400).json({ message: 'Please provide patientId and status (stable or critical)' });
+    }
+
+    let patientCase = await Case.findOne({ patientId, doctorId, status: 'open' });
+    if (!patientCase) {
+      patientCase = await Case.create({
+        patientId,
+        doctorId,
+        status: 'open',
+        patientStatus: status,
+        treatmentPlan: '',
+        diagnosis: '',
+        notes: ''
+      });
+    } else {
+      patientCase.patientStatus = status;
+      await patientCase.save();
+    }
+
+    const patient = await Patient.findById(patientId).select('fullName');
+    const patientName = patient?.fullName || 'Unknown';
+    const doctorName = req.user.fullName || 'Doctor';
+    const assignments = await Assignment.find({ patientId, isActive: true });
+
+    if (status === 'critical') {
+      for (const a of assignments) {
+        await Notification.create({
+          userId: a.nurseId,
+          type: 'critical',
+          message: `Patient ${patientName} marked as critical by Dr. ${doctorName}`,
+          relatedPatientId: patientId
+        });
+      }
+    }
+
+    // Real-time: notify assigned nurses immediately so they see update without refresh
+    const io = req.app.get('io');
+    if (io) {
+      const payload = {
+        patientId,
+        status,
+        patientName,
+        doctorName,
+        message: status === 'critical'
+          ? `Patient ${patientName} marked as critical by Dr. ${doctorName}`
+          : `Patient ${patientName} reverted to stable by Dr. ${doctorName}`
+      };
+      for (const a of assignments) {
+        const nurseId = a.nurseId?.toString?.() || a.nurseId;
+        if (nurseId) io.to(`nurse:${nurseId}`).emit('patientStatusChanged', payload);
+      }
+    }
+
+    res.json({ message: 'Patient status updated', case: patientCase });
+  } catch (error) {
+    console.error('Set patient status error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get critical cases for this doctor (for dashboard count and Priority Cases page)
+// @route   GET /api/v1/doctor/critical-cases
+// @access  Private (Doctor)
+const getCriticalCases = async (req, res) => {
+  try {
+    const doctorId = req.user._id;
+
+    const cases = await Case.find({ doctorId, status: 'open', patientStatus: 'critical' })
+      .populate('patientId', 'fullName nationalID contactInfo');
+
+    const assignments = await Assignment.find({
+      patientId: { $in: cases.map(c => c.patientId._id) },
+      isActive: true
+    });
+    const roomByPatient = {};
+    assignments.forEach(a => {
+      roomByPatient[a.patientId.toString()] = a.patientId?.contactInfo || 'N/A';
+    });
+
+    const list = cases.map(c => ({
+      _id: c._id,
+      patientId: c.patientId._id,
+      patientName: c.patientId?.fullName || 'Unknown',
+      room: c.patientId?.contactInfo || 'N/A',
+      reason: c.diagnosis || 'Marked critical by doctor',
+      severity: 'high',
+      createdAt: c.updatedAt
+    }));
+
+    res.json(list);
+  } catch (error) {
+    console.error('Get critical cases error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Add prescription (medications) to a patient's case
+// @route   POST /api/v1/doctor/prescription
+// @access  Private (Doctor)
+const addPrescription = async (req, res) => {
+  try {
+    const { patientId, medications } = req.body;
+    const doctorId = req.user._id;
+
+    if (!patientId || !Array.isArray(medications) || medications.length === 0) {
+      return res.status(400).json({ message: 'Please provide patientId and at least one medication' });
+    }
+
+    let patientCase = await Case.findOne({ patientId, doctorId, status: 'open' });
+    if (!patientCase) {
+      patientCase = await Case.create({
+        patientId,
+        doctorId,
+        status: 'open',
+        patientStatus: 'stable',
+        treatmentPlan: '',
+        diagnosis: '',
+        notes: '',
+        medications: []
+      });
+    }
+    if (!patientCase.medications) patientCase.medications = [];
+
+    const validMeds = medications.filter(m =>
+      m && String(m.medicineName || '').trim() && (m.timesPerDay != null && m.timesPerDay !== '')
+    ).map(m => ({
+      medicineName: String(m.medicineName || '').trim(),
+      timesPerDay: Number(m.timesPerDay),
+      note: String(m.note || '').trim()
+    }));
+
+    patientCase.medications.push(...validMeds);
+    await patientCase.save();
+
+    res.status(201).json({ message: 'Prescription added', case: patientCase });
+  } catch (error) {
+    console.error('Add prescription error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   getNursingStaff,
   getNursesOnShift,
   assignPatient,
   updateTreatment,
   closeCase,
-  getPatients
+  getPatients,
+  setPatientStatus,
+  getCriticalCases,
+  addPrescription
 };

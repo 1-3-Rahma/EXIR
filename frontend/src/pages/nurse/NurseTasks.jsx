@@ -238,7 +238,7 @@ const NurseTasks = () => {
               <span className="shift-time">{shiftInfo.current.time}</span>
               <div className="shift-details">
                 <strong>{shiftInfo.current.nurse}</strong>
-                <span>{shiftInfo.current.ward} · {shiftInfo.current.patients} patients assigned</span>
+                {/* <span>{shiftInfo.current.ward} · {shiftInfo.current.patients} patients assigned</span> */}
               </div>
             </div>
             <div className="shift-card next">
@@ -246,7 +246,7 @@ const NurseTasks = () => {
               <span className="shift-time">{shiftInfo.next.time}</span>
               <div className="shift-details">
                 <strong>{shiftInfo.next.nurse}</strong>
-                <span>{shiftInfo.next.ward} · {shiftInfo.next.status}</span>
+                {/* <span>{shiftInfo.next.ward} · {shiftInfo.next.status}</span> */}
               </div>
             </div>
           </div>

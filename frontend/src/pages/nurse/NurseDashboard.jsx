@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
 import { useAuth } from '../../context/AuthContext';
-import { notificationAPI, tasksAPI } from '../../services/api';
+import { notificationAPI, tasksAPI, nurseAPI } from '../../services/api';
 import {
   FiUsers, FiAlertTriangle, FiClipboard,
   FiClock, FiArrowRight, FiBell, FiCheckCircle, FiInfo,
@@ -22,9 +22,26 @@ const NurseDashboard = () => {
   const [tasks, setTasks] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [liveAlert, setLiveAlert] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
+    const interval = setInterval(fetchDashboardData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Real-time: when doctor changes patient status, show alert and refetch immediately (no refresh)
+  useEffect(() => {
+    const handler = (e) => {
+      const payload = e?.detail;
+      if (payload?.message) {
+        setLiveAlert({ message: payload.message, status: payload.status });
+        setTimeout(() => setLiveAlert(null), 8000);
+      }
+      fetchDashboardData();
+    };
+    window.addEventListener('patientStatusChanged', handler);
+    return () => window.removeEventListener('patientStatusChanged', handler);
   }, []);
 
   const getAuthHeaders = () => {
@@ -37,18 +54,19 @@ const NurseDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch dashboard stats and critical events (fetch for nurse/dashboard)
-      const [dashboardRes, criticalRes, tasksTodayRes, notifRes] = await Promise.all([
+      // One source of truth: urgent-cases = doctor-marked critical + vital alerts (e.g. Dr. Ahmed Hassan → Nurse Fatima)
+      const [dashboardRes, urgentRes, tasksTodayRes, notifRes] = await Promise.all([
         fetch(`${API_URL}/nurse/dashboard`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/nurse/critical-events`, { headers: getAuthHeaders() }),
+        nurseAPI.getUrgentCases(),
         tasksAPI.getTodayTasks(),
         notificationAPI.getNotifications()
       ]);
 
       const dashboardData = dashboardRes.ok ? await dashboardRes.json() : null;
-      const criticalData = criticalRes.ok ? await criticalRes.json() : [];
+      const urgentData = urgentRes?.data || {};
+      const urgentList = Array.isArray(urgentData.list) ? urgentData.list : [];
+      const urgentCount = typeof urgentData.count === 'number' ? urgentData.count : urgentList.length;
 
-      // Backend /tasks/today and /notifications return array directly (axios wraps in response.data)
       const tasksTodayRaw = tasksTodayRes?.data;
       const tasksTodayList = Array.isArray(tasksTodayRaw) ? tasksTodayRaw : (tasksTodayRaw?.data || []);
       const pendingToday = tasksTodayList.filter(t =>
@@ -60,17 +78,17 @@ const NurseDashboard = () => {
 
       setStats({
         totalPatients: dashboardData?.data?.assignedPatients || 0,
-        urgentCases: dashboardData?.data?.criticalAlerts || 0,
+        urgentCases: urgentCount,
         tasksToday: pendingToday.length
       });
 
-      const critical = Array.isArray(criticalData) ? criticalData : (criticalData?.data || []);
-      setUrgentCases(critical.slice(0, 3).map(c => ({
+      setUrgentCases(urgentList.slice(0, 5).map(c => ({
         _id: c._id,
-        patientName: c.relatedPatientId?.fullName || 'Unknown Patient',
+        patientName: c.patientName || 'Unknown Patient',
         room: c.room || 'N/A',
-        reason: c.message || c.title,
-        priority: c.type === 'critical' ? 'critical' : 'high',
+        reason: c.reason || (c.source === 'doctor' ? 'Marked critical by doctor' : 'Critical alert'),
+        priority: 'critical',
+        source: c.source,
         createdAt: c.createdAt
       })));
 
@@ -132,6 +150,25 @@ const NurseDashboard = () => {
 
   return (
     <Layout appName="NurseHub" role="nurse">
+      {liveAlert && (
+        <div
+          className="live-alert-banner"
+          style={{
+            padding: '12px 16px',
+            marginBottom: '16px',
+            borderRadius: '8px',
+            background: liveAlert.status === 'critical' ? '#fee2e2' : '#dcfce7',
+            border: `1px solid ${liveAlert.status === 'critical' ? '#ef4444' : '#22c55e'}`,
+            color: liveAlert.status === 'critical' ? '#991b1b' : '#166534',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <FiAlertCircle size={20} />
+          <span>{liveAlert.message}</span>
+        </div>
+      )}
       <div className="page-header">
         <h1>Dashboard Overview</h1>
         <p>Welcome back, {user?.fullName || 'Nurse'}! Here's your shift summary.</p>
@@ -193,11 +230,17 @@ const NurseDashboard = () => {
                           <span className="room-badge" style={{ background: getPriorityColor(item.priority) }}>
                             Room {item.room}
                           </span>
+                          {item.source === 'doctor' && (
+                            <span className="source-badge doctor">Doctor</span>
+                          )}
+                          {item.source === 'vitals' && (
+                            <span className="source-badge vitals">Vitals</span>
+                          )}
                         </div>
-                        <p className="urgent-reason">{item.reason || item.message}</p>
+                        <p className="urgent-reason">{item.reason}</p>
                         <span className="urgent-time"><FiClock /> {formatTime(item.createdAt)}</span>
                       </div>
-                      <button className="respond-btn">Respond</button>
+                      <Link to="/nurse/patients" className="respond-btn">Respond</Link>
                     </div>
                   ))}
                 </div>
@@ -209,7 +252,7 @@ const NurseDashboard = () => {
         {/* Tasks and Notifications Row */}
         <div className="dashboard-row">
           {/* Tasks Assigned Today */}
-          <div className="section-card flex-1">
+          {/* <div className="section-card flex-1">
             <div className="section-header">
               <h2><FiClipboard className="header-icon green" /> Tasks Assigned Today</h2>
               <Link to="/nurse/tasks" className="view-all-link">
@@ -229,7 +272,8 @@ const NurseDashboard = () => {
                       <div className="task-info">
                         <span className="task-title">{task.title}</span>
                         <span className="task-details">
-                          {task.patientName || 'General'}{task.room ? ` - Room ${task.room}` : ''}
+                          {(task.patient?.fullName || task.patientName) || 'General'}
+                          {(task.patient?.room || task.room) ? ` - Room ${task.patient?.room || task.room}` : ''}
                         </span>
                         {task.dueDate && (
                           <span className="task-time">
@@ -238,8 +282,8 @@ const NurseDashboard = () => {
                         )}
                       </div>
                       <div className="task-tags">
-                        <span className="priority-tag" style={{ background: getPriorityColor(task.priority) }}>
-                          {task.priority}
+                        <span className="priority-tag" style={{ background: getPriorityColor(task.priority || 'medium') }}>
+                          {task.priority || 'medium'}
                         </span>
                         <span className="category-tag">{task.category || 'Task'}</span>
                       </div>
@@ -248,13 +292,15 @@ const NurseDashboard = () => {
                 </div>
               )}
             </div>
-          </div>
+          </div> */}
 
           {/* Notifications Panel */}
           <div className="section-card flex-1">
             <div className="section-header">
               <h2><FiBell className="header-icon blue" /> Notifications</h2>
-              <span className="notif-count">{notifications.length}</span>
+              {unreadCount > 0 && (
+                <span className="notif-count unread-badge">{unreadCount}</span>
+              )}
             </div>
             <div className="section-body">
               {notifications.length === 0 ? (
@@ -263,16 +309,24 @@ const NurseDashboard = () => {
                 <>
                   <div className="notification-list">
                     {notifications.map((notif) => (
-                      <div key={notif._id} className={`notification-item ${notif.type}`}>
+                      <div
+                        key={notif._id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleNotificationClick(notif)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleNotificationClick(notif)}
+                        className={`notification-item ${notif.type} ${notif.read ? 'read' : ''}`}
+                      >
                         {getNotificationIcon(notif.type)}
                         <div className="notif-content">
                           <p className="notif-message">{notif.message}</p>
                           <span className="notif-time">{formatTime(notif.createdAt)}</span>
                         </div>
+                        {!notif.read && <span className="unread-dot" />}
                       </div>
                     ))}
                   </div>
-                  <button className="view-all-btn">View All Notifications</button>
+                  <button type="button" className="view-all-btn">View All Notifications</button>
                 </>
               )}
             </div>
@@ -432,6 +486,15 @@ const NurseDashboard = () => {
           color: white;
           font-weight: 500;
         }
+        .source-badge {
+          font-size: 0.65rem;
+          padding: 0.15rem 0.4rem;
+          border-radius: 4px;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+        .source-badge.doctor { background: #0ea5e9; color: white; }
+        .source-badge.vitals { background: #f59e0b; color: white; }
 
         .urgent-reason {
           font-size: 0.85rem;
@@ -448,6 +511,7 @@ const NurseDashboard = () => {
         }
 
         .respond-btn {
+          display: inline-block;
           background: #3b82f6;
           color: white;
           border: none;
@@ -457,9 +521,10 @@ const NurseDashboard = () => {
           font-weight: 500;
           cursor: pointer;
           transition: background 0.2s;
+          text-decoration: none;
         }
 
-        .respond-btn:hover { background: #2563eb; }
+        .respond-btn:hover { background: #2563eb; color: white; }
 
         .task-card {
           display: flex;
@@ -545,7 +610,18 @@ const NurseDashboard = () => {
           transition: background 0.2s;
         }
 
+        .notification-item { cursor: pointer; }
+        .notification-item.read { opacity: 0.75; }
         .notification-item:hover { background: #f8fafc; }
+        .notif-count.unread-badge { background: #ef4444; }
+        .unread-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #ef4444;
+          flex-shrink: 0;
+          margin-left: auto;
+        }
 
         .notif-icon {
           font-size: 1.25rem;
@@ -555,6 +631,7 @@ const NurseDashboard = () => {
         .notif-icon.critical { color: #ef4444; }
         .notif-icon.success { color: #22c55e; }
         .notif-icon.info { color: #3b82f6; }
+        .notif-icon.assignment { color: #0ea5e9; }
 
         .notif-content {
           flex: 1;

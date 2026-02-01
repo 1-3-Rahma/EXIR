@@ -26,7 +26,12 @@ const Sidebar = ({ appName, role }) => {
     };
     fetchUnread();
     const interval = setInterval(fetchUnread, 30000);
-    return () => clearInterval(interval);
+    const onRefresh = () => fetchUnread();
+    window.addEventListener('refreshUnreadCount', onRefresh);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('refreshUnreadCount', onRefresh);
+    };
   }, [role]);
 
   const handleLogout = async () => {
