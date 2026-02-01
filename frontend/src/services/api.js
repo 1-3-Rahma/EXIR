@@ -89,9 +89,20 @@ export const receptionistAPI = {
   createAppointment: (data) => api.post('/receptionist/appointments', data),
   updateAppointment: (appointmentId, data) => api.put(`/receptionist/appointments/${appointmentId}`, data),
   cancelAppointment: (appointmentId) => api.delete(`/receptionist/appointments/${appointmentId}`),
-  markPaymentComplete: (patientId, paymentData) => api.post(`/receptionist/patient/${patientId}/payment`, paymentData),
   getPaymentHistory: (patientId) => api.get(`/receptionist/patient/${patientId}/payment-history`),
-  getDoctors: (department) => api.get('/receptionist/doctors', { params: { department } })
+  getDoctors: (department) => api.get('/receptionist/doctors', { params: { department } }),
+  // Billing Management (View & Checkout Only - Payments handled by Financial Management)
+  getPatientsWithBilling: (search) => api.get('/receptionist/billing/patients', { params: search ? { search } : {} }),
+  getPatientBillingDetails: (patientId) => api.get(`/receptionist/billing/patient/${patientId}`),
+  checkoutPatient: (patientId) => api.post(`/receptionist/billing/checkout/${patientId}`),
+  // Document Management
+  getAllPatientsWithDocuments: (search) => api.get('/receptionist/documents/patients', { params: search ? { search } : {} }),
+  uploadPatientDocument: (patientId, formData) => api.post(`/receptionist/patient/${patientId}/document`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  getPatientDocuments: (patientId) => api.get(`/receptionist/patient/${patientId}/documents`),
+  downloadPatientDocument: (patientId, documentType) => api.get(`/receptionist/patient/${patientId}/document/${documentType}`, { responseType: 'blob' }),
+  deletePatientDocument: (patientId, documentType) => api.delete(`/receptionist/patient/${patientId}/document/${documentType}`)
 };
 
 export const vitalsAPI = {

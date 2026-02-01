@@ -211,9 +211,6 @@ const ReceptionistDashboard = () => {
           <h2>
             <FiClock /> Today's Arrivals
           </h2>
-          <button className="view-all-btn" onClick={() => setShowArrivalsModal(true)}>
-            View All →
-          </button>
         </div>
         <div className="card-body">
           {loading ? (
@@ -221,7 +218,7 @@ const ReceptionistDashboard = () => {
           ) : todayArrivals.length === 0 ? (
             <div className="empty-arrivals">
               <FiUsers className="empty-icon" />
-              <p>No arrivals scheduled for today</p>
+              <p>No arrivals today</p>
             </div>
           ) : (
             <div className="arrivals-table">
@@ -229,12 +226,11 @@ const ReceptionistDashboard = () => {
                 <thead>
                   <tr>
                     <th>Patient Name</th>
-                    <th>Time</th>
-                    <th>Action</th>
+                    <th>Registered At</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {todayArrivals.slice(0, 4).map((arrival, index) => (
+                  {todayArrivals.slice(0, 5).map((arrival, index) => (
                     <tr key={arrival._id || index}>
                       <td>
                         <div
@@ -247,17 +243,18 @@ const ReceptionistDashboard = () => {
                           <span className="patient-name-link">{arrival.patientName || 'Unknown'}</span>
                         </div>
                       </td>
-                      <td>{arrival.time || '09:00 AM'}</td>
-
-                      <td>
-                        {arrival.status !== 'Checked-in' && (
-                          <button className="checkin-btn">Check In</button>
-                        )}
-                      </td>
+                      <td>{arrival.registrationTime ? new Date(arrival.registrationTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              {todayArrivals.length > 5 && (
+                <div className="view-more-row">
+                  <button className="view-more-btn" onClick={() => setShowArrivalsModal(true)}>
+                    View More ({todayArrivals.length - 5} more)
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -277,7 +274,7 @@ const ReceptionistDashboard = () => {
               {todayArrivals.length === 0 ? (
                 <div className="empty-arrivals">
                   <FiUsers className="empty-icon" />
-                  <p>No arrivals scheduled for today</p>
+                  <p>No arrivals today</p>
                 </div>
               ) : (
                 <div className="arrivals-list">
@@ -295,18 +292,18 @@ const ReceptionistDashboard = () => {
                       </div>
                       <div className="arrival-info">
                         <span className="arrival-name">{arrival.patientName || 'Unknown'}</span>
-                        <span className="arrival-time">{arrival.time}</span>
+                        <span className="arrival-time">
+                          Registered: {arrival.registrationTime ? new Date(arrival.registrationTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                        </span>
                       </div>
-                      <span className={`status-pill ${arrival.status?.toLowerCase() || 'pending'}`}>
-                        {arrival.status || 'Pending'}
-                      </span>
+                      
                     </div>
                   ))}
                 </div>
               )}
             </div>
             <div className="modal-footer">
-              <span className="total-count">{todayArrivals.length} patient(s) today</span>
+              <span className="total-count">{todayArrivals.length} arrival(s) today</span>
             </div>
           </div>
         </div>
@@ -596,9 +593,7 @@ const ReceptionistDashboard = () => {
         }
         .arrivals-section .card-header {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          width: 100%;
         }
         .arrivals-section .card-header h2 {
           display: flex;
@@ -606,7 +601,13 @@ const ReceptionistDashboard = () => {
           gap: 0.5rem;
           margin: 0;
         }
-        .view-all-btn {
+        .view-more-row {
+          display: flex;
+          justify-content: flex-end;
+          padding: 0.75rem 1rem;
+          border-top: 1px solid var(--border-color);
+        }
+        .view-more-btn {
           background: none;
           border: none;
           color: var(--accent-blue);
@@ -615,9 +616,9 @@ const ReceptionistDashboard = () => {
           padding: 0.375rem 0.75rem;
           border-radius: var(--radius-md);
           transition: background 0.2s, color 0.2s;
-          margin-left: auto;
+          font-weight: 500;
         }
-        .view-all-btn:hover {
+        .view-more-btn:hover {
           background: rgba(59, 130, 246, 0.15);
           color: #1d4ed8;
         }

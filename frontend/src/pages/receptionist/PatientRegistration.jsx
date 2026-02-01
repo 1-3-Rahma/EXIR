@@ -4,7 +4,8 @@ import { receptionistAPI } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import {
   FiUser, FiPhone, FiMail, FiMapPin, FiCreditCard,
-  FiCalendar, FiUsers, FiAlertCircle, FiCheck, FiArrowLeft
+  FiCalendar, FiUsers, FiAlertCircle, FiCheck, FiArrowLeft,
+  FiFileText, FiUpload, FiX
 } from 'react-icons/fi';
 
 const PatientRegistration = () => {
@@ -13,6 +14,10 @@ const PatientRegistration = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [idType, setIdType] = useState('nationalID'); // 'nationalID' or 'passport'
+
+  // Document uploads
+  const [nationalIDFile, setNationalIDFile] = useState(null);
+  const [insuranceCardFile, setInsuranceCardFile] = useState(null);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -26,6 +31,9 @@ const PatientRegistration = () => {
     emergencyContactPhone: '',
     emergencyContactRelation: ''
   });
+
+  const allowedFileTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+  const maxFileSize = 5 * 1024 * 1024; // 5MB
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -104,7 +112,44 @@ const PatientRegistration = () => {
 
     if (!formData.emergencyContactRelation) return 'Emergency contact relationship is required';
 
+    // National ID document is required
+    if (!nationalIDFile) return 'National ID document is required';
+
     return null;
+  };
+
+  const handleFileChange = (e, type) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!allowedFileTypes.includes(file.type)) {
+      setError('Invalid file type. Only JPG, PNG, and PDF files are allowed.');
+      e.target.value = '';
+      return;
+    }
+
+    // Validate file size
+    if (file.size > maxFileSize) {
+      setError('File size exceeds 5MB limit.');
+      e.target.value = '';
+      return;
+    }
+
+    if (type === 'nationalID') {
+      setNationalIDFile(file);
+    } else {
+      setInsuranceCardFile(file);
+    }
+    setError('');
+  };
+
+  const removeFile = (type) => {
+    if (type === 'nationalID') {
+      setNationalIDFile(null);
+    } else {
+      setInsuranceCardFile(null);
+    }
   };
 
   const calculateAge = (dateOfBirth) => {
@@ -148,9 +193,27 @@ const PatientRegistration = () => {
           : ''
       });
 
+      const patientId = response.data.patient._id;
+
+      // Upload National ID document
+      if (nationalIDFile) {
+        const nationalIDFormData = new FormData();
+        nationalIDFormData.append('file', nationalIDFile);
+        nationalIDFormData.append('documentType', 'nationalID');
+        await receptionistAPI.uploadPatientDocument(patientId, nationalIDFormData);
+      }
+
+      // Upload Insurance Card if provided
+      if (insuranceCardFile) {
+        const insuranceFormData = new FormData();
+        insuranceFormData.append('file', insuranceCardFile);
+        insuranceFormData.append('documentType', 'insuranceCard');
+        await receptionistAPI.uploadPatientDocument(patientId, insuranceFormData);
+      }
+
       setSuccess(true);
       setTimeout(() => {
-        navigate(`/receptionist/patients/${response.data.patient._id}`);
+        navigate(`/receptionist/patients/${patientId}`);
       }, 1500);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to register patient');
@@ -423,6 +486,76 @@ const PatientRegistration = () => {
           </div>
         </div>
 
+        {/* Document Uploads */}
+        <div className="form-section">
+          <h3><FiFileText /> Document Uploads</h3>
+          <p className="section-description">Upload patient identification documents. Accepted formats: JPG, PNG, PDF (Max 5MB)</p>
+
+          <div className="documents-upload-grid">
+            {/* National ID Document */}
+            <div className="upload-item">
+              <div className="upload-label">
+                <span className="doc-title">National ID / Passport Document *</span>
+                <span className="required-tag">Required</span>
+              </div>
+              {nationalIDFile ? (
+                <div className="file-preview">
+                  <FiFileText className="file-icon" />
+                  <div className="file-info">
+                    <span className="file-name">{nationalIDFile.name}</span>
+                    <span className="file-size">{(nationalIDFile.size / 1024).toFixed(1)} KB</span>
+                  </div>
+                  <button type="button" className="remove-file" onClick={() => removeFile('nationalID')}>
+                    <FiX />
+                  </button>
+                </div>
+              ) : (
+                <label className="upload-box">
+                  <FiUpload className="upload-icon" />
+                  <span>Click to upload National ID</span>
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    onChange={(e) => handleFileChange(e, 'nationalID')}
+                    hidden
+                  />
+                </label>
+              )}
+            </div>
+
+            {/* Insurance Card Document */}
+            <div className="upload-item">
+              <div className="upload-label">
+                <span className="doc-title">Insurance Card</span>
+                <span className="optional-tag">Optional</span>
+              </div>
+              {insuranceCardFile ? (
+                <div className="file-preview">
+                  <FiFileText className="file-icon" />
+                  <div className="file-info">
+                    <span className="file-name">{insuranceCardFile.name}</span>
+                    <span className="file-size">{(insuranceCardFile.size / 1024).toFixed(1)} KB</span>
+                  </div>
+                  <button type="button" className="remove-file" onClick={() => removeFile('insuranceCard')}>
+                    <FiX />
+                  </button>
+                </div>
+              ) : (
+                <label className="upload-box optional">
+                  <FiUpload className="upload-icon" />
+                  <span>Click to upload Insurance Card</span>
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    onChange={(e) => handleFileChange(e, 'insuranceCard')}
+                    hidden
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Form Actions */}
         <div className="form-actions">
           <button
@@ -619,6 +752,116 @@ const PatientRegistration = () => {
           opacity: 0.7;
           cursor: not-allowed;
         }
+        .section-description {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+          margin-bottom: 1.25rem;
+        }
+        .documents-upload-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 1.5rem;
+        }
+        .upload-item {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+        .upload-label {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+        .doc-title {
+          font-weight: 500;
+          font-size: 0.9rem;
+        }
+        .required-tag {
+          font-size: 0.7rem;
+          padding: 0.125rem 0.5rem;
+          background: rgba(239, 68, 68, 0.1);
+          color: #ef4444;
+          border-radius: var(--radius-full);
+        }
+        .optional-tag {
+          font-size: 0.7rem;
+          padding: 0.125rem 0.5rem;
+          background: var(--bg-light);
+          color: var(--text-muted);
+          border-radius: var(--radius-full);
+        }
+        .upload-box {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          padding: 2rem;
+          border: 2px dashed var(--border-color);
+          border-radius: var(--radius-lg);
+          cursor: pointer;
+          transition: all 0.2s;
+          background: var(--bg-light);
+        }
+        .upload-box:hover {
+          border-color: var(--accent-blue);
+          background: rgba(59, 130, 246, 0.05);
+        }
+        .upload-box.optional {
+          border-style: dashed;
+        }
+        .upload-icon {
+          font-size: 1.5rem;
+          color: var(--text-muted);
+        }
+        .upload-box span {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+        }
+        .file-preview {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 1rem;
+          background: rgba(34, 197, 94, 0.08);
+          border: 1px solid rgba(34, 197, 94, 0.3);
+          border-radius: var(--radius-lg);
+        }
+        .file-preview .file-icon {
+          font-size: 1.5rem;
+          color: var(--accent-green);
+        }
+        .file-info {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 0.125rem;
+        }
+        .file-name {
+          font-size: 0.85rem;
+          font-weight: 500;
+          word-break: break-all;
+        }
+        .file-size {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+        }
+        .remove-file {
+          width: 28px;
+          height: 28px;
+          border: none;
+          background: rgba(239, 68, 68, 0.1);
+          color: #ef4444;
+          border-radius: var(--radius-full);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+        .remove-file:hover {
+          background: rgba(239, 68, 68, 0.2);
+        }
         @media (max-width: 768px) {
           .form-grid {
             grid-template-columns: 1fr;
@@ -628,6 +871,9 @@ const PatientRegistration = () => {
           }
           .id-type-toggle {
             flex-direction: column;
+          }
+          .documents-upload-grid {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>

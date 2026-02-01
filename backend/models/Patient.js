@@ -71,6 +71,23 @@ const patientSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  // Document uploads
+  documents: {
+    nationalID: {
+      filename: String,
+      originalName: String,
+      mimetype: String,
+      size: Number,
+      uploadedAt: Date
+    },
+    insuranceCard: {
+      filename: String,
+      originalName: String,
+      mimetype: String,
+      size: Number,
+      uploadedAt: Date
+    }
+  },
   totalVisits: {
     type: Number,
     default: 1
