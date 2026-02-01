@@ -50,7 +50,9 @@ export const doctorAPI = {
   getPatients: (search) => api.get('/doctor/patients', { params: search ? { search } : {} }),
   getCriticalCases: () => api.get('/doctor/critical-cases'),
   setPatientStatus: (data) => api.put('/doctor/patient-status', data),
-  addPrescription: (data) => api.post('/doctor/prescription', data)
+  addPrescription: (data) => api.post('/doctor/prescription', data),
+  addIvOrder: (data) => api.post('/doctor/iv-order', data),
+  getPatientVitals: (patientId) => api.get(`/vitals/patient/${patientId}`)
 };
 
 export const tasksAPI = {

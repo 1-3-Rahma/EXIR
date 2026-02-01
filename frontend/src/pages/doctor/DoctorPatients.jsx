@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/common/Layout';
 import { doctorAPI } from '../../services/api';
-import { FiUser, FiFileText, FiEdit, FiCheckCircle, FiAlertCircle, FiSearch } from 'react-icons/fi';
+import { FiUser, FiActivity, FiHeart, FiThermometer, FiWind, FiCheckCircle, FiAlertCircle, FiSearch } from 'react-icons/fi';
 
 const DoctorPatients = () => {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState(null);
-  const [showTreatmentModal, setShowTreatmentModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [vitals, setVitals] = useState([]);
+  const [vitalsLoading, setVitalsLoading] = useState(false);
 
   const fetchPatients = useCallback(async (search) => {
     try {
@@ -57,6 +59,26 @@ const DoctorPatients = () => {
     }
   };
 
+  const openViewDetails = async (patient) => {
+    setSelectedPatient(patient);
+    setShowDetailsModal(true);
+    setVitalsLoading(true);
+    setVitals([]);
+    try {
+      const res = await doctorAPI.getPatientVitals(patient._id);
+      const list = Array.isArray(res.data) ? res.data : [];
+      setVitals(list);
+    } catch (err) {
+      console.error('Failed to fetch vitals:', err);
+      setVitals([]);
+    } finally {
+      setVitalsLoading(false);
+    }
+  };
+
+  const latestVital = vitals.length > 0 ? vitals[0] : null;
+  const formatVitalTime = (date) => date ? new Date(date).toLocaleString() : '—';
+
   return (
     <Layout appName="Doctor's Hospital" role="doctor">
       <div className="page-header">
@@ -89,7 +111,7 @@ const DoctorPatients = () => {
                   <tr>
                     <th>Patient</th>
                     <th>National ID</th>
-                    <th>Doctor (Appointment)</th>
+                    {/* <th>Doctor (Appointment)</th> */}
                     <th>Appointment</th>
                     <th>Status</th>
                     <th>Assigned Nurse</th>
@@ -137,33 +159,23 @@ const DoctorPatients = () => {
                       </td>
                       <td>{patient.assignedNurse || 'Unassigned'}</td>
                       <td>
-                        <div className="action-buttons">
+                        <button
+                          className="action-btn-view"
+                          onClick={() => openViewDetails(patient)}
+                          title="View patient vitals and details"
+                        >
+                          <FiActivity /> View Details
+                        </button>
+                        {/* {patient.caseStatus === 'open' && patient.caseId && (
                           <button
-                            className="action-btn-sm edit"
-                            onClick={() => {
-                              setSelectedPatient(patient);
-                              setShowTreatmentModal(true);
-                            }}
-                            title="Update Treatment"
+                            className="action-btn-sm close"
+                            onClick={() => handleCloseCase(patient._id, patient.caseId)}
+                            title="Close Case"
+                            style={{ marginLeft: '8px' }}
                           >
-                            <FiEdit />
+                            <FiCheckCircle /> Close Case
                           </button>
-                          <button
-                            className="action-btn-sm view"
-                            title="View Records"
-                          >
-                            <FiFileText />
-                          </button>
-                          {patient.caseStatus === 'open' && patient.caseId && (
-                            <button
-                              className="action-btn-sm close"
-                              onClick={() => handleCloseCase(patient._id, patient.caseId)}
-                              title="Close Case"
-                            >
-                              <FiCheckCircle />
-                            </button>
-                          )}
-                        </div>
+                        )} */}
                       </td>
                     </tr>
                   ))}
@@ -283,6 +295,92 @@ const DoctorPatients = () => {
           background: var(--accent-green);
           color: white;
         }
+        .action-btn-view {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          padding: 0.4rem 0.75rem;
+          background: rgba(99, 102, 241, 0.1);
+          color: #6366f1;
+          border: 1px solid rgba(99, 102, 241, 0.3);
+          border-radius: 8px;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .action-btn-view:hover {
+          background: #6366f1;
+          color: white;
+        }
+      `}</style>
+
+      {showDetailsModal && selectedPatient && (
+        <div className="modal-overlay" onClick={() => setShowDetailsModal(false)}>
+          <div className="modal-details" onClick={(e) => e.stopPropagation()}>
+            <h3>Patient Details – {selectedPatient.fullName}</h3>
+            <p className="modal-sub">Vital signs (from sensors)</p>
+
+            {vitalsLoading ? (
+              <p className="vitals-loading">Loading vitals...</p>
+            ) : !latestVital ? (
+              <div className="vitals-empty">
+                <FiActivity size={32} style={{ color: '#94a3b8', marginBottom: '8px' }} />
+                <p>No vitals recorded yet for this patient.</p>
+                <p className="vitals-hint">Data will appear when sensors or nurses record vitals.</p>
+              </div>
+            ) : (
+              <div className="vitals-grid-doc">
+                {(latestVital.bloodPressure?.systolic != null || latestVital.bloodPressure?.diastolic != null) && (
+                  <div className="vital-item">
+                    <FiHeart /> <span>Blood Pressure:</span> {latestVital.bloodPressure?.systolic}/{latestVital.bloodPressure?.diastolic} mmHg
+                  </div>
+                )}
+                {latestVital.heartRate != null && (
+                  <div className="vital-item">
+                    <FiActivity /> <span>Heart Rate:</span> {latestVital.heartRate} bpm
+                  </div>
+                )}
+                {latestVital.temperature != null && (
+                  <div className="vital-item">
+                    <FiThermometer /> <span>Temperature:</span> {latestVital.temperature} °F
+                  </div>
+                )}
+                {(latestVital.oxygenSaturation != null || latestVital.spo2 != null) && (
+                  <div className="vital-item">
+                    <FiWind /> <span>O₂ Saturation:</span> {latestVital.oxygenSaturation ?? latestVital.spo2}%
+                  </div>
+                )}
+                {latestVital.respiratoryRate != null && (
+                  <div className="vital-item">
+                    <FiActivity /> <span>Resp. Rate:</span> {latestVital.respiratoryRate} /min
+                  </div>
+                )}
+                {!latestVital.bloodPressure?.systolic && latestVital.heartRate == null && latestVital.temperature == null && latestVital.oxygenSaturation == null && latestVital.spo2 == null && latestVital.respiratoryRate == null && (
+                  <p className="vitals-hint">No vital values in this record.</p>
+                )}
+              </div>
+            )}
+            <p className="vital-time">Last updated: {formatVitalTime(latestVital?.createdAt)}</p>
+            <div className="modal-actions">
+              <button type="button" onClick={() => setShowDetailsModal(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+      <style>{`
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-details { background: white; border-radius: 12px; padding: 1.5rem; width: 90%; max-width: 480px; }
+        .modal-details h3 { margin: 0 0 0.25rem 0; font-size: 1.1rem; }
+        .modal-sub { margin: 0 0 1rem 0; font-size: 0.85rem; color: #64748b; }
+        .vitals-loading { color: #64748b; padding: 1rem; }
+        .vitals-empty { text-align: center; padding: 1.5rem; color: #64748b; font-size: 0.9rem; }
+        .vitals-hint { font-size: 0.8rem; margin-top: 0.5rem; color: #94a3b8; }
+        .vitals-grid-doc { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; }
+        .vital-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; background: #f8fafc; border-radius: 8px; font-size: 0.9rem; }
+        .vital-item span { font-weight: 600; color: #475569; min-width: 120px; }
+        .vital-time { font-size: 0.8rem; color: #94a3b8; margin: 0 0 1rem 0; }
+        .modal-actions { display: flex; justify-content: flex-end; }
+        .modal-actions button { padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; background: #6366f1; color: white; border: none; }
       `}</style>
     </Layout>
   );

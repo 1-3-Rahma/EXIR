@@ -849,53 +849,7 @@ const NurseMessages = () => {
           )}
         </div>
 
-        {/* Right Panel */}
-        <div style={styles.rightPanel}>
-          {/* Quick Actions */}
-          <div style={styles.quickActions}>
-            <h3 style={styles.sectionTitle}>Quick Actions</h3>
-            <div style={styles.quickActionBtns}>
-              <button style={styles.quickActionBtn}>
-                <span>👥</span> Group Chat
-              </button>
-              <button style={styles.quickActionBtn}>
-                <span>📋</span> Call Directory
-              </button>
-              <button style={styles.quickActionBtn}>
-                <span>📢</span> Broadcast Message
-              </button>
-              <button
-                style={styles.emergencyBtn}
-                onClick={() => setShowEmergencyModal(true)}
-              >
-                <span>🚨</span> Emergency Request
-              </button>
-            </div>
-          </div>
 
-          {/* Alerts Section */}
-          <div style={styles.alertsSection}>
-            <h3 style={styles.sectionTitle}>Recent Updates & Alerts</h3>
-            <div style={styles.alertsList}>
-              {alerts.map((alert) => (
-                <div
-                  key={alert.id}
-                  style={{
-                    ...styles.alertItem,
-                    backgroundColor: getAlertColor(alert.type),
-                    opacity: alert.read ? 0.7 : 1,
-                  }}
-                >
-                  <span style={{ fontSize: '18px' }}>{getAlertIcon(alert.type)}</span>
-                  <div style={styles.alertContent}>
-                    <div style={styles.alertTitle}>{alert.title}</div>
-                    <div style={styles.alertTime}>{alert.time}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Emergency Modal */}

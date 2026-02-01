@@ -320,42 +320,73 @@ const getDashboardStats = async (req, res) => {
   }
 };
 
-// @desc    Get medications for assigned patients
+// @desc    Get medications for assigned patients (prescriptions + IV orders from Case)
 // @route   GET /api/v1/nurse/medications
 // @access  Private (Nurse)
 const getMedications = async (req, res) => {
   try {
     const nurseId = req.user._id;
 
-    // Get assigned patient IDs
-    const assignments = await Assignment.find({ nurseId, isActive: true });
-    const patientIds = assignments.map(a => a.patientId);
+    const assignments = await Assignment.find({ nurseId, isActive: true })
+      .populate('patientId', 'fullName nationalID contactInfo');
+    const patientIds = assignments.map(a => a.patientId._id);
 
-    // Get medical records with medications
-    const records = await MedicalRecord.find({
-      patientId: { $in: patientIds },
-      'medications.0': { $exists: true }
-    })
-      .populate('patientId', 'fullName nationalID')
-      .select('patientId medications');
-
-    // Format medications list
     const medications = [];
-    records.forEach(record => {
-      if (record.medications && record.medications.length > 0) {
-        record.medications.forEach(med => {
+
+    // Get prescriptions and IV orders from Case for assigned patients
+    const cases = await Case.find({
+      patientId: { $in: patientIds },
+      status: 'open',
+      $or: [
+        { 'medications.0': { $exists: true } },
+        { 'ivOrders.0': { $exists: true } }
+      ]
+    })
+      .populate('patientId', 'fullName nationalID contactInfo');
+
+    cases.forEach(c => {
+      const patientName = c.patientId?.fullName || 'Unknown';
+      const patientId = c.patientId?._id;
+      const room = c.patientId?.contactInfo || 'N/A';
+
+      if (c.medications && c.medications.length > 0) {
+        c.medications.forEach((med, idx) => {
           medications.push({
-            _id: med._id || `${record._id}-${med.name}`,
-            patientId: record.patientId._id,
-            patientName: record.patientId.fullName,
-            medication: med.name,
-            dosage: med.dosage,
-            frequency: med.frequency,
-            route: med.route || 'Oral',
-            status: med.status || 'active',
-            startDate: med.startDate,
-            endDate: med.endDate,
-            notes: med.notes
+            _id: med._id || `rx-${c._id}-${idx}`,
+            patientId,
+            patientName,
+            room,
+            medication: med.medicineName,
+            dosage: `${med.timesPerDay}x/day`,
+            frequency: `${med.timesPerDay} times per day`,
+            route: 'Oral',
+            status: 'active',
+            type: 'prescription',
+            priority: 'medium',
+            scheduledTime: 'As scheduled',
+            notes: med.note,
+            instructions: med.note
+          });
+        });
+      }
+
+      if (c.ivOrders && c.ivOrders.length > 0) {
+        c.ivOrders.forEach((iv, idx) => {
+          medications.push({
+            _id: iv._id || `iv-${c._id}-${idx}`,
+            patientId,
+            patientName,
+            room,
+            medication: `IV: ${iv.fluidName}`,
+            dosage: iv.volume ? `${iv.volume} @ ${iv.rate || 'N/A'}` : 'N/A',
+            frequency: 'IV',
+            route: 'IV',
+            status: 'active',
+            type: 'iv',
+            priority: 'high',
+            scheduledTime: 'Administer as ordered',
+            notes: iv.instructions,
+            instructions: iv.instructions
           });
         });
       }
@@ -390,32 +421,38 @@ const getFormattedVitalsOverview = async (req, res) => {
           return null;
         }
 
-        // Format vitals with status
+        const sys = latestVital.bloodPressure?.systolic;
+        const dia = latestVital.bloodPressure?.diastolic;
+        const hr = latestVital.heartRate ?? null;
+        const temp = latestVital.temperature ?? null;
+        const o2 = latestVital.oxygenSaturation ?? latestVital.spo2 ?? null;
+        const resp = latestVital.respiratoryRate ?? null;
+
         const vitals = {
           bp: {
-            systolic: latestVital.bloodPressure?.systolic || 0,
-            diastolic: latestVital.bloodPressure?.diastolic || 0,
-            status: getVitalStatus('bp', latestVital.bloodPressure?.systolic, latestVital.bloodPressure?.diastolic),
+            systolic: sys ?? 0,
+            diastolic: dia ?? 0,
+            status: (sys != null && dia != null) ? getVitalStatus('bp', sys, dia) : 'normal',
             trend: 'stable'
           },
           hr: {
-            value: latestVital.heartRate || 0,
-            status: getVitalStatus('hr', latestVital.heartRate),
+            value: hr ?? 0,
+            status: hr != null ? getVitalStatus('hr', hr) : 'normal',
             trend: 'stable'
           },
           temp: {
-            value: latestVital.temperature || 0,
-            status: getVitalStatus('temp', latestVital.temperature),
+            value: temp ?? 0,
+            status: temp != null ? getVitalStatus('temp', temp) : 'normal',
             trend: 'stable'
           },
           o2: {
-            value: latestVital.oxygenSaturation || 0,
-            status: getVitalStatus('o2', latestVital.oxygenSaturation),
+            value: o2 ?? 0,
+            status: o2 != null ? getVitalStatus('o2', o2) : 'normal',
             trend: 'stable'
           },
           resp: {
-            value: latestVital.respiratoryRate || 0,
-            status: getVitalStatus('resp', latestVital.respiratoryRate),
+            value: resp ?? 0,
+            status: resp != null ? getVitalStatus('resp', resp) : 'normal',
             trend: 'stable'
           }
         };

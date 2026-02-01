@@ -41,6 +41,13 @@ const caseSchema = new mongoose.Schema({
     medicineName: { type: String, required: true },
     timesPerDay: { type: Number, required: true },
     note: { type: String, default: '' }
+  }],
+  ivOrders: [{
+    fluidName: { type: String, required: true },
+    volume: { type: String, default: '' },
+    rate: { type: String, default: '' },
+    instructions: { type: String, default: '' },
+    createdAt: { type: Date, default: Date.now }
   }]
 }, {
   timestamps: true

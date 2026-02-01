@@ -453,7 +453,7 @@ const DoctorMessages = () => {
           )}
         </div>
 
-        <div style={styles.rightPanel}>
+        {/* <div style={styles.rightPanel}>
           <div style={styles.quickActions}>
             <h3 style={styles.sectionTitle}>Quick Actions</h3>
             <div style={styles.quickActionBtns}>
@@ -479,7 +479,7 @@ const DoctorMessages = () => {
               ))}
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {showEmergencyModal && (

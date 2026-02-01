@@ -9,7 +9,8 @@ const {
   getPatients,
   setPatientStatus,
   getCriticalCases,
-  addPrescription
+  addPrescription,
+  addIvOrder
 } = require('../controllers/doctorController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
@@ -26,5 +27,6 @@ router.get('/patients', getPatients);
 router.put('/patient-status', setPatientStatus);
 router.get('/critical-cases', getCriticalCases);
 router.post('/prescription', addPrescription);
+router.post('/iv-order', addIvOrder);
 
 module.exports = router;

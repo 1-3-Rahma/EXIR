@@ -6,26 +6,19 @@ const vitalSchema = new mongoose.Schema({
     ref: 'Patient',
     required: true
   },
-  heartRate: {
-    type: Number,
-    required: true
+  heartRate: { type: Number },
+  spo2: { type: Number },
+  temperature: { type: Number },
+  bloodPressure: {
+    systolic: { type: Number },
+    diastolic: { type: Number }
   },
-  spo2: {
-    type: Number,
-    required: true
-  },
-  temperature: {
-    type: Number,
-    required: true
-  },
-  source: {
-    type: String,
-    default: 'sensor'
-  },
-  isCritical: {
-    type: Boolean,
-    default: false
-  }
+  oxygenSaturation: { type: Number },
+  respiratoryRate: { type: Number },
+  recordedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  source: { type: String, default: 'sensor' },
+  isCritical: { type: Boolean, default: false },
+  notes: { type: String }
 }, {
   timestamps: true
 });

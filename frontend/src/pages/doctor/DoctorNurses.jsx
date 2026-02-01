@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
 import { doctorAPI } from '../../services/api';
 import { FiUser, FiClock, FiMapPin, FiActivity, FiPlus, FiMessageSquare, FiChevronDown, FiChevronUp, FiPackage, FiDroplet, FiTrash2 } from 'react-icons/fi';
+import { jsPDF } from 'jspdf';
 import { Link, useNavigate } from 'react-router-dom';
 
 const shiftLabel = (s) => {
@@ -26,6 +27,10 @@ const DoctorNurses = () => {
   const [selectedPatientForRx, setSelectedPatientForRx] = useState(null);
   const [rxRows, setRxRows] = useState([{ medicineName: '', timesPerDay: '', note: '' }]);
   const [rxSubmitting, setRxSubmitting] = useState(false);
+  const [showIvModal, setShowIvModal] = useState(false);
+  const [selectedPatientForIv, setSelectedPatientForIv] = useState(null);
+  const [ivForm, setIvForm] = useState({ fluidName: '', volume: '', rate: '', instructions: '' });
+  const [ivSubmitting, setIvSubmitting] = useState(false);
 
   useEffect(() => {
     fetchStaff();
@@ -110,6 +115,37 @@ const DoctorNurses = () => {
     setRxRows((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
   };
 
+  const generatePrescriptionPdf = (patientName, medications) => {
+    const doc = new jsPDF();
+    const yStart = 20;
+    let y = yStart;
+    doc.setFontSize(18);
+    doc.text('Prescription', 105, y, { align: 'center' });
+    y += 12;
+    doc.setFontSize(11);
+    doc.text(`Patient: ${patientName}`, 20, y);
+    y += 8;
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, y);
+    y += 15;
+    doc.setFontSize(12);
+    doc.text('Medications', 20, y);
+    y += 8;
+    doc.setFontSize(10);
+    medications.forEach((m, i) => {
+      doc.text(`${i + 1}. ${m.medicineName}`, 25, y);
+      doc.text(`${m.timesPerDay}x per day`, 120, y);
+      if (m.note) {
+        y += 5;
+        doc.setFontSize(9);
+        doc.text(`   Note: ${m.note}`, 25, y);
+        doc.setFontSize(10);
+        y += 5;
+      }
+      y += 8;
+    });
+    return doc;
+  };
+
   const handleRxSubmit = async (e) => {
     e.preventDefault();
     if (!selectedPatientForRx) return;
@@ -127,12 +163,45 @@ const DoctorNurses = () => {
     try {
       setRxSubmitting(true);
       await doctorAPI.addPrescription({ patientId: selectedPatientForRx._id, medications });
+      const doc = generatePrescriptionPdf(selectedPatientForRx.fullName || 'Patient', medications);
+      doc.save(`prescription-${(selectedPatientForRx.fullName || 'patient').replace(/\s+/g, '-')}.pdf`);
       setShowRxModal(false);
       setSelectedPatientForRx(null);
     } catch (err) {
       alert(err.response?.data?.message || err.message || 'Failed to add prescription');
     } finally {
       setRxSubmitting(false);
+    }
+  };
+
+  const openAddIv = (patient) => {
+    setSelectedPatientForIv(patient);
+    setIvForm({ fluidName: '', volume: '', rate: '', instructions: '' });
+    setShowIvModal(true);
+  };
+
+  const handleIvSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedPatientForIv || !ivForm.fluidName?.trim()) {
+      alert('Please enter the IV fluid name.');
+      return;
+    }
+    try {
+      setIvSubmitting(true);
+      await doctorAPI.addIvOrder({
+        patientId: selectedPatientForIv._id,
+        fluidName: ivForm.fluidName.trim(),
+        volume: ivForm.volume.trim(),
+        rate: ivForm.rate.trim(),
+        instructions: ivForm.instructions.trim()
+      });
+      setShowIvModal(false);
+      setSelectedPatientForIv(null);
+      setIvForm({ fluidName: '', volume: '', rate: '', instructions: '' });
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'Failed to add IV order');
+    } finally {
+      setIvSubmitting(false);
     }
   };
 
@@ -214,7 +283,7 @@ const DoctorNurses = () => {
                               <button type="button" className="btn-add-rx" title="Add prescription" onClick={() => openAddRx(patient)}>
                                 <FiPackage size={14} /> Add Rx
                               </button>
-                              <button type="button" className="btn-add-iv" title="Add IV order">
+                              <button type="button" className="btn-add-iv" title="Add IV order" onClick={() => openAddIv(patient)}>
                                 <FiDroplet size={14} /> Add IV
                               </button>
                             </div>
@@ -366,7 +435,60 @@ const DoctorNurses = () => {
               </button>
               <div className="modal-actions">
                 <button type="button" onClick={() => setShowRxModal(false)}>Cancel</button>
-                <button type="submit" disabled={rxSubmitting}>{rxSubmitting ? 'Saving...' : 'Save prescription'}</button>
+                <button type="submit" disabled={rxSubmitting}>{rxSubmitting ? 'Saving...' : 'Save & Download PDF'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {showIvModal && selectedPatientForIv && (
+        <div className="modal-overlay" onClick={() => setShowIvModal(false)}>
+          <div className="modal-rx modal-iv" onClick={(e) => e.stopPropagation()}>
+            <h3>Add IV Order – {selectedPatientForIv.fullName}</h3>
+            <p className="rx-subtitle">IV fluid order – notifies assigned nurse(s)</p>
+            <form onSubmit={handleIvSubmit}>
+              <div className="form-group">
+                <label>IV Fluid Name *</label>
+                <input
+                  type="text"
+                  value={ivForm.fluidName}
+                  onChange={(e) => setIvForm(f => ({ ...f, fluidName: e.target.value }))}
+                  placeholder="e.g. Normal Saline 0.9%, Ringer's Lactate"
+                  required
+                />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Volume</label>
+                  <input
+                    type="text"
+                    value={ivForm.volume}
+                    onChange={(e) => setIvForm(f => ({ ...f, volume: e.target.value }))}
+                    placeholder="e.g. 500ml, 1L"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Rate</label>
+                  <input
+                    type="text"
+                    value={ivForm.rate}
+                    onChange={(e) => setIvForm(f => ({ ...f, rate: e.target.value }))}
+                    placeholder="e.g. 100ml/hr"
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Instructions</label>
+                <textarea
+                  value={ivForm.instructions}
+                  onChange={(e) => setIvForm(f => ({ ...f, instructions: e.target.value }))}
+                  placeholder="Additional instructions for the nurse..."
+                  rows={3}
+                />
+              </div>
+              <div className="modal-actions">
+                <button type="button" onClick={() => setShowIvModal(false)}>Cancel</button>
+                <button type="submit" disabled={ivSubmitting}>{ivSubmitting ? 'Sending...' : 'Send IV Order'}</button>
               </div>
             </form>
           </div>
@@ -397,6 +519,12 @@ const DoctorNurses = () => {
         .modal-rx .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.5rem; }
         .modal-rx .modal-actions button { padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
         .modal-rx .modal-actions button[type=submit] { background: #0ea5e9; color: white; border: none; }
+        .modal-iv { max-width: 420px; }
+        .modal-iv .form-group { margin-bottom: 1rem; }
+        .modal-iv label { display: block; margin-bottom: 0.35rem; font-size: 0.9rem; }
+        .modal-iv input, .modal-iv textarea { width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .form-row { display: flex; gap: 1rem; }
+        .form-row .form-group { flex: 1; }
       `}</style>
     </Layout>
   );

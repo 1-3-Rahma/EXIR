@@ -508,6 +508,63 @@ const addPrescription = async (req, res) => {
   }
 };
 
+// @desc    Add IV order for a patient – notifies assigned nurses
+// @route   POST /api/v1/doctor/iv-order
+// @access  Private (Doctor)
+const addIvOrder = async (req, res) => {
+  try {
+    const { patientId, fluidName, volume, rate, instructions } = req.body;
+    const doctorId = req.user._id;
+
+    if (!patientId || !fluidName || !String(fluidName).trim()) {
+      return res.status(400).json({ message: 'Please provide patientId and fluidName' });
+    }
+
+    let patientCase = await Case.findOne({ patientId, doctorId, status: 'open' });
+    if (!patientCase) {
+      patientCase = await Case.create({
+        patientId,
+        doctorId,
+        status: 'open',
+        patientStatus: 'stable',
+        treatmentPlan: '',
+        diagnosis: '',
+        notes: '',
+        medications: [],
+        ivOrders: []
+      });
+    }
+    if (!patientCase.ivOrders) patientCase.ivOrders = [];
+
+    patientCase.ivOrders.push({
+      fluidName: String(fluidName || '').trim(),
+      volume: String(volume || '').trim(),
+      rate: String(rate || '').trim(),
+      instructions: String(instructions || '').trim()
+    });
+    await patientCase.save();
+
+    const patient = await Patient.findById(patientId).select('fullName');
+    const patientName = patient?.fullName || 'Unknown';
+    const doctorName = req.user.fullName || 'Doctor';
+    const assignments = await Assignment.find({ patientId, isActive: true });
+
+    for (const a of assignments) {
+      await Notification.create({
+        userId: a.nurseId,
+        type: 'assignment',
+        message: `IV order for ${patientName}: ${fluidName}${volume ? ` ${volume}` : ''}${rate ? ` @ ${rate}` : ''}. Dr. ${doctorName}`,
+        relatedPatientId: patientId
+      });
+    }
+
+    res.status(201).json({ message: 'IV order added', case: patientCase });
+  } catch (error) {
+    console.error('Add IV order error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   getNursingStaff,
   getNursesOnShift,
@@ -517,5 +574,6 @@ module.exports = {
   getPatients,
   setPatientStatus,
   getCriticalCases,
-  addPrescription
+  addPrescription,
+  addIvOrder
 };

@@ -171,12 +171,7 @@ const NursePatients = () => {
         >
           Critical ({patients.filter(p => p.status === 'critical').length})
         </button>
-        <button
-          className={`pill moderate ${statusFilter === 'moderate' ? 'active' : ''}`}
-          onClick={() => setStatusFilter('moderate')}
-        >
-          Moderate ({patients.filter(p => p.status === 'moderate').length})
-        </button>
+
         <button
           className={`pill stable ${statusFilter === 'stable' ? 'active' : ''}`}
           onClick={() => setStatusFilter('stable')}

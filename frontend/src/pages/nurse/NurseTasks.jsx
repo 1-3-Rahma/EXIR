@@ -259,7 +259,7 @@ const NurseTasks = () => {
               ))}
             </ul>
           </div>
-
+{/* 
           <div className="handoff-section">
             <h4>Handoff Notes:</h4>
             <textarea
@@ -267,7 +267,7 @@ const NurseTasks = () => {
               placeholder="Enter handoff notes for the next shift..."
             />
             <button className="save-handoff-btn">Save Handoff Notes</button>
-          </div>
+          </div> */}
         </div>
       </div>
 

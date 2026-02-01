@@ -44,9 +44,10 @@ const NurseMedications = () => {
         frequency: med.frequency,
         route: med.route || 'Oral',
         status: med.status === 'active' ? 'pending' : 'given',
-        priority: med.priority || 'medium',
+        priority: med.priority || (med.type === 'iv' ? 'high' : 'medium'),
         time: med.scheduledTime || 'As scheduled',
-        notes: med.notes
+        notes: med.notes,
+        instructions: med.instructions
       }));
       setMedications(meds);
     } catch (error) {
@@ -163,7 +164,7 @@ const NurseMedications = () => {
             <div key={med._id} className="medication-card" style={{ borderLeftColor: getPriorityColor(med.priority) }}>
               <div className="med-header">
                 <div className="med-info">
-                  <h3>{med.name} <span className="priority-badge" style={{ background: getPriorityColor(med.priority) }}>High Priority</span></h3>
+                  <h3>{med.name} <span className="priority-badge" style={{ background: getPriorityColor(med.priority) }}>{med.priority === 'high' ? 'High Priority' : med.priority === 'low' ? 'Low Priority' : 'Medium'}</span></h3>
                   <span className="med-dosage">{med.dosage} · {med.route}</span>
                 </div>
                 <span className="med-status pending">Pending</span>
@@ -174,15 +175,11 @@ const NurseMedications = () => {
               </div>
               <div className="med-instructions">
                 <span className="label">Dosage Instructions:</span>
-                <p>{med.instructions}</p>
+                <p>{med.instructions || med.notes || `${med.dosage} · ${med.route}`}</p>
               </div>
               <div className="med-actions">
                 <button className="action-btn primary" onClick={() => handleMarkAsGiven(med._id)}>
                   <FiCheckCircle /> Mark as Given
-                </button>
-                <button className="action-btn secondary">Refuse/Hold</button>
-                <button className="action-btn danger">
-                  <FiAlertTriangle /> Report Error
                 </button>
               </div>
             </div>
