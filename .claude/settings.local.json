@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir /s /b \"g:\\\\ECU\\\\Senior 2\\\\GradProject\\\\SW\\\\V1\\\\backend\\\\config\")"
+    ]
+  }
+}

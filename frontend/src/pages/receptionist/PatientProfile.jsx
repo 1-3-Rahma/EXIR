@@ -4,7 +4,8 @@ import Layout from '../../components/common/Layout';
 import { receptionistAPI } from '../../services/api';
 import {
   FiUser, FiPhone, FiCreditCard, FiCalendar, FiDollarSign,
-  FiFileText, FiAlertCircle, FiCheckCircle, FiArrowLeft, FiUsers
+  FiFileText, FiAlertCircle, FiCheckCircle, FiArrowLeft, FiUsers,
+  FiEye, FiDownload, FiUpload
 } from 'react-icons/fi';
 
 const PatientProfile = () => {
@@ -14,6 +15,7 @@ const PatientProfile = () => {
   const [billing, setBilling] = useState(null);
   const [visits, setVisits] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showVisitsModal, setShowVisitsModal] = useState(false);
 
   useEffect(() => {
     fetchPatientData();
@@ -61,7 +63,7 @@ const PatientProfile = () => {
   };
 
   const hasPendingDocuments = () => {
-    return false;
+    return !patient?.documents?.nationalID?.filename;
   };
 
   const hasPendingPayments = () => {
@@ -85,6 +87,34 @@ const PatientProfile = () => {
       });
     }
     return 'No visits yet';
+  };
+
+  const handleViewDocument = async (documentType) => {
+    try {
+      const response = await receptionistAPI.downloadPatientDocument(patientId, documentType);
+      const blob = new Blob([response.data], { type: response.headers['content-type'] });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Error viewing document:', error);
+      alert('Failed to view document');
+    }
+  };
+
+  const handleDownloadDocument = async (documentType) => {
+    try {
+      const response = await receptionistAPI.downloadPatientDocument(patientId, documentType);
+      const blob = new Blob([response.data], { type: response.headers['content-type'] });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = patient.documents?.[documentType]?.originalName || `${documentType}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      alert('Failed to download document');
+    }
   };
 
   if (loading) {
@@ -265,9 +295,13 @@ const PatientProfile = () => {
               </span>
             </div>
           </div>
-          <Link to={`/receptionist/patients/${patientId}/visits`} className="section-link">
+          <button
+            className="section-link"
+            onClick={() => setShowVisitsModal(true)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          >
             View Full Visit History →
-          </Link>
+          </button>
         </div>
 
         {/* Financial Summary */}
@@ -299,6 +333,72 @@ const PatientProfile = () => {
             View Full Billing Details →
           </Link>
         </div>
+
+        {/* Documents */}
+        <div className="profile-section documents-section">
+          <h3><FiFileText /> Patient Documents</h3>
+          <div className="documents-list">
+            {/* National ID */}
+            <div className={`document-item ${patient.documents?.nationalID ? 'has-doc' : 'no-doc'}`}>
+              <div className="doc-info">
+                <span className="doc-name">National ID</span>
+                <span className="doc-status">
+                  {patient.documents?.nationalID ? (
+                    <>
+                      <FiCheckCircle className="status-icon success" />
+                      <span>{patient.documents.nationalID.originalName}</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiAlertCircle className="status-icon warning" />
+                      <span>Not uploaded</span>
+                    </>
+                  )}
+                </span>
+              </div>
+              {patient.documents?.nationalID && (
+                <div className="doc-actions">
+                  <button className="doc-btn" onClick={() => handleViewDocument('nationalID')} title="View">
+                    <FiEye />
+                  </button>
+                  <button className="doc-btn" onClick={() => handleDownloadDocument('nationalID')} title="Download">
+                    <FiDownload />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Insurance Card */}
+            <div className={`document-item ${patient.documents?.insuranceCard ? 'has-doc' : 'optional'}`}>
+              <div className="doc-info">
+                <span className="doc-name">Insurance Card <span className="optional-tag">(Optional)</span></span>
+                <span className="doc-status">
+                  {patient.documents?.insuranceCard ? (
+                    <>
+                      <FiCheckCircle className="status-icon success" />
+                      <span>{patient.documents.insuranceCard.originalName}</span>
+                    </>
+                  ) : (
+                    <span className="not-uploaded">Not uploaded</span>
+                  )}
+                </span>
+              </div>
+              {patient.documents?.insuranceCard && (
+                <div className="doc-actions">
+                  <button className="doc-btn" onClick={() => handleViewDocument('insuranceCard')} title="View">
+                    <FiEye />
+                  </button>
+                  <button className="doc-btn" onClick={() => handleDownloadDocument('insuranceCard')} title="Download">
+                    <FiDownload />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+          <Link to="/receptionist/documents" className="section-link">
+            Manage All Documents →
+          </Link>
+        </div>
       </div>
 
       {/* Quick Actions */}
@@ -306,13 +406,71 @@ const PatientProfile = () => {
         <Link to={`/receptionist/appointments/new?patient=${patientId}`} className="action-btn">
           <FiCalendar /> Schedule Appointment
         </Link>
-        <Link to={`/receptionist/patients/${patientId}/documents`} className="action-btn">
-          <FiFileText /> Manage Documents
-        </Link>
+
         <Link to={`/receptionist/patients/${patientId}/billing`} className="action-btn primary">
           <FiDollarSign /> Process Payment
         </Link>
       </div>
+
+      {/* Visits History Modal */}
+      {showVisitsModal && (
+        <div className="modal-overlay" onClick={() => setShowVisitsModal(false)}>
+          <div className="modal-content visits-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2><FiCalendar /> Visit History</h2>
+              <button className="modal-close" onClick={() => setShowVisitsModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              {visits.length === 0 ? (
+                <div className="no-visits">
+                  <FiCalendar className="no-visits-icon" />
+                  <p>No visit history available</p>
+                </div>
+              ) : (
+                <div className="visits-list">
+                  {visits.map((visit, index) => (
+                    <div key={visit._id || index} className={`visit-item ${visit.status === 'active' ? 'active-visit' : ''}`}>
+                      <div className="visit-number">#{visits.length - index}</div>
+                      <div className="visit-details">
+                        <div className="visit-date">
+                          {new Date(visit.startTime || visit.admissionDate || visit.createdAt).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </div>
+                        <div className="visit-time">
+                          {new Date(visit.startTime || visit.admissionDate || visit.createdAt).toLocaleTimeString('en-US', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </div>
+                        {visit.reason && <div className="visit-reason">{visit.reason}</div>}
+                        {visit.department && <div className="visit-department">{visit.department}</div>}
+                      </div>
+                      <div className="visit-status">
+                        <span className={`visit-badge ${visit.status === 'active' ? 'active' : 'completed'}`}>
+                          {visit.status === 'active' ? 'Active' : 'Completed'}
+                        </span>
+                        {(visit.endTime || visit.dischargeDate) && (
+                          <div className="visit-end">
+                            Discharged: {new Date(visit.endTime || visit.dischargeDate).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         .back-btn {
@@ -519,6 +677,236 @@ const PatientProfile = () => {
         .quick-actions-bar .action-btn.primary:hover {
           background: var(--primary-blue);
         }
+        .documents-section .documents-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+        .document-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0.875rem 1rem;
+          border-radius: var(--radius-md);
+          background: var(--bg-light);
+        }
+        .document-item.has-doc {
+          background: rgba(34, 197, 94, 0.08);
+        }
+        .document-item.no-doc {
+          background: rgba(239, 68, 68, 0.08);
+        }
+        .document-item.optional {
+          background: var(--bg-light);
+        }
+        .doc-info {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+        .doc-name {
+          font-weight: 500;
+          font-size: 0.9rem;
+        }
+        .optional-tag {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          font-weight: 400;
+        }
+        .doc-status {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+          font-size: 0.8rem;
+          color: var(--text-secondary);
+        }
+        .status-icon {
+          font-size: 0.9rem;
+        }
+        .status-icon.success {
+          color: var(--accent-green);
+        }
+        .status-icon.warning {
+          color: var(--accent-orange);
+        }
+        .not-uploaded {
+          color: var(--text-muted);
+        }
+        .doc-actions {
+          display: flex;
+          gap: 0.5rem;
+        }
+        .doc-btn {
+          width: 32px;
+          height: 32px;
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-md);
+          background: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: var(--text-secondary);
+          transition: all 0.2s;
+        }
+        .doc-btn:hover {
+          border-color: var(--accent-blue);
+          color: var(--accent-blue);
+          background: rgba(59, 130, 246, 0.1);
+        }
+        /* Modal Styles */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          padding: 1rem;
+        }
+        .modal-content {
+          background: var(--bg-white);
+          border-radius: var(--radius-lg);
+          width: 100%;
+          max-width: 600px;
+          max-height: 80vh;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+        }
+        .modal-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 1.25rem 1.5rem;
+          border-bottom: 1px solid var(--border-color);
+        }
+        .modal-header h2 {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 1.1rem;
+          margin: 0;
+        }
+        .modal-close {
+          width: 32px;
+          height: 32px;
+          border: none;
+          background: var(--bg-light);
+          border-radius: var(--radius-full);
+          font-size: 1.25rem;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--text-secondary);
+          transition: all 0.2s;
+        }
+        .modal-close:hover {
+          background: var(--bg-muted);
+          color: var(--text-primary);
+        }
+        .modal-body {
+          padding: 1.5rem;
+          overflow-y: auto;
+        }
+        .no-visits {
+          text-align: center;
+          padding: 2rem;
+          color: var(--text-muted);
+        }
+        .no-visits-icon {
+          font-size: 2.5rem;
+          margin-bottom: 1rem;
+          opacity: 0.5;
+        }
+        .visits-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+        .visit-item {
+          display: flex;
+          align-items: flex-start;
+          gap: 1rem;
+          padding: 1rem;
+          background: var(--bg-light);
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border-color);
+          transition: all 0.2s;
+        }
+        .visit-item:hover {
+          border-color: var(--accent-blue);
+        }
+        .visit-item.active-visit {
+          background: rgba(59, 130, 246, 0.08);
+          border-color: var(--accent-blue);
+        }
+        .visit-number {
+          width: 36px;
+          height: 36px;
+          background: var(--accent-blue);
+          color: white;
+          border-radius: var(--radius-full);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.8rem;
+          font-weight: 600;
+          flex-shrink: 0;
+        }
+        .visit-details {
+          flex: 1;
+        }
+        .visit-date {
+          font-weight: 500;
+          font-size: 0.95rem;
+          color: var(--text-primary);
+          margin-bottom: 0.25rem;
+        }
+        .visit-time {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+        }
+        .visit-reason {
+          margin-top: 0.5rem;
+          font-size: 0.85rem;
+          color: var(--text-muted);
+        }
+        .visit-department {
+          font-size: 0.8rem;
+          color: var(--accent-blue);
+          margin-top: 0.25rem;
+        }
+        .visit-status {
+          text-align: right;
+          flex-shrink: 0;
+        }
+        .visit-badge {
+          display: inline-block;
+          padding: 0.25rem 0.75rem;
+          border-radius: var(--radius-full);
+          font-size: 0.75rem;
+          font-weight: 500;
+        }
+        .visit-badge.active {
+          background: rgba(59, 130, 246, 0.15);
+          color: var(--accent-blue);
+        }
+        .visit-badge.completed {
+          background: rgba(34, 197, 94, 0.15);
+          color: var(--accent-green);
+        }
+        .visit-end {
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          margin-top: 0.5rem;
+        }
+
         @media (max-width: 768px) {
           .profile-grid {
             grid-template-columns: 1fr;
@@ -528,6 +916,18 @@ const PatientProfile = () => {
           }
           .status-indicators {
             flex-direction: column;
+          }
+          .visit-item {
+            flex-direction: column;
+            gap: 0.75rem;
+          }
+          .visit-number {
+            width: 28px;
+            height: 28px;
+            font-size: 0.7rem;
+          }
+          .visit-status {
+            text-align: left;
           }
         }
       `}</style>
