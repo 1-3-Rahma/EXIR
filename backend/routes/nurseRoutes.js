@@ -10,7 +10,9 @@ const {
   getMedications,
   getFormattedVitalsOverview,
   recordVitals,
-  getVitalRanges
+  getVitalRanges,
+  markMedicationAsGiven,
+  updatePatientRoom
 } = require('../controllers/nurseController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
@@ -23,6 +25,7 @@ router.get('/dashboard', getDashboardStats);
 
 // Patients
 router.get('/assigned-patients', getAssignedPatients);
+router.put('/patient/:patientId/room', updatePatientRoom);
 
 // Vitals
 router.get('/vitals-overview', getVitalsOverview);
@@ -33,6 +36,7 @@ router.post('/vitals', recordVitals);
 
 // Medications
 router.get('/medications', getMedications);
+router.put('/medication/:medicationId/given', markMedicationAsGiven);
 
 // Events/Notifications
 router.get('/critical-events', getCriticalEvents);

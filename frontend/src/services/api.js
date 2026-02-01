@@ -38,7 +38,9 @@ export const nurseAPI = {
   getUrgentCases: () => api.get('/nurse/urgent-cases'),
   getPatientVitals: (patientId) => api.get(`/nurse/patient/${patientId}/vitals`),
   getVitalsOverview: () => api.get('/nurse/vitals-overview'),
-  updateVitals: (patientId, data) => api.put(`/nurse/patient/${patientId}/vitals`, data)
+  updateVitals: (patientId, data) => api.put(`/nurse/patient/${patientId}/vitals`, data),
+  markMedicationAsGiven: (medicationId, type) => api.put(`/nurse/medication/${medicationId}/given`, { type }),
+  updatePatientRoom: (patientId, room) => api.put(`/nurse/patient/${patientId}/room`, { room })
 };
 
 export const doctorAPI = {

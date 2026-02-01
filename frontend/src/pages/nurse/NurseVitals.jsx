@@ -157,23 +157,25 @@ const NurseVitals = () => {
           <h3>No vitals data available</h3>
           <p>There are no patient vitals to monitor at the moment.</p>
           {/* Show normal ranges reference when no data */}
-          <div className="text-reference" style={{ marginTop: '16px' }}>
+          <div className="empty-reference-card">
             <h3 className="reference-title">Normal Vital Ranges Reference</h3>
-            <hr />
-            <h4>Blood Pressure</h4>
-            <p>90-120 / 60-80 mmHg</p>
-
-            <h4>Heart Rate</h4>
-            <p>60-100 bpm</p>
-
-            <h4>Temperature</h4>
-            <p>97.8-99.1 °F</p>
-
-            <h4>O₂ Saturation</h4>
-            <p>95-100 %</p>
-
-            <h4>Respiratory Rate</h4>
-            <p>12-20 /min</p>
+            <div className="empty-ranges-grid">
+              {normalRangesDisplay.map((item, index) => (
+                <div key={index} className="empty-range-item">
+                  <div className="range-icon" style={{ background: item.color + '20', color: item.color }}>
+                    {item.icon === 'bp' && <FiHeart />}
+                    {item.icon === 'hr' && <FiActivity />}
+                    {item.icon === 'temp' && <FiThermometer />}
+                    {item.icon === 'o2' && <FiWind />}
+                    {item.icon === 'resp' && <FiActivity />}
+                  </div>
+                  <div className="range-info">
+                    <span className="range-name">{item.name}</span>
+                    <span className="range-value">{item.range}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       ) : (
@@ -188,23 +190,6 @@ const NurseVitals = () => {
                   <span className="legend-item critical"><span className="dot"></span> Critical</span>
                 </div>
               </div>
-
-            <div className="text-reference">
-              <h4>Blood Pressure</h4>
-              <p>90-120 / 60-80 mmHg</p>
-
-              <h4>Heart Rate</h4>
-              <p>60-100 bpm</p>
-
-              <h4>Temperature</h4>
-              <p>97.8-99.1 °F</p>
-
-              <h4>O₂ Saturation</h4>
-              <p>95-100 %</p>
-
-              <h4>Respiratory Rate</h4>
-              <p>12-20 /min</p>
-            </div>
 
             <div className="ranges-grid">
               {normalRangesDisplay.map((item, index) => (
@@ -644,9 +629,8 @@ const NurseVitals = () => {
 
         .ranges-grid {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 1.25rem;
-          margin-top: 1rem;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 1rem;
         }
 
         .range-item {
@@ -711,6 +695,43 @@ const NurseVitals = () => {
           font-weight: 600;
         }
 
+        .empty-reference-card {
+          margin-top: 1.5rem;
+          padding: 1.5rem;
+          background: #f8fafc;
+          border-radius: 12px;
+          border: 1px solid #e2e8f0;
+          width: 100%;
+          max-width: 700px;
+        }
+
+        .empty-reference-card .reference-title {
+          text-align: center;
+          margin-bottom: 1rem;
+        }
+
+        .empty-ranges-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 0.75rem;
+        }
+
+        .empty-range-item {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.75rem;
+          background: white;
+          border-radius: 8px;
+          border: 1px solid #e2e8f0;
+        }
+
+        @media (max-width: 480px) {
+          .empty-ranges-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
         .loading-state, .empty-state {
           text-align: center;
           padding: 3rem;
@@ -758,7 +779,7 @@ const NurseVitals = () => {
             grid-template-columns: repeat(2, 1fr);
           }
           .ranges-grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, 1fr);
           }
           .alert-banner {
             flex-direction: column;
@@ -770,6 +791,12 @@ const NurseVitals = () => {
           }
           .legend {
             flex-wrap: wrap;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .ranges-grid {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>

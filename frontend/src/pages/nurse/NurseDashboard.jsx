@@ -44,6 +44,20 @@ const NurseDashboard = () => {
     return () => window.removeEventListener('patientStatusChanged', handler);
   }, []);
 
+  // Real-time: when doctor adds prescription/IV order, show alert and refetch immediately
+  useEffect(() => {
+    const handler = (e) => {
+      const payload = e?.detail;
+      if (payload?.message) {
+        setLiveAlert({ message: payload.message, status: payload.type === 'prescription' ? 'prescription' : 'iv_order' });
+        setTimeout(() => setLiveAlert(null), 8000);
+      }
+      fetchDashboardData();
+    };
+    window.addEventListener('newNotification', handler);
+    return () => window.removeEventListener('newNotification', handler);
+  }, []);
+
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
     return {
@@ -157,9 +171,15 @@ const NurseDashboard = () => {
             padding: '12px 16px',
             marginBottom: '16px',
             borderRadius: '8px',
-            background: liveAlert.status === 'critical' ? '#fee2e2' : '#dcfce7',
-            border: `1px solid ${liveAlert.status === 'critical' ? '#ef4444' : '#22c55e'}`,
-            color: liveAlert.status === 'critical' ? '#991b1b' : '#166534',
+            background: liveAlert.status === 'critical' ? '#fee2e2'
+              : (liveAlert.status === 'prescription' || liveAlert.status === 'iv_order') ? '#dbeafe'
+              : '#dcfce7',
+            border: `1px solid ${liveAlert.status === 'critical' ? '#ef4444'
+              : (liveAlert.status === 'prescription' || liveAlert.status === 'iv_order') ? '#3b82f6'
+              : '#22c55e'}`,
+            color: liveAlert.status === 'critical' ? '#991b1b'
+              : (liveAlert.status === 'prescription' || liveAlert.status === 'iv_order') ? '#1e40af'
+              : '#166534',
             display: 'flex',
             alignItems: 'center',
             gap: '8px'
@@ -206,9 +226,10 @@ const NurseDashboard = () => {
       </div>
 
       <div className="dashboard-content">
-        {/* Urgent Cases */}
-        <div className="dashboard-section">
-          <div className="section-card">
+        {/* Main Row: Urgent Cases (Left) and Notifications (Right) */}
+        <div className="dashboard-row">
+          {/* Urgent Cases - Left */}
+          <div className="section-card flex-1">
             <div className="section-header">
               <h2><FiAlertTriangle className="header-icon red" /> Urgent Cases / Priority Alerts</h2>
               <Link to="/nurse/critical" className="view-all-link">
@@ -247,54 +268,8 @@ const NurseDashboard = () => {
               )}
             </div>
           </div>
-        </div>
 
-        {/* Tasks and Notifications Row */}
-        <div className="dashboard-row">
-          {/* Tasks Assigned Today */}
-          {/* <div className="section-card flex-1">
-            <div className="section-header">
-              <h2><FiClipboard className="header-icon green" /> Tasks Assigned Today</h2>
-              <Link to="/nurse/tasks" className="view-all-link">
-                View All <FiArrowRight />
-              </Link>
-            </div>
-            <div className="section-body">
-              {tasks.length === 0 ? (
-                <p className="empty-text">No tasks assigned yet</p>
-              ) : (
-                <div className="task-list">
-                  {tasks.map((task) => (
-                    <div key={task._id} className="task-card" style={{ borderLeftColor: getPriorityColor(task.priority) }}>
-                      <div className="task-checkbox">
-                        <input type="checkbox" checked={task.status === 'completed'} readOnly />
-                      </div>
-                      <div className="task-info">
-                        <span className="task-title">{task.title}</span>
-                        <span className="task-details">
-                          {(task.patient?.fullName || task.patientName) || 'General'}
-                          {(task.patient?.room || task.room) ? ` - Room ${task.patient?.room || task.room}` : ''}
-                        </span>
-                        {task.dueDate && (
-                          <span className="task-time">
-                            <FiClock /> Due: {new Date(task.dueDate).toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-                      <div className="task-tags">
-                        <span className="priority-tag" style={{ background: getPriorityColor(task.priority || 'medium') }}>
-                          {task.priority || 'medium'}
-                        </span>
-                        <span className="category-tag">{task.category || 'Task'}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div> */}
-
-          {/* Notifications Panel */}
+          {/* Notifications Panel - Right */}
           <div className="section-card flex-1">
             <div className="section-header">
               <h2><FiBell className="header-icon blue" /> Notifications</h2>

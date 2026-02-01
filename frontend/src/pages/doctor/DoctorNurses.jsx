@@ -167,6 +167,8 @@ const DoctorNurses = () => {
       doc.save(`prescription-${(selectedPatientForRx.fullName || 'patient').replace(/\s+/g, '-')}.pdf`);
       setShowRxModal(false);
       setSelectedPatientForRx(null);
+      // Refresh staff data to update prescription counts
+      await fetchStaff();
     } catch (err) {
       alert(err.response?.data?.message || err.message || 'Failed to add prescription');
     } finally {
@@ -198,6 +200,8 @@ const DoctorNurses = () => {
       setShowIvModal(false);
       setSelectedPatientForIv(null);
       setIvForm({ fluidName: '', volume: '', rate: '', instructions: '' });
+      // Refresh staff data to update IV order counts
+      await fetchStaff();
     } catch (err) {
       alert(err.response?.data?.message || err.message || 'Failed to add IV order');
     } finally {
@@ -288,16 +292,68 @@ const DoctorNurses = () => {
                               </button>
                             </div>
                           </div>
-                          <div className="patient-sections" onClick={() => togglePatient(patient._id)}>
+                          <div className="patient-sections-header" onClick={() => togglePatient(patient._id)}>
                             <div className="patient-section-item">
-                              <FiPackage size={14} /> Prescriptions (0)
-                              {isPatientOpen ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
+                              <FiPackage size={14} /> Prescriptions ({patient.prescriptionsCount || 0})
                             </div>
                             <div className="patient-section-item">
-                              <FiDroplet size={14} /> IV Orders (0)
-                              {isPatientOpen ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
+                              <FiDroplet size={14} /> IV Orders ({patient.ivOrdersCount || 0})
+                            </div>
+                            <div className="expand-icon">
+                              {isPatientOpen ? <FiChevronUp size={16} /> : <FiChevronDown size={16} />}
                             </div>
                           </div>
+
+                          {/* Expanded Details */}
+                          {isPatientOpen && (
+                            <div className="patient-orders-details">
+                              {/* Prescriptions List */}
+                              <div className="orders-section">
+                                <h5><FiPackage size={14} /> Prescriptions</h5>
+                                {patient.prescriptions && patient.prescriptions.length > 0 ? (
+                                  <div className="orders-list">
+                                    {patient.prescriptions.map((rx, idx) => (
+                                      <div key={rx._id || idx} className={`order-item ${rx.status === 'given' ? 'given' : ''}`}>
+                                        <div className="order-main">
+                                          <span className="order-name">{rx.medicineName}</span>
+                                          <span className="order-dosage">{rx.timesPerDay}x per day</span>
+                                        </div>
+                                        {rx.note && <p className="order-note">{rx.note}</p>}
+                                        {rx.status === 'given' && (
+                                          <span className="status-badge given">Given</span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="no-orders">No prescriptions yet</p>
+                                )}
+                              </div>
+
+                              {/* IV Orders List */}
+                              <div className="orders-section">
+                                <h5><FiDroplet size={14} /> IV Orders</h5>
+                                {patient.ivOrders && patient.ivOrders.length > 0 ? (
+                                  <div className="orders-list">
+                                    {patient.ivOrders.map((iv, idx) => (
+                                      <div key={iv._id || idx} className={`order-item iv ${iv.status === 'given' ? 'given' : ''}`}>
+                                        <div className="order-main">
+                                          <span className="order-name">{iv.fluidName}</span>
+                                          {iv.volume && <span className="order-dosage">{iv.volume}{iv.rate ? ` @ ${iv.rate}` : ''}</span>}
+                                        </div>
+                                        {iv.instructions && <p className="order-note">{iv.instructions}</p>}
+                                        {iv.status === 'given' && (
+                                          <span className="status-badge given">Given</span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="no-orders">No IV orders yet</p>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -341,9 +397,27 @@ const DoctorNurses = () => {
         .patient-actions { display: flex; gap: 0.5rem; }
         .btn-add-rx, .btn-add-iv { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.4rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; font-size: 0.8rem; color: #475569; cursor: pointer; }
         .btn-add-rx:hover, .btn-add-iv:hover { background: #f8fafc; border-color: #0ea5e9; color: #0ea5e9; }
-        .patient-sections { border-top: 1px solid #f1f5f9; }
-        .patient-section-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem; font-size: 0.85rem; color: #64748b; cursor: pointer; }
-        .patient-section-item:hover { background: #f8fafc; }
+        .patient-sections-header { border-top: 1px solid #f1f5f9; display: flex; align-items: center; padding: 0.6rem 1.25rem; cursor: pointer; }
+        .patient-sections-header:hover { background: #f8fafc; }
+        .patient-section-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #64748b; margin-right: 1.5rem; }
+        .expand-icon { margin-left: auto; color: #94a3b8; }
+
+        .patient-orders-details { border-top: 1px solid #f1f5f9; padding: 1rem 1.25rem; background: #fafbfc; }
+        .orders-section { margin-bottom: 1rem; }
+        .orders-section:last-child { margin-bottom: 0; }
+        .orders-section h5 { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 600; color: #475569; margin: 0 0 0.75rem 0; }
+        .orders-list { display: flex; flex-direction: column; gap: 0.5rem; }
+        .order-item { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.75rem 1rem; position: relative; }
+        .order-item.given { opacity: 0.7; background: #f0fdf4; border-color: #bbf7d0; }
+        .order-item.iv { border-left: 3px solid #0ea5e9; }
+        .order-item:not(.iv) { border-left: 3px solid #8b5cf6; }
+        .order-main { display: flex; justify-content: space-between; align-items: center; }
+        .order-name { font-weight: 500; color: #1e293b; font-size: 0.9rem; }
+        .order-dosage { font-size: 0.8rem; color: #64748b; }
+        .order-note { font-size: 0.8rem; color: #64748b; margin: 0.35rem 0 0 0; font-style: italic; }
+        .status-badge { position: absolute; top: 0.5rem; right: 0.5rem; font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 4px; }
+        .status-badge.given { background: #dcfce7; color: #16a34a; }
+        .no-orders { font-size: 0.85rem; color: #94a3b8; margin: 0; padding: 0.5rem; text-align: center; }
       `}</style>
 
       {showAssignModal && selectedNurse && (

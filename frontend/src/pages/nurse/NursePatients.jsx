@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
 import {
   FiSearch, FiFilter, FiUser, FiFileText, FiActivity,
-  FiMessageSquare, FiChevronDown, FiLink
+  FiMessageSquare, FiChevronDown, FiEdit2, FiX
 } from 'react-icons/fi';
+import { nurseAPI } from '../../services/api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
@@ -13,6 +14,10 @@ const NursePatients = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [showRoomModal, setShowRoomModal] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [roomInput, setRoomInput] = useState('');
+  const [savingRoom, setSavingRoom] = useState(false);
 
   useEffect(() => {
     fetchPatients();
@@ -129,6 +134,30 @@ const NursePatients = () => {
     return matchesSearch && matchesStatus;
   });
 
+  const openRoomModal = (patient) => {
+    setSelectedPatient(patient);
+    setRoomInput(patient.room || '');
+    setShowRoomModal(true);
+  };
+
+  const handleSaveRoom = async () => {
+    if (!selectedPatient) return;
+    try {
+      setSavingRoom(true);
+      await nurseAPI.updatePatientRoom(selectedPatient._id, roomInput.trim());
+      setPatients(patients.map(p =>
+        p._id === selectedPatient._id ? { ...p, room: roomInput.trim() } : p
+      ));
+      setShowRoomModal(false);
+      setSelectedPatient(null);
+    } catch (error) {
+      console.error('Failed to update room:', error);
+      alert('Failed to update room number. Please try again.');
+    } finally {
+      setSavingRoom(false);
+    }
+  };
+
   return (
     <Layout appName="NurseHub" role="nurse">
       <div className="page-header">
@@ -217,7 +246,16 @@ const NursePatients = () => {
                 <div className="card-details">
                   <div className="detail-row">
                     <span className="label">Room:</span>
-                    <span className="value">Room {patient.room}</span>
+                    <span className="value room-value">
+                      Room {patient.room || 'N/A'}
+                      <button
+                        className="edit-room-btn"
+                        onClick={(e) => { e.stopPropagation(); openRoomModal(patient); }}
+                        title="Edit room number"
+                      >
+                        <FiEdit2 size={12} />
+                      </button>
+                    </span>
                   </div>
                   <div className="detail-row">
                     <span className="label">Condition:</span>
@@ -576,7 +614,175 @@ const NursePatients = () => {
           .filter-bar { flex-direction: column; }
           .search-box { max-width: 100%; }
         }
+
+        .room-value {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .edit-room-btn {
+          background: none;
+          border: none;
+          color: #64748b;
+          cursor: pointer;
+          padding: 0.25rem;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+
+        .edit-room-btn:hover {
+          background: #e2e8f0;
+          color: #3b82f6;
+        }
+
+        .modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+        }
+
+        .modal-room {
+          background: white;
+          border-radius: 12px;
+          padding: 1.5rem;
+          width: 90%;
+          max-width: 400px;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-room-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+        }
+
+        .modal-room-header h3 {
+          margin: 0;
+          font-size: 1.1rem;
+          color: #1e293b;
+        }
+
+        .close-btn {
+          background: none;
+          border: none;
+          font-size: 1.25rem;
+          cursor: pointer;
+          color: #64748b;
+          padding: 0.25rem;
+        }
+
+        .close-btn:hover {
+          color: #1e293b;
+        }
+
+        .form-group {
+          margin-bottom: 1rem;
+        }
+
+        .form-group label {
+          display: block;
+          margin-bottom: 0.35rem;
+          font-size: 0.9rem;
+          font-weight: 500;
+          color: #374151;
+        }
+
+        .form-group input {
+          width: 100%;
+          padding: 0.625rem 0.75rem;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          font-size: 0.9rem;
+          box-sizing: border-box;
+        }
+
+        .form-group input:focus {
+          outline: none;
+          border-color: #3b82f6;
+        }
+
+        .modal-actions {
+          display: flex;
+          gap: 0.75rem;
+          justify-content: flex-end;
+          margin-top: 1rem;
+        }
+
+        .modal-actions button {
+          padding: 0.5rem 1rem;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 0.9rem;
+        }
+
+        .btn-cancel {
+          background: white;
+          border: 1px solid #e2e8f0;
+          color: #64748b;
+        }
+
+        .btn-cancel:hover {
+          background: #f8fafc;
+        }
+
+        .btn-save {
+          background: #3b82f6;
+          color: white;
+          border: none;
+        }
+
+        .btn-save:hover {
+          background: #2563eb;
+        }
+
+        .btn-save:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+        }
       `}</style>
+
+      {/* Room Edit Modal */}
+      {showRoomModal && selectedPatient && (
+        <div className="modal-overlay" onClick={() => setShowRoomModal(false)}>
+          <div className="modal-room" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-room-header">
+              <h3>Edit Room Number</h3>
+              <button className="close-btn" onClick={() => setShowRoomModal(false)}>
+                <FiX />
+              </button>
+            </div>
+            <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '1rem' }}>
+              Patient: {selectedPatient.fullName}
+            </p>
+            <div className="form-group">
+              <label>Room Number</label>
+              <input
+                type="text"
+                value={roomInput}
+                onChange={(e) => setRoomInput(e.target.value)}
+                placeholder="Enter room number (e.g., 101, ICU-3)"
+              />
+            </div>
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => setShowRoomModal(false)}>
+                Cancel
+              </button>
+              <button className="btn-save" onClick={handleSaveRoom} disabled={savingRoom}>
+                {savingRoom ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 };

@@ -360,12 +360,14 @@ const getMedications = async (req, res) => {
             dosage: `${med.timesPerDay}x/day`,
             frequency: `${med.timesPerDay} times per day`,
             route: 'Oral',
-            status: 'active',
+            status: med.status || 'active',
             type: 'prescription',
             priority: 'medium',
             scheduledTime: 'As scheduled',
             notes: med.note,
-            instructions: med.note
+            instructions: med.note,
+            givenAt: med.givenAt,
+            givenBy: med.givenBy
           });
         });
       }
@@ -381,12 +383,14 @@ const getMedications = async (req, res) => {
             dosage: iv.volume ? `${iv.volume} @ ${iv.rate || 'N/A'}` : 'N/A',
             frequency: 'IV',
             route: 'IV',
-            status: 'active',
+            status: iv.status || 'active',
             type: 'iv',
             priority: 'high',
             scheduledTime: 'Administer as ordered',
             notes: iv.instructions,
-            instructions: iv.instructions
+            instructions: iv.instructions,
+            givenAt: iv.givenAt,
+            givenBy: iv.givenBy
           });
         });
       }
@@ -561,6 +565,105 @@ const getVitalRanges = async (req, res) => {
   });
 };
 
+// @desc    Mark medication or IV order as given
+// @route   PUT /api/v1/nurse/medication/:medicationId/given
+// @access  Private (Nurse)
+const markMedicationAsGiven = async (req, res) => {
+  try {
+    const nurseId = req.user._id;
+    const { medicationId } = req.params;
+    const { type } = req.body; // 'prescription' or 'iv'
+
+    // Find the case containing this medication
+    let caseDoc;
+    let medicationIndex = -1;
+
+    if (type === 'iv') {
+      caseDoc = await Case.findOne({
+        'ivOrders._id': medicationId,
+        status: 'open'
+      });
+      if (caseDoc) {
+        medicationIndex = caseDoc.ivOrders.findIndex(iv => iv._id.toString() === medicationId);
+        if (medicationIndex !== -1) {
+          caseDoc.ivOrders[medicationIndex].status = 'given';
+          caseDoc.ivOrders[medicationIndex].givenAt = new Date();
+          caseDoc.ivOrders[medicationIndex].givenBy = nurseId;
+        }
+      }
+    } else {
+      caseDoc = await Case.findOne({
+        'medications._id': medicationId,
+        status: 'open'
+      });
+      if (caseDoc) {
+        medicationIndex = caseDoc.medications.findIndex(med => med._id.toString() === medicationId);
+        if (medicationIndex !== -1) {
+          caseDoc.medications[medicationIndex].status = 'given';
+          caseDoc.medications[medicationIndex].givenAt = new Date();
+          caseDoc.medications[medicationIndex].givenBy = nurseId;
+        }
+      }
+    }
+
+    if (!caseDoc || medicationIndex === -1) {
+      return res.status(404).json({ message: 'Medication not found' });
+    }
+
+    await caseDoc.save();
+
+    res.json({
+      success: true,
+      message: 'Medication marked as given'
+    });
+  } catch (error) {
+    console.error('Mark medication as given error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Update patient room number
+// @route   PUT /api/v1/nurse/patient/:patientId/room
+// @access  Private (Nurse)
+const updatePatientRoom = async (req, res) => {
+  try {
+    const nurseId = req.user._id;
+    const { patientId } = req.params;
+    const { room } = req.body;
+
+    // Verify nurse is assigned to this patient
+    const assignment = await Assignment.findOne({
+      nurseId,
+      patientId,
+      isActive: true
+    });
+
+    if (!assignment) {
+      return res.status(403).json({ message: 'You are not assigned to this patient' });
+    }
+
+    // Update patient's contactInfo (used as room number)
+    const patient = await Patient.findByIdAndUpdate(
+      patientId,
+      { contactInfo: room },
+      { new: true }
+    );
+
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Room number updated',
+      data: { room: patient.contactInfo }
+    });
+  } catch (error) {
+    console.error('Update patient room error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   getAssignedPatients,
   getCriticalEvents,
@@ -571,5 +674,7 @@ module.exports = {
   getMedications,
   getFormattedVitalsOverview,
   recordVitals,
-  getVitalRanges
+  getVitalRanges,
+  markMedicationAsGiven,
+  updatePatientRoom
 };

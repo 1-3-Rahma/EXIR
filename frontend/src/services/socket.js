@@ -29,6 +29,9 @@ export function connectNurseSocket(token) {
   s.on('patientStatusChanged', (payload) => {
     window.dispatchEvent(new CustomEvent('patientStatusChanged', { detail: payload }));
   });
+  s.on('newNotification', (payload) => {
+    window.dispatchEvent(new CustomEvent('newNotification', { detail: payload }));
+  });
   s.on('connect_error', (err) => {
     console.warn('[Socket] Connection error:', err.message);
   });

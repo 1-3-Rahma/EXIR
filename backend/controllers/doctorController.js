@@ -49,9 +49,40 @@ const getNursingStaff = async (req, res) => {
       });
     }
 
+    // Fetch cases to get prescription and IV order counts for all assigned patients
+    const allPatientIds = [];
+    Object.values(byNurse).forEach(n => {
+      n.assignedPatients.forEach(p => allPatientIds.push(p._id));
+    });
+
+    const casesWithMeds = await Case.find({
+      patientId: { $in: allPatientIds },
+      status: 'open'
+    }).select('patientId medications ivOrders');
+
+    const medCountByPatient = {};
+    casesWithMeds.forEach(c => {
+      const pid = c.patientId.toString();
+      medCountByPatient[pid] = {
+        prescriptionsCount: c.medications?.length || 0,
+        ivOrdersCount: c.ivOrders?.length || 0,
+        prescriptions: c.medications || [],
+        ivOrders: c.ivOrders || []
+      };
+    });
+
     const staff = nurses.map(n => {
       const nid = n._id.toString();
-      const assigned = byNurse[nid] ? byNurse[nid].assignedPatients : [];
+      const assigned = byNurse[nid] ? byNurse[nid].assignedPatients.map(p => {
+        const patientMeds = medCountByPatient[p._id.toString()];
+        return {
+          ...p,
+          prescriptionsCount: patientMeds?.prescriptionsCount || 0,
+          ivOrdersCount: patientMeds?.ivOrdersCount || 0,
+          prescriptions: patientMeds?.prescriptions || [],
+          ivOrders: patientMeds?.ivOrders || []
+        };
+      }) : [];
       return {
         _id: n._id,
         fullName: n.fullName,
@@ -463,7 +494,7 @@ const getCriticalCases = async (req, res) => {
   }
 };
 
-// @desc    Add prescription (medications) to a patient's case
+// @desc    Add prescription (medications) to a patient's case – notifies assigned nurses
 // @route   POST /api/v1/doctor/prescription
 // @access  Private (Doctor)
 const addPrescription = async (req, res) => {
@@ -500,6 +531,41 @@ const addPrescription = async (req, res) => {
 
     patientCase.medications.push(...validMeds);
     await patientCase.save();
+
+    // Send notification to assigned nurses
+    const patient = await Patient.findById(patientId).select('fullName');
+    const patientName = patient?.fullName || 'Unknown';
+    const doctorName = req.user.fullName || 'Doctor';
+    const assignments = await Assignment.find({ patientId, isActive: true });
+
+    // Build medication list for notification
+    const medList = validMeds.map(m => m.medicineName).join(', ');
+
+    for (const a of assignments) {
+      await Notification.create({
+        userId: a.nurseId,
+        type: 'assignment',
+        message: `New prescription for ${patientName}: ${medList}. Dr. ${doctorName}`,
+        relatedPatientId: patientId
+      });
+    }
+
+    // Real-time: notify assigned nurses immediately via socket
+    const io = req.app.get('io');
+    if (io) {
+      const payload = {
+        type: 'prescription',
+        patientId,
+        patientName,
+        doctorName,
+        medications: validMeds,
+        message: `New prescription for ${patientName}: ${medList}. Dr. ${doctorName}`
+      };
+      for (const a of assignments) {
+        const nurseId = a.nurseId?.toString?.() || a.nurseId;
+        if (nurseId) io.to(`nurse:${nurseId}`).emit('newNotification', payload);
+      }
+    }
 
     res.status(201).json({ message: 'Prescription added', case: patientCase });
   } catch (error) {
@@ -556,6 +622,25 @@ const addIvOrder = async (req, res) => {
         message: `IV order for ${patientName}: ${fluidName}${volume ? ` ${volume}` : ''}${rate ? ` @ ${rate}` : ''}. Dr. ${doctorName}`,
         relatedPatientId: patientId
       });
+    }
+
+    // Real-time: notify assigned nurses immediately via socket
+    const io = req.app.get('io');
+    if (io) {
+      const payload = {
+        type: 'iv_order',
+        patientId,
+        patientName,
+        doctorName,
+        fluidName,
+        volume,
+        rate,
+        message: `IV order for ${patientName}: ${fluidName}${volume ? ` ${volume}` : ''}${rate ? ` @ ${rate}` : ''}. Dr. ${doctorName}`
+      };
+      for (const a of assignments) {
+        const nurseId = a.nurseId?.toString?.() || a.nurseId;
+        if (nurseId) io.to(`nurse:${nurseId}`).emit('newNotification', payload);
+      }
     }
 
     res.status(201).json({ message: 'IV order added', case: patientCase });

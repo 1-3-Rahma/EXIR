@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
 import {
   FiClock, FiCheckCircle, FiAlertCircle, FiUser,
-  FiAlertTriangle, FiPackage
+  FiPackage, FiLoader
 } from 'react-icons/fi';
+import { nurseAPI } from '../../services/api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
@@ -14,6 +15,15 @@ const NurseMedications = () => {
 
   useEffect(() => {
     fetchMedications();
+  }, []);
+
+  // Real-time: refetch medications when doctor adds new prescription/IV order
+  useEffect(() => {
+    const handler = () => {
+      fetchMedications();
+    };
+    window.addEventListener('newNotification', handler);
+    return () => window.removeEventListener('newNotification', handler);
   }, []);
 
   const getAuthHeaders = () => {
@@ -74,10 +84,21 @@ const NurseMedications = () => {
     }
   };
 
-  const handleMarkAsGiven = (id) => {
-    setMedications(medications.map(med =>
-      med._id === id ? { ...med, status: 'given' } : med
-    ));
+  const [markingAsGiven, setMarkingAsGiven] = useState(null);
+
+  const handleMarkAsGiven = async (id, type) => {
+    try {
+      setMarkingAsGiven(id);
+      await nurseAPI.markMedicationAsGiven(id, type);
+      setMedications(medications.map(med =>
+        med._id === id ? { ...med, status: 'given' } : med
+      ));
+    } catch (error) {
+      console.error('Failed to mark medication as given:', error);
+      alert('Failed to mark medication as given. Please try again.');
+    } finally {
+      setMarkingAsGiven(null);
+    }
   };
 
   const filteredMedications = medications.filter(med => {
@@ -178,8 +199,13 @@ const NurseMedications = () => {
                 <p>{med.instructions || med.notes || `${med.dosage} · ${med.route}`}</p>
               </div>
               <div className="med-actions">
-                <button className="action-btn primary" onClick={() => handleMarkAsGiven(med._id)}>
-                  <FiCheckCircle /> Mark as Given
+                <button
+                  className="action-btn primary compact"
+                  onClick={() => handleMarkAsGiven(med._id, med.route === 'IV' ? 'iv' : 'prescription')}
+                  disabled={markingAsGiven === med._id}
+                >
+                  {markingAsGiven === med._id ? <FiLoader className="spin" /> : <FiCheckCircle />}
+                  {markingAsGiven === med._id ? 'Saving...' : 'Given'}
                 </button>
               </div>
             </div>
@@ -462,6 +488,28 @@ const NurseMedications = () => {
         }
 
         .action-btn.primary:hover { background: #16a34a; }
+
+        .action-btn.compact {
+          padding: 0.35rem 0.5rem;
+          font-size: 0.7rem;
+          min-width: auto;
+          gap: 0.2rem;
+          width: fit-content;
+        }
+
+        .action-btn:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+        }
+
+        .spin {
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
 
         .action-btn.secondary {
           background: white;
