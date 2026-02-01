@@ -5,7 +5,7 @@ import { notificationAPI, tasksAPI, nurseAPI } from '../../services/api';
 import {
   FiUsers, FiAlertTriangle, FiClipboard,
   FiClock, FiArrowRight, FiBell, FiCheckCircle, FiInfo,
-  FiAlertCircle
+  FiAlertCircle, FiX
 } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 
@@ -21,8 +21,10 @@ const NurseDashboard = () => {
   const [urgentCases, setUrgentCases] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [allNotifications, setAllNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [liveAlert, setLiveAlert] = useState(null);
+  const [showNotifModal, setShowNotifModal] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -107,7 +109,8 @@ const NurseDashboard = () => {
       })));
 
       setTasks(tasksTodayList.slice(0, 6));
-      setNotifications(notifList.slice(0, 6));
+      setAllNotifications(notifList);
+      setNotifications(notifList.slice(0, 4));
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
       setStats({ totalPatients: 0, urgentCases: 0, tasksToday: 0 });
@@ -126,11 +129,16 @@ const NurseDashboard = () => {
       setNotifications(prev =>
         prev.map(n => (n._id === notif._id ? { ...n, read: true } : n))
       );
+      setAllNotifications(prev =>
+        prev.map(n => (n._id === notif._id ? { ...n, read: true } : n))
+      );
       window.dispatchEvent(new CustomEvent('refreshUnreadCount'));
     } catch (err) {
       console.error('Failed to mark notification as read:', err);
     }
   };
+
+  const allUnreadCount = allNotifications.filter(n => !n.read).length;
 
   const formatTime = (date) => {
     const now = new Date();
@@ -301,7 +309,7 @@ const NurseDashboard = () => {
                       </div>
                     ))}
                   </div>
-                  <button type="button" className="view-all-btn">View All Notifications</button>
+                  <button type="button" className="view-all-btn" onClick={() => setShowNotifModal(true)}>View All Notifications ({allNotifications.length})</button>
                 </>
               )}
             </div>
@@ -655,7 +663,196 @@ const NurseDashboard = () => {
         @media (max-width: 768px) {
           .stats-grid-3 { grid-template-columns: 1fr; }
         }
+
+        /* Notifications Modal */
+        .notif-modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          padding: 1rem;
+        }
+
+        .notif-modal {
+          background: white;
+          border-radius: 16px;
+          width: 100%;
+          max-width: 600px;
+          max-height: 80vh;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+        }
+
+        .notif-modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1.25rem 1.5rem;
+          border-bottom: 1px solid #e2e8f0;
+        }
+
+        .notif-modal-header h3 {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: #1e293b;
+          margin: 0;
+        }
+
+        .notif-modal-header .unread-count {
+          background: #ef4444;
+          color: white;
+          font-size: 0.75rem;
+          padding: 0.2rem 0.6rem;
+          border-radius: 12px;
+          font-weight: 500;
+        }
+
+        .notif-modal-close {
+          background: none;
+          border: none;
+          color: #64748b;
+          cursor: pointer;
+          padding: 0.5rem;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+
+        .notif-modal-close:hover {
+          background: #f1f5f9;
+          color: #1e293b;
+        }
+
+        .notif-modal-body {
+          flex: 1;
+          overflow-y: auto;
+          padding: 1rem 1.5rem;
+        }
+
+        .notif-modal-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .notif-modal-item {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.75rem;
+          padding: 0.875rem 1rem;
+          border-radius: 10px;
+          border: 1px solid #e2e8f0;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .notif-modal-item:hover {
+          background: #f8fafc;
+          border-color: #cbd5e1;
+        }
+
+        .notif-modal-item.read {
+          opacity: 0.6;
+          background: #f8fafc;
+        }
+
+        .notif-modal-item .notif-icon {
+          font-size: 1.25rem;
+          margin-top: 2px;
+          flex-shrink: 0;
+        }
+
+        .notif-modal-item .notif-content {
+          flex: 1;
+        }
+
+        .notif-modal-item .notif-message {
+          font-size: 0.9rem;
+          color: #1e293b;
+          margin-bottom: 0.25rem;
+          line-height: 1.4;
+        }
+
+        .notif-modal-item .notif-time {
+          font-size: 0.75rem;
+          color: #94a3b8;
+        }
+
+        .notif-modal-item .unread-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #ef4444;
+          flex-shrink: 0;
+          margin-top: 6px;
+        }
+
+        .notif-modal-empty {
+          text-align: center;
+          padding: 3rem 1rem;
+          color: #94a3b8;
+        }
+
+        .notif-modal-empty svg {
+          font-size: 3rem;
+          margin-bottom: 1rem;
+          opacity: 0.5;
+        }
       `}</style>
+
+      {/* Notifications Modal */}
+      {showNotifModal && (
+        <div className="notif-modal-overlay" onClick={() => setShowNotifModal(false)}>
+          <div className="notif-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="notif-modal-header">
+              <h3>
+                <FiBell /> All Notifications
+                {allUnreadCount > 0 && <span className="unread-count">{allUnreadCount} unread</span>}
+              </h3>
+              <button className="notif-modal-close" onClick={() => setShowNotifModal(false)}>
+                <FiX size={20} />
+              </button>
+            </div>
+            <div className="notif-modal-body">
+              {allNotifications.length === 0 ? (
+                <div className="notif-modal-empty">
+                  <FiBell />
+                  <p>No notifications yet</p>
+                </div>
+              ) : (
+                <div className="notif-modal-list">
+                  {allNotifications.map((notif) => (
+                    <div
+                      key={notif._id}
+                      className={`notif-modal-item ${notif.read ? 'read' : ''}`}
+                      onClick={() => handleNotificationClick(notif)}
+                    >
+                      {getNotificationIcon(notif.type)}
+                      <div className="notif-content">
+                        <p className="notif-message">{notif.message}</p>
+                        <span className="notif-time">{formatTime(notif.createdAt)}</span>
+                      </div>
+                      {!notif.read && <span className="unread-dot" />}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 };

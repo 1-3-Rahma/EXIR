@@ -78,7 +78,7 @@ const NurseVitals = () => {
   const normalRanges = {
     bp: { systolicMin: 90, systolicMax: 120, diastolicMin: 60, diastolicMax: 80 },
     hr: { min: 60, max: 100 },
-    temp: { min: 97.8, max: 99.1 },
+    temp: { min: 36.1, max: 37.2 },
     o2: { min: 95, max: 100 },
     resp: { min: 12, max: 20 }
   };
@@ -87,7 +87,7 @@ const NurseVitals = () => {
   const normalRangesDisplay = [
     { name: 'Blood Pressure', range: '90-120 / 60-80 mmHg', color: '#3b82f6', icon: 'bp' },
     { name: 'Heart Rate', range: '60-100 bpm', color: '#ef4444', icon: 'hr' },
-    { name: 'Temperature', range: '97.8-99.1 °F', color: '#f59e0b', icon: 'temp' },
+    { name: 'Temperature', range: '36.1-37.2 °C', color: '#f59e0b', icon: 'temp' },
     { name: 'O₂ Saturation', range: '95-100 %', color: '#06b6d4', icon: 'o2' },
     { name: 'Respiratory Rate', range: '12-20 /min', color: '#8b5cf6', icon: 'resp' }
   ];
