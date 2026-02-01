@@ -251,14 +251,7 @@ const NurseTasks = () => {
             </div>
           </div>
 
-          <div className="shift-notes">
-            <h4>Key Notes:</h4>
-            <ul>
-              {shiftInfo.notes.map((note, i) => (
-                <li key={i}>{note}</li>
-              ))}
-            </ul>
-          </div>
+
 {/* 
           <div className="handoff-section">
             <h4>Handoff Notes:</h4>
