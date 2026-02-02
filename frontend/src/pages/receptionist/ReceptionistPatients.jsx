@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
 import { receptionistAPI } from '../../services/api';
-import { FiUser, FiSearch, FiPlus, FiPhone, FiCalendar } from 'react-icons/fi';
+import { FiUser, FiSearch, FiPlus, FiPhone, FiCalendar, FiLogIn } from 'react-icons/fi';
 
 const ReceptionistPatients = () => {
   const navigate = useNavigate();
@@ -90,6 +90,19 @@ const ReceptionistPatients = () => {
     });
   };
 
+  const handleCheckIn = async (e, patientId) => {
+    e.stopPropagation(); // Prevent row click
+    if (!window.confirm('Start a new visit for this patient?')) return;
+
+    try {
+      await receptionistAPI.checkInPatient(patientId);
+      alert('Patient checked in successfully! A new visit has been started.');
+      loadPatients(searchTerm);
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to check in patient');
+    }
+  };
+
   return (
     <Layout appName="MedHub" role="receptionist">
       <div className="page-header">
@@ -139,6 +152,7 @@ const ReceptionistPatients = () => {
                 <span className="col-phone">Phone</span>
                 <span className="col-visits">Visits</span>
                 <span className="col-last-visit">Last Visit</span>
+                <span className="col-actions">Actions</span>
               </div>
               {patients.map((patient) => (
                 <div
@@ -165,6 +179,19 @@ const ReceptionistPatients = () => {
                     <FiCalendar className="icon-small" />
                     {formatDate(patient.lastVisitDate)}
                   </span>
+                  <div className="col-actions">
+                    {patient.hasActiveVisit ? (
+                      <span className="status-badge active">Active Visit</span>
+                    ) : (
+                      <button
+                        className="checkin-btn"
+                        onClick={(e) => handleCheckIn(e, patient._id)}
+                        title="Start new visit"
+                      >
+                        <FiLogIn /> Check-in
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -376,7 +403,7 @@ const ReceptionistPatients = () => {
         }
         .list-header {
           display: grid;
-          grid-template-columns: 2fr 1.5fr 1fr 0.5fr 1fr;
+          grid-template-columns: 2fr 1.5fr 1fr 0.5fr 1fr 1fr;
           gap: 1rem;
           padding: 0.75rem 1rem;
           background: var(--bg-light);
@@ -388,7 +415,7 @@ const ReceptionistPatients = () => {
         }
         .patient-row {
           display: grid;
-          grid-template-columns: 2fr 1.5fr 1fr 0.5fr 1fr;
+          grid-template-columns: 2fr 1.5fr 1fr 0.5fr 1fr 1fr;
           gap: 1rem;
           padding: 1rem;
           border-bottom: 1px solid var(--border-color);
@@ -555,6 +582,39 @@ const ReceptionistPatients = () => {
         .submit-btn:disabled {
           opacity: 0.7;
           cursor: not-allowed;
+        }
+        .col-actions {
+          display: flex;
+          justify-content: center;
+        }
+        .checkin-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+          padding: 0.5rem 0.875rem;
+          background: var(--accent-blue);
+          color: white;
+          border: none;
+          border-radius: var(--radius-md);
+          font-size: 0.8rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .checkin-btn:hover {
+          background: var(--primary-blue);
+        }
+        .status-badge {
+          display: inline-flex;
+          align-items: center;
+          padding: 0.375rem 0.75rem;
+          border-radius: var(--radius-full);
+          font-size: 0.75rem;
+          font-weight: 500;
+        }
+        .status-badge.active {
+          background: rgba(59, 130, 246, 0.1);
+          color: var(--accent-blue);
         }
       `}</style>
     </Layout>

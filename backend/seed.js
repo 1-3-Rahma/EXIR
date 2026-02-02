@@ -8,6 +8,7 @@ const User = require('./models/User');
 const Patient = require('./models/Patient');
 const Billing = require('./models/Billing');
 const Appointment = require('./models/Appointment');
+const Visit = require('./models/Visit');
 
 const connectDB = async () => {
   try {
@@ -27,6 +28,7 @@ const seedData = async () => {
     await Patient.deleteMany({});
     await Billing.deleteMany({});
     await Appointment.deleteMany({});
+    await Visit.deleteMany({});
 
     console.log('Cleared existing data');
 
@@ -168,7 +170,7 @@ const seedData = async () => {
       emergencyContactPhone: '01098765432',
       emergencyContactRelation: 'Brother',
       registeredByReceptionistId: receptionist._id,
-      totalVisits: 5,
+      totalVisits: 1,
       lastVisitDate: new Date('2026-01-15')
     });
 
@@ -186,7 +188,7 @@ const seedData = async () => {
       emergencyContactPhone: '01198765432',
       emergencyContactRelation: 'Mother',
       registeredByReceptionistId: receptionist._id,
-      totalVisits: 3,
+      totalVisits: 1,
       lastVisitDate: new Date('2026-01-20')
     });
 

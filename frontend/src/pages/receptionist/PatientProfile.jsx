@@ -59,7 +59,12 @@ const PatientProfile = () => {
   const getStatus = () => {
     const activeVisit = visits.find(v => v.status === 'active');
     if (activeVisit) return { label: 'Admitted', color: 'blue' };
-    return { label: 'Active', color: 'green' };
+    return { label: 'Discharged', color: 'green' };
+  };
+
+  const getTotalVisits = () => {
+    // Use visits array length if available, otherwise fallback to patient.totalVisits
+    return visits.length > 0 ? visits.length : (patient?.totalVisits || 1);
   };
 
   const hasPendingDocuments = () => {
@@ -274,7 +279,7 @@ const PatientProfile = () => {
             </div>
             <div className="info-item">
               <span className="info-label">Total Visits</span>
-              <span className="info-value highlight">{patient.totalVisits || 1}</span>
+              <span className="info-value highlight">{getTotalVisits()}</span>
             </div>
             <div className="info-item">
               <span className="info-label">Registration Date</span>
@@ -329,9 +334,7 @@ const PatientProfile = () => {
               </span>
             </div>
           </div>
-          <Link to={`/receptionist/patients/${patientId}/billing`} className="section-link">
-            View Full Billing Details →
-          </Link>
+      
         </div>
 
         {/* Documents */}
@@ -395,9 +398,7 @@ const PatientProfile = () => {
               )}
             </div>
           </div>
-          <Link to="/receptionist/documents" className="section-link">
-            Manage All Documents →
-          </Link>
+      
         </div>
       </div>
 

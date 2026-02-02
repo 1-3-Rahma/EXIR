@@ -1,32 +1,52 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
-import { receptionistAPI, visitAPI } from '../../services/api';
-import { FiSearch, FiClock, FiCheckCircle, FiUser, FiCalendar } from 'react-icons/fi';
+import { visitAPI } from '../../services/api';
+import { FiSearch, FiClock, FiUser, FiCalendar, FiPhone, FiCreditCard } from 'react-icons/fi';
 
 const ReceptionistVisits = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [visits, setVisits] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [patientInfo, setPatientInfo] = useState(null);
+  const [allVisits, setAllVisits] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleSearch = async () => {
-    if (!searchTerm.trim()) return;
-    setLoading(true);
+  useEffect(() => {
+    fetchActiveVisits();
+  }, []);
+
+  const fetchActiveVisits = async () => {
     try {
-      const patientRes = await receptionistAPI.searchPatient(searchTerm);
-      const patient = patientRes.data;
-      setPatientInfo(patient);
-
-      const visitsRes = await receptionistAPI.getPatientVisits(patient._id);
-      setVisits(visitsRes.data);
+      setLoading(true);
+      const response = await visitAPI.getActiveVisits();
+      setAllVisits(response.data || []);
     } catch (error) {
-      console.error('Error fetching visits:', error);
-      setVisits([]);
-      setPatientInfo(null);
+      console.error('Error fetching active visits:', error);
+      setAllVisits([]);
     } finally {
       setLoading(false);
     }
   };
+
+  // Dynamic filtering based on search term
+  const filteredVisits = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return allVisits;
+    }
+
+    const term = searchTerm.toLowerCase().trim();
+    return allVisits.filter(visit => {
+      const patient = visit.patientId;
+      if (!patient) return false;
+
+      const fullName = (patient.fullName || '').toLowerCase();
+      const nationalID = (patient.nationalID || '').toLowerCase();
+      const phone = (patient.phone || '').toLowerCase();
+
+      return fullName.includes(term) ||
+             nationalID.includes(term) ||
+             phone.includes(term);
+    });
+  }, [allVisits, searchTerm]);
 
   const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -36,11 +56,39 @@ const ReceptionistVisits = () => {
     });
   };
 
+  const formatTime = (dateStr) => {
+    return new Date(dateStr).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getTimeSinceAdmission = (admissionDate) => {
+    const now = new Date();
+    const admission = new Date(admissionDate);
+    const diffMs = now - admission;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) {
+      return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    } else if (diffHours > 0) {
+      return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    } else {
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      return `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
+    }
+  };
+
+  const handlePatientClick = (patientId) => {
+    navigate(`/receptionist/patients/${patientId}`);
+  };
+
   return (
     <Layout appName="MedHub" role="receptionist">
       <div className="page-header">
-        <h1>Visit History</h1>
-        <p>Search and manage patient visits</p>
+        <h1>Active Visits</h1>
+        <p>Currently admitted patients in the hospital</p>
       </div>
 
       <div className="search-section">
@@ -48,79 +96,85 @@ const ReceptionistVisits = () => {
           <FiSearch />
           <input
             type="text"
-            placeholder="Search patient by National ID..."
+            placeholder="Search by name, National ID, or phone number..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
           />
         </div>
-        <button className="search-btn" onClick={handleSearch} disabled={loading}>
-          {loading ? 'Searching...' : 'Search'}
-        </button>
+        <div className="stats-badge">
+          <FiUser /> {filteredVisits.length} Active Visit{filteredVisits.length !== 1 ? 's' : ''}
+        </div>
       </div>
 
-      {patientInfo && (
-        <div className="patient-header">
-          <div className="patient-avatar">
-            <FiUser />
+      <div className="visits-container">
+        {loading ? (
+          <div className="loading-state">
+            <div className="spinner"></div>
+            <p>Loading active visits...</p>
           </div>
-          <div className="patient-details">
-            <h2>{patientInfo.fullName}</h2>
-            <p>National ID: {patientInfo.nationalID}</p>
+        ) : filteredVisits.length === 0 ? (
+          <div className="empty-state">
+            <FiClock className="empty-icon" />
+            <h3>{searchTerm ? 'No Matching Visits' : 'No Active Visits'}</h3>
+            <p>
+              {searchTerm
+                ? 'Try a different search term'
+                : 'There are currently no patients admitted in the hospital'}
+            </p>
           </div>
-          <button className="start-visit-btn">
-            <FiCalendar /> Start New Visit
-          </button>
-        </div>
-      )}
-
-      <div className="card">
-        <div className="card-body">
-          {loading ? (
-            <p>Loading visits...</p>
-          ) : visits.length === 0 ? (
-            <div className="empty-state">
-              <FiClock className="empty-icon" />
-              <h3>{patientInfo ? 'No Visit History' : 'Search for Patient'}</h3>
-              <p>{patientInfo ? 'This patient has no recorded visits' : 'Enter a National ID to view visit history'}</p>
-            </div>
-          ) : (
-            <div className="visits-timeline">
-              {visits.map((visit, index) => (
-                <div key={visit.visitId || index} className="visit-item">
-                  <div className="visit-marker">
-                    <div className={`marker-dot ${visit.status === 'active' ? 'active' : ''}`} />
-                    {index < visits.length - 1 && <div className="marker-line" />}
+        ) : (
+          <div className="visits-grid">
+            {filteredVisits.map((visit) => (
+              <div
+                key={visit._id}
+                className="visit-card"
+                onClick={() => handlePatientClick(visit.patientId?._id)}
+              >
+                <div className="visit-card-header">
+                  <div className="patient-avatar">
+                    {visit.patientId?.fullName?.charAt(0) || 'P'}
                   </div>
-                  <div className="visit-content">
-                    <div className="visit-header">
-                      <span className="visit-date">
-                        <FiCalendar /> {formatDate(visit.admissionDate)}
-                      </span>
-                      <span className={`visit-status ${visit.status}`}>
-                        {visit.status === 'active' ? (
-                          <><FiClock /> Active</>
-                        ) : (
-                          <><FiCheckCircle /> Completed</>
-                        )}
-                      </span>
-                    </div>
-                    <div className="visit-details">
-                      <p>
-                        <strong>Admission:</strong> {formatDate(visit.admissionDate)}
-                      </p>
-                      {visit.dischargeDate && (
-                        <p>
-                          <strong>Discharge:</strong> {formatDate(visit.dischargeDate)}
-                        </p>
-                      )}
-                    </div>
+                  <div className="patient-info">
+                    <h3>{visit.patientId?.fullName || 'Unknown Patient'}</h3>
+                    <span className="admission-time">
+                      <FiClock /> Admitted {getTimeSinceAdmission(visit.admissionDate)}
+                    </span>
+                  </div>
+                  <div className="status-indicator">
+                    <span className="pulse"></span>
+                    Active
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+
+                <div className="visit-card-body">
+                  <div className="info-row">
+                    <FiCreditCard />
+                    <span className="label">National ID:</span>
+                    <span className="value">{visit.patientId?.nationalID || 'N/A'}</span>
+                  </div>
+                  <div className="info-row">
+                    <FiPhone />
+                    <span className="label">Phone:</span>
+                    <span className="value">{visit.patientId?.phone || 'N/A'}</span>
+                  </div>
+                  <div className="info-row">
+                    <FiCalendar />
+                    <span className="label">Admission:</span>
+                    <span className="value">
+                      {formatDate(visit.admissionDate)} at {formatTime(visit.admissionDate)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="visit-card-footer">
+                  <button className="view-profile-btn">
+                    View Profile
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <style>{`
@@ -128,148 +182,209 @@ const ReceptionistVisits = () => {
           display: flex;
           gap: 1rem;
           margin-bottom: 1.5rem;
+          align-items: center;
         }
         .search-section .search-input-wrapper {
           flex: 1;
         }
-        .search-btn {
-          background: var(--accent-blue);
-          color: white;
-          border: none;
-          padding: 0 1.5rem;
+        .stats-badge {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.75rem 1.25rem;
+          background: rgba(59, 130, 246, 0.1);
+          color: var(--accent-blue);
           border-radius: var(--radius-md);
+          font-weight: 500;
           font-size: 0.9rem;
-          cursor: pointer;
+          white-space: nowrap;
         }
-        .patient-header {
+        .visits-container {
+          min-height: 400px;
+        }
+        .loading-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 4rem;
+          color: var(--text-muted);
+        }
+        .spinner {
+          width: 40px;
+          height: 40px;
+          border: 3px solid var(--border-color);
+          border-top-color: var(--accent-blue);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 1rem;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .empty-state {
+          text-align: center;
+          padding: 4rem 2rem;
+          background: var(--bg-white);
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--border-color);
+        }
+        .empty-icon {
+          font-size: 3.5rem;
+          color: var(--text-muted);
+          margin-bottom: 1rem;
+        }
+        .empty-state h3 {
+          font-size: 1.1rem;
+          margin-bottom: 0.5rem;
+        }
+        .empty-state p {
+          color: var(--text-secondary);
+          font-size: 0.9rem;
+        }
+        .visits-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+          gap: 1.25rem;
+        }
+        .visit-card {
+          background: var(--bg-white);
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--border-color);
+          overflow: hidden;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .visit-card:hover {
+          border-color: var(--accent-blue);
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+          transform: translateY(-2px);
+        }
+        .visit-card-header {
           display: flex;
           align-items: center;
           gap: 1rem;
-          background: var(--bg-white);
           padding: 1.25rem;
-          border-radius: var(--radius-lg);
-          border: 1px solid var(--border-color);
-          margin-bottom: 1.5rem;
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0.02) 100%);
+          border-bottom: 1px solid var(--border-color);
         }
         .patient-avatar {
-          width: 56px;
-          height: 56px;
-          background: var(--bg-light);
+          width: 48px;
+          height: 48px;
+          background: var(--accent-blue);
+          color: white;
           border-radius: var(--radius-full);
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 1.5rem;
-          color: var(--text-secondary);
+          font-size: 1.25rem;
+          font-weight: 600;
+          flex-shrink: 0;
         }
-        .patient-details {
+        .patient-info {
           flex: 1;
+          min-width: 0;
         }
-        .patient-details h2 {
-          font-size: 1.1rem;
+        .patient-info h3 {
+          font-size: 1rem;
+          font-weight: 600;
           margin-bottom: 0.25rem;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
-        .patient-details p {
-          font-size: 0.85rem;
-          color: var(--text-secondary);
-        }
-        .start-visit-btn {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          background: var(--accent-green);
-          color: white;
-          border: none;
-          padding: 0.75rem 1.25rem;
-          border-radius: var(--radius-md);
-          font-size: 0.9rem;
-          cursor: pointer;
-        }
-        .visits-timeline {
-          position: relative;
-        }
-        .visit-item {
-          display: flex;
-          gap: 1rem;
-        }
-        .visit-marker {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          width: 20px;
-        }
-        .marker-dot {
-          width: 12px;
-          height: 12px;
-          background: var(--border-color);
-          border-radius: 50%;
-          border: 3px solid var(--bg-white);
-          box-shadow: 0 0 0 2px var(--border-color);
-        }
-        .marker-dot.active {
-          background: var(--accent-green);
-          box-shadow: 0 0 0 2px var(--accent-green);
-        }
-        .marker-line {
-          width: 2px;
-          flex: 1;
-          background: var(--border-color);
-          margin: 4px 0;
-        }
-        .visit-content {
-          flex: 1;
-          padding-bottom: 1.5rem;
-        }
-        .visit-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 0.75rem;
-        }
-        .visit-date {
+        .admission-time {
           display: flex;
           align-items: center;
           gap: 0.375rem;
-          font-size: 0.9rem;
-          font-weight: 500;
+          font-size: 0.8rem;
+          color: var(--text-secondary);
         }
-        .visit-status {
+        .status-indicator {
           display: flex;
           align-items: center;
-          gap: 0.25rem;
-          font-size: 0.8rem;
-          padding: 0.25rem 0.75rem;
-          border-radius: var(--radius-full);
-        }
-        .visit-status.active {
+          gap: 0.5rem;
+          padding: 0.375rem 0.75rem;
           background: rgba(34, 197, 94, 0.1);
           color: var(--accent-green);
+          border-radius: var(--radius-full);
+          font-size: 0.75rem;
+          font-weight: 500;
+          flex-shrink: 0;
         }
-        .visit-status.completed {
-          background: rgba(100, 116, 139, 0.1);
-          color: var(--text-secondary);
+        .pulse {
+          width: 8px;
+          height: 8px;
+          background: var(--accent-green);
+          border-radius: 50%;
+          animation: pulse 2s infinite;
         }
-        .visit-details {
-          background: var(--bg-light);
-          padding: 0.75rem 1rem;
-          border-radius: var(--radius-md);
+        @keyframes pulse {
+          0% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.2); }
+          100% { opacity: 1; transform: scale(1); }
         }
-        .visit-details p {
+        .visit-card-body {
+          padding: 1.25rem;
+        }
+        .info-row {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.5rem 0;
           font-size: 0.85rem;
-          color: var(--text-secondary);
-          margin-bottom: 0.25rem;
+          border-bottom: 1px solid var(--border-color);
         }
-        .visit-details p:last-child {
-          margin-bottom: 0;
+        .info-row:last-child {
+          border-bottom: none;
         }
-        .empty-state {
-          text-align: center;
-          padding: 3rem;
-        }
-        .empty-icon {
-          font-size: 3rem;
+        .info-row svg {
           color: var(--text-muted);
-          margin-bottom: 1rem;
+          font-size: 0.9rem;
+          flex-shrink: 0;
+        }
+        .info-row .label {
+          color: var(--text-secondary);
+          flex-shrink: 0;
+        }
+        .info-row .value {
+          color: var(--text-primary);
+          font-weight: 500;
+          margin-left: auto;
+          text-align: right;
+        }
+        .visit-card-footer {
+          padding: 1rem 1.25rem;
+          border-top: 1px solid var(--border-color);
+          background: var(--bg-light);
+        }
+        .view-profile-btn {
+          width: 100%;
+          padding: 0.625rem;
+          background: var(--accent-blue);
+          color: white;
+          border: none;
+          border-radius: var(--radius-md);
+          font-size: 0.85rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+        .view-profile-btn:hover {
+          background: var(--primary-blue);
+        }
+
+        @media (max-width: 768px) {
+          .search-section {
+            flex-direction: column;
+          }
+          .stats-badge {
+            width: 100%;
+            justify-content: center;
+          }
+          .visits-grid {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </Layout>

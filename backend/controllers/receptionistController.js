@@ -87,13 +87,21 @@ const registerPatient = async (req, res) => {
       phone,
       email: email || '',
       address,
-      registeredByReceptionistId: req.user._id
+      registeredByReceptionistId: req.user._id,
+      totalVisits: 1
     });
 
-    // Patient will automatically appear in Today's Arrivals based on registration date (createdAt)
+    // Automatically create an active visit (check-in) for new patient
+    await Visit.create({
+      patientId: patient._id,
+      hospitalId: patient.nationalID,
+      admissionDate: new Date(),
+      status: 'admitted',
+      registeredBy: req.user._id
+    });
 
     res.status(201).json({
-      message: 'Patient registered successfully',
+      message: 'Patient registered and checked in successfully',
       patient
     });
   } catch (error) {
@@ -303,7 +311,17 @@ const getAllPatients = async (req, res) => {
       .select('_id nationalID fullName phone gender dateOfBirth totalVisits lastVisitDate createdAt')
       .sort({ createdAt: -1 });
 
-    res.json(patients);
+    // Get all active visits to check which patients have active visits
+    const activeVisits = await Visit.find({ status: 'admitted' }).select('patientId');
+    const activePatientIds = new Set(activeVisits.map(v => v.patientId.toString()));
+
+    // Add hasActiveVisit flag to each patient
+    const patientsWithVisitStatus = patients.map(patient => ({
+      ...patient.toObject(),
+      hasActiveVisit: activePatientIds.has(patient._id.toString())
+    }));
+
+    res.json(patientsWithVisitStatus);
   } catch (error) {
     console.error('Get all patients error:', error);
     res.status(500).json({ message: 'Server error' });

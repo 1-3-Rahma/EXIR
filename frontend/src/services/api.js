@@ -121,7 +121,8 @@ export const notificationAPI = {
 
 export const visitAPI = {
   startVisit: (data) => api.post('/visits/start', data),
-  endVisit: (visitId) => api.put(`/visits/${visitId}/end`)
+  endVisit: (visitId) => api.put(`/visits/${visitId}/end`),
+  getActiveVisits: () => api.get('/visits/active')
 };
 
 export const medicalRecordAPI = {

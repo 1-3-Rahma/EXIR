@@ -120,7 +120,7 @@ const getVisit = async (req, res) => {
 const getActiveVisits = async (req, res) => {
   try {
     const visits = await Visit.find({ status: 'admitted' })
-      .populate('patientId', 'fullName nationalID')
+      .populate('patientId', 'fullName nationalID phone')
       .sort({ admissionDate: -1 });
 
     res.json(visits);

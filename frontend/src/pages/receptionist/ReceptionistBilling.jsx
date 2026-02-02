@@ -3,7 +3,7 @@ import Layout from '../../components/common/Layout';
 import { receptionistAPI } from '../../services/api';
 import {
   FiSearch, FiDollarSign, FiCheckCircle, FiAlertCircle,
-  FiUser, FiX, FiCalendar, FiLogOut
+  FiUser, FiX, FiCalendar, FiLogOut, FiLogIn
 } from 'react-icons/fi';
 
 const ReceptionistBilling = () => {
@@ -74,10 +74,33 @@ const ReceptionistBilling = () => {
       setBillingDetails(response.data);
       loadPatients(searchTerm);
 
-      alert('Patient checked out successfully!');
+      alert('Patient checked out successfully! Visit has been added to visit history.');
     } catch (error) {
       console.error('Error checking out patient:', error);
       alert(error.response?.data?.message || 'Failed to checkout patient');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleCheckIn = async () => {
+    if (billingDetails?.hasActiveVisit) return;
+
+    if (!window.confirm('Start a new visit for this patient?')) return;
+
+    setProcessing(true);
+    try {
+      await receptionistAPI.checkInPatient(selectedPatient._id);
+
+      // Refresh data
+      const response = await receptionistAPI.getPatientBillingDetails(selectedPatient._id);
+      setBillingDetails(response.data);
+      loadPatients(searchTerm);
+
+      alert('Patient checked in successfully! A new visit has been started.');
+    } catch (error) {
+      console.error('Error checking in patient:', error);
+      alert(error.response?.data?.message || 'Failed to check in patient');
     } finally {
       setProcessing(false);
     }
@@ -291,25 +314,40 @@ const ReceptionistBilling = () => {
                     )}
                   </div>
 
-                  {/* Checkout Section */}
+                  {/* Visit & Checkout Section */}
                   <div className="checkout-section">
                     <div className="checkout-info">
                       <p>
                         {billingDetails.hasActiveVisit
                           ? billingDetails.canCheckout
-                            ? 'All bills are paid. Patient can be checked out.'
+                            ? billingDetails.summary.totalAmount === 0
+                              ? 'No billing records. Patient can be checked out.'
+                              : 'All bills are paid. Patient can be checked out.'
                             : 'Patient has outstanding balance. Contact Financial Management for payment processing.'
-                          : 'No active visit for this patient.'}
+                          : 'No active visit for this patient. Check in to start a new visit.'}
                       </p>
                     </div>
-                    <button
-                      className="checkout-btn"
-                      onClick={handleCheckout}
-                      disabled={!billingDetails.canCheckout || processing}
-                    >
-                      <FiLogOut />
-                      {processing ? 'Processing...' : 'Checkout Patient'}
-                    </button>
+                    <div className="checkout-actions">
+                      {billingDetails.hasActiveVisit ? (
+                        <button
+                          className="checkout-btn"
+                          onClick={handleCheckout}
+                          disabled={!billingDetails.canCheckout || processing}
+                        >
+                          <FiLogOut />
+                          {processing ? 'Processing...' : 'Checkout Patient'}
+                        </button>
+                      ) : (
+                        <button
+                          className="checkin-btn"
+                          onClick={handleCheckIn}
+                          disabled={processing}
+                        >
+                          <FiLogIn />
+                          {processing ? 'Processing...' : 'Check-in Patient'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </>
               )}
@@ -666,6 +704,30 @@ const ReceptionistBilling = () => {
         .checkout-btn:disabled {
           background: var(--text-muted);
           cursor: not-allowed;
+        }
+        .checkout-actions {
+          display: flex;
+          gap: 0.75rem;
+        }
+        .checkin-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.75rem 1.5rem;
+          background: var(--accent-blue);
+          color: white;
+          border: none;
+          border-radius: var(--radius-md);
+          font-size: 0.9rem;
+          font-weight: 500;
+          cursor: pointer;
+        }
+        .checkin-btn:disabled {
+          background: var(--text-muted);
+          cursor: not-allowed;
+        }
+        .checkin-btn:hover:not(:disabled) {
+          background: var(--primary-blue);
         }
         @media (max-width: 768px) {
           .billing-summary {
