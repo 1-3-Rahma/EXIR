@@ -5,7 +5,10 @@ const {
   getMedicalHistory,
   getBilling,
   downloadRecords,
-  getProfile
+  getProfile,
+  getAppointments,
+  getMedications,
+  getDashboard
 } = require('../controllers/patientController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
@@ -18,5 +21,8 @@ router.get('/medical-history', getMedicalHistory);
 router.get('/billing', getBilling);
 router.get('/download-records', downloadRecords);
 router.get('/profile', getProfile);
+router.get('/appointments', getAppointments);
+router.get('/medications', getMedications);
+router.get('/dashboard', getDashboard);
 
 module.exports = router;

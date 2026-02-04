@@ -70,7 +70,11 @@ export const patientAPI = {
   getVitals: () => api.get('/patient/vitals'),
   getMedicalHistory: () => api.get('/patient/medical-history'),
   getBilling: () => api.get('/patient/billing'),
-  downloadRecords: () => api.get('/patient/download-records')
+  downloadRecords: () => api.get('/patient/download-records'),
+  getProfile: () => api.get('/patient/profile'),
+  getAppointments: () => api.get('/patient/appointments'),
+  getMedications: () => api.get('/patient/medications'),
+  getDashboard: () => api.get('/patient/dashboard')
 };
 
 export const receptionistAPI = {

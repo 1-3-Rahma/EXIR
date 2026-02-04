@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
 import { patientAPI } from '../../services/api';
-import { FiFileText, FiCalendar, FiUser, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import {
+  FiFileText, FiCalendar, FiUser, FiChevronDown, FiChevronUp,
+  FiClock, FiDollarSign, FiActivity, FiClipboard, FiHeart,
+  FiCheckCircle, FiAlertCircle, FiXCircle
+} from 'react-icons/fi';
 
 const PatientHistory = () => {
-  const [history, setHistory] = useState([]);
+  const [activeTab, setActiveTab] = useState('visits');
+  const [history, setHistory] = useState({
+    visits: [],
+    appointments: [],
+    cases: []
+  });
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState(null);
 
@@ -15,7 +24,11 @@ const PatientHistory = () => {
   const fetchHistory = async () => {
     try {
       const response = await patientAPI.getMedicalHistory();
-      setHistory(response.data);
+      setHistory({
+        visits: response.data.visits || [],
+        appointments: response.data.appointments || [],
+        cases: response.data.cases || []
+      });
     } catch (error) {
       console.error('Failed to fetch history:', error);
     } finally {
@@ -24,10 +37,22 @@ const PatientHistory = () => {
   };
 
   const formatDate = (date) => {
+    if (!date) return 'N/A';
     return new Date(date).toLocaleDateString('en-US', {
       year: 'numeric',
-      month: 'long',
+      month: 'short',
       day: 'numeric'
+    });
+  };
+
+  const formatDateTime = (date) => {
+    if (!date) return 'N/A';
+    return new Date(date).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -35,80 +60,421 @@ const PatientHistory = () => {
     setExpandedId(expandedId === id ? null : id);
   };
 
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'completed':
+      case 'discharged':
+      case 'paid':
+        return <FiCheckCircle className="status-icon success" />;
+      case 'pending':
+      case 'admitted':
+      case 'partial':
+        return <FiClock className="status-icon warning" />;
+      case 'cancelled':
+      case 'no-show':
+        return <FiXCircle className="status-icon danger" />;
+      default:
+        return <FiAlertCircle className="status-icon" />;
+    }
+  };
+
+  const getStatusClass = (status) => {
+    switch (status) {
+      case 'completed':
+      case 'discharged':
+      case 'paid':
+      case 'closed':
+        return 'success';
+      case 'pending':
+      case 'admitted':
+      case 'partial':
+      case 'open':
+      case 'confirmed':
+        return 'warning';
+      case 'cancelled':
+      case 'no-show':
+        return 'danger';
+      default:
+        return '';
+    }
+  };
+
+  const renderVisitsTab = () => (
+    <div className="history-list">
+      {history.visits.length === 0 ? (
+        <div className="empty-state">
+          <FiActivity className="empty-icon" />
+          <h3>No Visit History</h3>
+          <p>Your visit history will appear here</p>
+        </div>
+      ) : (
+        history.visits.map((visit) => (
+          <div key={visit._id} className="history-item">
+            <div
+              className="history-header"
+              onClick={() => toggleExpand(visit._id)}
+            >
+              <div className="history-date">
+                <FiCalendar />
+                <span>{formatDate(visit.admissionDate)}</span>
+              </div>
+              <div className="history-summary">
+                <span className="visit-status">
+                  {getStatusIcon(visit.status)}
+                  <span className={`status-badge ${getStatusClass(visit.status)}`}>
+                    {visit.status === 'admitted' ? 'Active Visit' : 'Discharged'}
+                  </span>
+                </span>
+                {visit.billing && (
+                  <span className="billing-preview">
+                    <FiDollarSign />
+                    {visit.billing.totalAmount} EGP
+                    <span className={`payment-status ${getStatusClass(visit.billing.paymentStatus)}`}>
+                      ({visit.billing.paymentStatus})
+                    </span>
+                  </span>
+                )}
+              </div>
+              {expandedId === visit._id ? <FiChevronUp /> : <FiChevronDown />}
+            </div>
+
+            {expandedId === visit._id && (
+              <div className="history-details">
+                <div className="detail-row">
+                  <div className="detail-section">
+                    <h4>Admission Date</h4>
+                    <p>{formatDateTime(visit.admissionDate)}</p>
+                  </div>
+                  {visit.dischargeDate && (
+                    <div className="detail-section">
+                      <h4>Discharge Date</h4>
+                      <p>{formatDateTime(visit.dischargeDate)}</p>
+                    </div>
+                  )}
+                </div>
+
+                {visit.billing && (
+                  <div className="billing-section">
+                    <h4><FiDollarSign /> Billing Information</h4>
+                    <div className="billing-grid">
+                      <div className="billing-item">
+                        <span className="label">Total Amount</span>
+                        <span className="value">{visit.billing.totalAmount} EGP</span>
+                      </div>
+                      <div className="billing-item">
+                        <span className="label">Paid Amount</span>
+                        <span className="value success">{visit.billing.paidAmount} EGP</span>
+                      </div>
+                      <div className="billing-item">
+                        <span className="label">Due Amount</span>
+                        <span className={`value ${visit.billing.dueAmount > 0 ? 'danger' : 'success'}`}>
+                          {visit.billing.dueAmount} EGP
+                        </span>
+                      </div>
+                      <div className="billing-item">
+                        <span className="label">Status</span>
+                        <span className={`status-badge ${getStatusClass(visit.billing.paymentStatus)}`}>
+                          {visit.billing.paymentStatus}
+                        </span>
+                      </div>
+                    </div>
+
+                    {visit.billing.items && visit.billing.items.length > 0 && (
+                      <div className="billing-items">
+                        <h5>Billing Items</h5>
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Description</th>
+                              <th>Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {visit.billing.items.map((item, idx) => (
+                              <tr key={idx}>
+                                <td>{item.description}</td>
+                                <td>{item.amount} EGP</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  );
+
+  const renderAppointmentsTab = () => (
+    <div className="history-list">
+      {history.appointments.length === 0 ? (
+        <div className="empty-state">
+          <FiCalendar className="empty-icon" />
+          <h3>No Appointments</h3>
+          <p>Your appointment history will appear here</p>
+        </div>
+      ) : (
+        history.appointments.map((apt) => (
+          <div key={apt._id} className="history-item">
+            <div
+              className="history-header"
+              onClick={() => toggleExpand(apt._id)}
+            >
+              <div className="history-date">
+                <FiCalendar />
+                <div className="date-time">
+                  <span>{formatDate(apt.date)}</span>
+                  <span className="time">{apt.time}</span>
+                </div>
+              </div>
+              <div className="history-summary">
+                <span className="appointment-doctor">
+                  <FiUser /> {apt.doctorId?.fullName || apt.doctorName || 'Doctor'}
+                </span>
+                <span className="appointment-dept">{apt.department}</span>
+              </div>
+              <span className={`status-badge ${getStatusClass(apt.status)}`}>
+                {apt.status}
+              </span>
+              {expandedId === apt._id ? <FiChevronUp /> : <FiChevronDown />}
+            </div>
+
+            {expandedId === apt._id && (
+              <div className="history-details">
+                <div className="detail-row">
+                  <div className="detail-section">
+                    <h4>Doctor</h4>
+                    <p>{apt.doctorId?.fullName || apt.doctorName}</p>
+                  </div>
+                  <div className="detail-section">
+                    <h4>Specialization</h4>
+                    <p>{apt.doctorId?.specialization || apt.department}</p>
+                  </div>
+                  <div className="detail-section">
+                    <h4>Department</h4>
+                    <p>{apt.department}</p>
+                  </div>
+                </div>
+
+                <div className="detail-section notes-section">
+                  <h4><FiClipboard /> Doctor's Notes</h4>
+                  <div className="notes-content">
+                    {apt.notes ? (
+                      <p>{apt.notes}</p>
+                    ) : (
+                      <p className="no-notes">No notes available for this appointment</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  );
+
+  const renderCasesTab = () => (
+    <div className="history-list">
+      {history.cases.length === 0 ? (
+        <div className="empty-state">
+          <FiFileText className="empty-icon" />
+          <h3>No Medical Cases</h3>
+          <p>Your medical cases will appear here</p>
+        </div>
+      ) : (
+        history.cases.map((caseItem) => (
+          <div key={caseItem._id} className="history-item">
+            <div
+              className="history-header"
+              onClick={() => toggleExpand(caseItem._id)}
+            >
+              <div className="history-date">
+                <FiActivity />
+                <span>{formatDate(caseItem.createdAt)}</span>
+              </div>
+              <div className="history-summary">
+                <span className="case-diagnosis">
+                  {caseItem.diagnosis || 'No diagnosis recorded'}
+                </span>
+                <span className="case-doctor">
+                  <FiUser /> Dr. {caseItem.doctor?.fullName || 'Unknown'}
+                </span>
+              </div>
+              <span className={`status-badge ${getStatusClass(caseItem.status)}`}>
+                {caseItem.status}
+              </span>
+              {expandedId === caseItem._id ? <FiChevronUp /> : <FiChevronDown />}
+            </div>
+
+            {expandedId === caseItem._id && (
+              <div className="history-details">
+                <div className="detail-row">
+                  <div className="detail-section">
+                    <h4>Doctor</h4>
+                    <p>Dr. {caseItem.doctor?.fullName || 'Unknown'}</p>
+                    <span className="sub-info">{caseItem.doctor?.specialization}</span>
+                  </div>
+                  <div className="detail-section">
+                    <h4>Patient Status</h4>
+                    <span className={`status-badge ${caseItem.patientStatus === 'critical' ? 'danger' : 'success'}`}>
+                      {caseItem.patientStatus}
+                    </span>
+                  </div>
+                  {caseItem.closedAt && (
+                    <div className="detail-section">
+                      <h4>Closed At</h4>
+                      <p>{formatDateTime(caseItem.closedAt)}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="detail-section">
+                  <h4>Diagnosis</h4>
+                  <p>{caseItem.diagnosis || 'No diagnosis recorded'}</p>
+                </div>
+
+                <div className="detail-section">
+                  <h4>Treatment Plan</h4>
+                  <p>{caseItem.treatmentPlan || 'No treatment plan recorded'}</p>
+                </div>
+
+                {caseItem.notes && (
+                  <div className="detail-section notes-section">
+                    <h4><FiClipboard /> Doctor's Notes</h4>
+                    <div className="notes-content">
+                      <p>{caseItem.notes}</p>
+                    </div>
+                  </div>
+                )}
+
+                {caseItem.medications && caseItem.medications.length > 0 && (
+                  <div className="medications-section">
+                    <h4><FiHeart /> Medications</h4>
+                    <div className="medications-grid">
+                      {caseItem.medications.map((med, idx) => (
+                        <div key={idx} className="medication-card">
+                          <div className="med-name">{med.medicineName}</div>
+                          <div className="med-info">
+                            <span>{med.timesPerDay}x daily</span>
+                            <span className={`status-badge small ${getStatusClass(med.status === 'given' ? 'completed' : 'pending')}`}>
+                              {med.status}
+                            </span>
+                          </div>
+                          {med.note && <div className="med-note">{med.note}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  );
+
   return (
     <Layout appName="Patient View" role="patient">
       <div className="page-header">
         <h1>Medical History</h1>
-        <p>View your complete medical history across all visits</p>
+        <p>View your complete medical history, visits, and billing</p>
+      </div>
+
+      <div className="tabs">
+        <button
+          className={`tab ${activeTab === 'visits' ? 'active' : ''}`}
+          onClick={() => setActiveTab('visits')}
+        >
+          <FiActivity /> Visits ({history.visits.length})
+        </button>
+        <button
+          className={`tab ${activeTab === 'appointments' ? 'active' : ''}`}
+          onClick={() => setActiveTab('appointments')}
+        >
+          <FiCalendar /> Appointments ({history.appointments.length})
+        </button>
+        <button
+          className={`tab ${activeTab === 'cases' ? 'active' : ''}`}
+          onClick={() => setActiveTab('cases')}
+        >
+          <FiFileText /> Medical Cases ({history.cases.length})
+        </button>
       </div>
 
       <div className="card">
         <div className="card-body">
           {loading ? (
-            <p>Loading medical history...</p>
-          ) : history.length === 0 ? (
-            <div className="empty-state">
-              <FiFileText className="empty-icon" />
-              <h3>No Medical History</h3>
-              <p>Your medical history will appear here after your first visit</p>
+            <div className="loading-state">
+              <div className="spinner"></div>
+              <p>Loading medical history...</p>
             </div>
           ) : (
-            <div className="history-list">
-              {history.map((record) => (
-                <div key={record._id} className="history-item">
-                  <div
-                    className="history-header"
-                    onClick={() => toggleExpand(record._id)}
-                  >
-                    <div className="history-date">
-                      <FiCalendar />
-                      <span>{formatDate(record.visitDate)}</span>
-                    </div>
-                    <div className="history-summary">
-                      <span className="diagnosis">{record.diagnosis || 'General Checkup'}</span>
-                      <span className="doctor">
-                        <FiUser /> {record.doctorName || 'Dr. Unknown'}
-                      </span>
-                    </div>
-                    {expandedId === record._id ? <FiChevronUp /> : <FiChevronDown />}
-                  </div>
-
-                  {expandedId === record._id && (
-                    <div className="history-details">
-                      <div className="detail-section">
-                        <h4>Diagnosis</h4>
-                        <p>{record.diagnosis || 'N/A'}</p>
-                      </div>
-                      <div className="detail-section">
-                        <h4>Treatment Plan</h4>
-                        <p>{record.treatmentPlan || 'N/A'}</p>
-                      </div>
-                      <div className="detail-section">
-                        <h4>Prescribed Medications</h4>
-                        <ul>
-                          {record.medications?.length > 0 ? (
-                            record.medications.map((med, i) => (
-                              <li key={i}>{med}</li>
-                            ))
-                          ) : (
-                            <li>No medications prescribed</li>
-                          )}
-                        </ul>
-                      </div>
-                      <div className="detail-section">
-                        <h4>Notes</h4>
-                        <p>{record.notes || 'No additional notes'}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+            <>
+              {activeTab === 'visits' && renderVisitsTab()}
+              {activeTab === 'appointments' && renderAppointmentsTab()}
+              {activeTab === 'cases' && renderCasesTab()}
+            </>
           )}
         </div>
       </div>
 
       <style>{`
+        .tabs {
+          display: flex;
+          gap: 0.5rem;
+          margin-bottom: 1.5rem;
+          border-bottom: 2px solid var(--border-color);
+          padding-bottom: 0;
+        }
+        .tab {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.75rem 1.25rem;
+          background: none;
+          border: none;
+          font-size: 0.9rem;
+          font-weight: 500;
+          color: var(--text-secondary);
+          cursor: pointer;
+          border-bottom: 2px solid transparent;
+          margin-bottom: -2px;
+          transition: all 0.2s;
+        }
+        .tab:hover {
+          color: var(--accent-blue);
+        }
+        .tab.active {
+          color: var(--accent-blue);
+          border-bottom-color: var(--accent-blue);
+        }
+        .loading-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 4rem;
+          color: var(--text-muted);
+        }
+        .spinner {
+          width: 40px;
+          height: 40px;
+          border: 3px solid var(--border-color);
+          border-top-color: var(--accent-blue);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 1rem;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
         .history-list {
           display: flex;
           flex-direction: column;
@@ -123,6 +489,7 @@ const PatientHistory = () => {
           display: flex;
           align-items: center;
           padding: 1rem 1.25rem;
+          gap: 1rem;
           cursor: pointer;
           transition: background 0.2s;
         }
@@ -133,9 +500,17 @@ const PatientHistory = () => {
           display: flex;
           align-items: center;
           gap: 0.5rem;
-          min-width: 180px;
+          min-width: 140px;
           color: var(--accent-blue);
           font-weight: 500;
+        }
+        .date-time {
+          display: flex;
+          flex-direction: column;
+        }
+        .date-time .time {
+          font-size: 0.8rem;
+          color: var(--text-secondary);
         }
         .history-summary {
           flex: 1;
@@ -143,20 +518,72 @@ const PatientHistory = () => {
           flex-direction: column;
           gap: 0.25rem;
         }
-        .diagnosis {
-          font-weight: 500;
+        .visit-status {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
         }
-        .doctor {
+        .billing-preview {
           display: flex;
           align-items: center;
           gap: 0.375rem;
           font-size: 0.85rem;
           color: var(--text-secondary);
         }
+        .payment-status {
+          font-size: 0.75rem;
+        }
+        .appointment-doctor, .case-doctor {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+          font-weight: 500;
+        }
+        .appointment-dept, .case-diagnosis {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+        }
+        .status-badge {
+          display: inline-flex;
+          align-items: center;
+          padding: 0.25rem 0.75rem;
+          border-radius: var(--radius-full);
+          font-size: 0.75rem;
+          font-weight: 500;
+          text-transform: capitalize;
+        }
+        .status-badge.success {
+          background: rgba(34, 197, 94, 0.1);
+          color: var(--accent-green);
+        }
+        .status-badge.warning {
+          background: rgba(245, 158, 11, 0.1);
+          color: var(--accent-orange);
+        }
+        .status-badge.danger {
+          background: rgba(239, 68, 68, 0.1);
+          color: var(--accent-red);
+        }
+        .status-badge.small {
+          padding: 0.125rem 0.5rem;
+          font-size: 0.7rem;
+        }
+        .status-icon {
+          font-size: 1rem;
+        }
+        .status-icon.success { color: var(--accent-green); }
+        .status-icon.warning { color: var(--accent-orange); }
+        .status-icon.danger { color: var(--accent-red); }
         .history-details {
           padding: 1.25rem;
           background: var(--bg-light);
           border-top: 1px solid var(--border-color);
+        }
+        .detail-row {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          gap: 1rem;
+          margin-bottom: 1rem;
         }
         .detail-section {
           margin-bottom: 1rem;
@@ -165,21 +592,126 @@ const PatientHistory = () => {
           margin-bottom: 0;
         }
         .detail-section h4 {
-          font-size: 0.85rem;
+          font-size: 0.8rem;
           font-weight: 600;
           color: var(--text-secondary);
           margin-bottom: 0.375rem;
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
         }
         .detail-section p {
           font-size: 0.9rem;
         }
-        .detail-section ul {
-          list-style: disc;
-          margin-left: 1.25rem;
+        .sub-info {
+          font-size: 0.8rem;
+          color: var(--text-muted);
+        }
+        .notes-section {
+          background: white;
+          padding: 1rem;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border-color);
+        }
+        .notes-content {
+          font-size: 0.9rem;
+          line-height: 1.6;
+        }
+        .no-notes {
+          color: var(--text-muted);
+          font-style: italic;
+        }
+        .billing-section {
+          background: white;
+          padding: 1rem;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border-color);
+        }
+        .billing-section h4 {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+          margin-bottom: 1rem;
           font-size: 0.9rem;
         }
-        .detail-section li {
+        .billing-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          gap: 1rem;
+          margin-bottom: 1rem;
+        }
+        .billing-item {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+        .billing-item .label {
+          font-size: 0.75rem;
+          color: var(--text-secondary);
+        }
+        .billing-item .value {
+          font-weight: 600;
+          font-size: 1rem;
+        }
+        .billing-item .value.success { color: var(--accent-green); }
+        .billing-item .value.danger { color: var(--accent-red); }
+        .billing-items {
+          margin-top: 1rem;
+        }
+        .billing-items h5 {
+          font-size: 0.85rem;
+          margin-bottom: 0.5rem;
+        }
+        .billing-items table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 0.85rem;
+        }
+        .billing-items th, .billing-items td {
+          padding: 0.5rem;
+          text-align: left;
+          border-bottom: 1px solid var(--border-color);
+        }
+        .billing-items th {
+          font-weight: 600;
+          color: var(--text-secondary);
+        }
+        .medications-section {
+          margin-top: 1rem;
+        }
+        .medications-section h4 {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+          margin-bottom: 0.75rem;
+        }
+        .medications-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 0.75rem;
+        }
+        .medication-card {
+          background: white;
+          padding: 0.75rem;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border-color);
+        }
+        .med-name {
+          font-weight: 500;
           margin-bottom: 0.25rem;
+        }
+        .med-info {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 0.8rem;
+          color: var(--text-secondary);
+        }
+        .med-note {
+          font-size: 0.8rem;
+          color: var(--text-muted);
+          margin-top: 0.5rem;
+          font-style: italic;
         }
         .empty-state {
           text-align: center;
@@ -189,6 +721,34 @@ const PatientHistory = () => {
           font-size: 3rem;
           color: var(--text-muted);
           margin-bottom: 1rem;
+        }
+        .empty-state h3 {
+          margin-bottom: 0.5rem;
+        }
+        .empty-state p {
+          color: var(--text-secondary);
+        }
+
+        @media (max-width: 768px) {
+          .tabs {
+            flex-wrap: wrap;
+          }
+          .tab {
+            flex: 1;
+            justify-content: center;
+            padding: 0.625rem 0.75rem;
+            font-size: 0.8rem;
+          }
+          .history-header {
+            flex-wrap: wrap;
+          }
+          .history-date {
+            min-width: 100%;
+            margin-bottom: 0.5rem;
+          }
+          .detail-row {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </Layout>

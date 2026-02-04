@@ -64,7 +64,6 @@ const Sidebar = ({ appName, role }) => {
           { path: '/patient', icon: FiGrid, label: 'Dashboard', exact: true },
           { path: '/patient/history', icon: FiFileText, label: 'History' },
           { path: '/patient/records', icon: FiFolder, label: 'Medical Records' },
-          { path: '/patient/documents', icon: FiClipboard, label: 'Documents' },
           { path: '/patient/medications', icon: FiHeart, label: 'Medications' },
           { path: '/patient/profile', icon: FiUser, label: 'Profile' }
         ];
@@ -90,8 +89,6 @@ const Sidebar = ({ appName, role }) => {
         return `${user?.ward || 'ICU Ward'} - ${user?.shift || 'Shift 1'}`;
       case 'doctor':
         return user?.specialization || 'Cardiology';
-      case 'patient':
-        return user?.patientId || 'PT-2024-5789';
       case 'receptionist':
         return 'Reception Desk';
       default:

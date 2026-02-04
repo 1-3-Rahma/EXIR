@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
 import { receptionistAPI } from '../../services/api';
@@ -8,7 +8,7 @@ const ReceptionistPatients = () => {
   const navigate = useNavigate();
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [patients, setPatients] = useState([]);
+  const [allPatients, setAllPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     nationalID: '',
@@ -27,28 +27,36 @@ const ReceptionistPatients = () => {
     loadPatients();
   }, []);
 
-  const loadPatients = async (search = '') => {
+  const loadPatients = async () => {
     setLoading(true);
     try {
-      const response = await receptionistAPI.getAllPatients(search);
-      setPatients(response.data);
+      const response = await receptionistAPI.getAllPatients();
+      setAllPatients(response.data || []);
     } catch (error) {
       console.error('Error loading patients:', error);
-      setPatients([]);
+      setAllPatients([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearch = () => {
-    loadPatients(searchTerm);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      handleSearch();
+  // Dynamic filtering based on search term
+  const filteredPatients = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return allPatients;
     }
-  };
+
+    const term = searchTerm.toLowerCase().trim();
+    return allPatients.filter(patient => {
+      const fullName = (patient.fullName || '').toLowerCase();
+      const nationalID = (patient.nationalID || '').toLowerCase();
+      const phone = (patient.phone || '').toLowerCase();
+
+      return fullName.includes(term) ||
+             nationalID.includes(term) ||
+             phone.includes(term);
+    });
+  }, [allPatients, searchTerm]);
 
   const handlePatientClick = (patientId) => {
     navigate(`/receptionist/patients/${patientId}`);
@@ -97,7 +105,7 @@ const ReceptionistPatients = () => {
     try {
       await receptionistAPI.checkInPatient(patientId);
       alert('Patient checked in successfully! A new visit has been started.');
-      loadPatients(searchTerm);
+      loadPatients();
     } catch (error) {
       alert(error.response?.data?.message || 'Failed to check in patient');
     }
@@ -115,14 +123,13 @@ const ReceptionistPatients = () => {
           <FiSearch />
           <input
             type="text"
-            placeholder="Search by name, ID, or phone..."
+            placeholder="Search by name, National ID, or phone number..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            onKeyDown={handleKeyDown}
           />
-          <button onClick={handleSearch} disabled={loading}>
-            Search
-          </button>
+        </div>
+        <div className="patients-count-badge">
+          <FiUser /> {filteredPatients.length} Patient{filteredPatients.length !== 1 ? 's' : ''}
         </div>
         <button
           className="register-btn"
@@ -136,12 +143,13 @@ const ReceptionistPatients = () => {
         <div className="card-body">
           {loading ? (
             <div className="loading-state">
+              <div className="spinner"></div>
               <p>Loading patients...</p>
             </div>
-          ) : patients.length === 0 ? (
+          ) : filteredPatients.length === 0 ? (
             <div className="empty-state">
               <FiUser className="empty-icon" />
-              <h3>No Patients Found</h3>
+              <h3>{searchTerm ? 'No Matching Patients' : 'No Patients Found'}</h3>
               <p>{searchTerm ? 'Try a different search term' : 'Register your first patient to get started'}</p>
             </div>
           ) : (
@@ -154,7 +162,7 @@ const ReceptionistPatients = () => {
                 <span className="col-last-visit">Last Visit</span>
                 <span className="col-actions">Actions</span>
               </div>
-              {patients.map((patient) => (
+              {filteredPatients.map((patient) => (
                 <div
                   key={patient._id}
                   className="patient-row"
@@ -197,10 +205,6 @@ const ReceptionistPatients = () => {
             </div>
           )}
         </div>
-      </div>
-
-      <div className="patients-count">
-        Showing {patients.length} patient{patients.length !== 1 ? 's' : ''}
       </div>
 
       {showRegisterModal && (
@@ -351,7 +355,7 @@ const ReceptionistPatients = () => {
           background: var(--bg-white);
           border: 1px solid var(--border-color);
           border-radius: var(--radius-md);
-          padding: 0.5rem 1rem;
+          padding: 0.75rem 1rem;
         }
         .search-box input {
           flex: 1;
@@ -359,17 +363,17 @@ const ReceptionistPatients = () => {
           outline: none;
           font-size: 0.9rem;
         }
-        .search-box button {
-          background: var(--accent-blue);
-          color: white;
-          border: none;
-          padding: 0.5rem 1rem;
+        .patients-count-badge {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.75rem 1.25rem;
+          background: rgba(59, 130, 246, 0.1);
+          color: var(--accent-blue);
           border-radius: var(--radius-md);
-          cursor: pointer;
-        }
-        .search-box button:disabled {
-          opacity: 0.7;
-          cursor: not-allowed;
+          font-weight: 500;
+          font-size: 0.9rem;
+          white-space: nowrap;
         }
         .register-btn {
           display: flex;
@@ -383,19 +387,47 @@ const ReceptionistPatients = () => {
           font-size: 0.9rem;
           font-weight: 500;
           cursor: pointer;
+          white-space: nowrap;
         }
         .register-btn:hover {
           opacity: 0.9;
         }
-        .loading-state,
+        .loading-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 4rem;
+          color: var(--text-muted);
+        }
+        .spinner {
+          width: 40px;
+          height: 40px;
+          border: 3px solid var(--border-color);
+          border-top-color: var(--accent-blue);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 1rem;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
         .empty-state {
           text-align: center;
-          padding: 3rem;
+          padding: 4rem 2rem;
         }
         .empty-icon {
-          font-size: 3rem;
+          font-size: 3.5rem;
           color: var(--text-muted);
           margin-bottom: 1rem;
+        }
+        .empty-state h3 {
+          font-size: 1.1rem;
+          margin-bottom: 0.5rem;
+        }
+        .empty-state p {
+          color: var(--text-secondary);
+          font-size: 0.9rem;
         }
         .patients-list {
           display: flex;
@@ -476,12 +508,6 @@ const ReceptionistPatients = () => {
         }
         .icon-small {
           font-size: 0.85rem;
-        }
-        .patients-count {
-          text-align: center;
-          padding: 1rem;
-          color: var(--text-muted);
-          font-size: 0.9rem;
         }
         .modal-overlay {
           position: fixed;
@@ -615,6 +641,57 @@ const ReceptionistPatients = () => {
         .status-badge.active {
           background: rgba(59, 130, 246, 0.1);
           color: var(--accent-blue);
+        }
+
+        @media (max-width: 1024px) {
+          .list-header,
+          .patient-row {
+            grid-template-columns: 2fr 1.5fr 1fr 1fr;
+          }
+          .col-visits,
+          .col-last-visit {
+            display: none;
+          }
+        }
+        @media (max-width: 768px) {
+          .action-bar {
+            flex-direction: column;
+          }
+          .search-box {
+            width: 100%;
+          }
+          .patients-count-badge {
+            width: 100%;
+            justify-content: center;
+          }
+          .register-btn {
+            width: 100%;
+            justify-content: center;
+          }
+          .list-header {
+            display: none;
+          }
+          .patient-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            margin-bottom: 0.5rem;
+          }
+          .col-name {
+            width: 100%;
+          }
+          .col-id,
+          .col-phone {
+            width: 100%;
+            font-size: 0.85rem;
+          }
+          .col-actions {
+            width: 100%;
+            justify-content: flex-start;
+          }
         }
       `}</style>
     </Layout>
