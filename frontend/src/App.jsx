@@ -25,6 +25,7 @@ import PatientDashboard from './pages/patient/PatientDashboard';
 import PatientHistory from './pages/patient/PatientHistory';
 import PatientRecords from './pages/patient/PatientRecords';
 import PatientMedications from './pages/patient/PatientMedications';
+import PatientProfilePage from './pages/patient/PatientProfile';
 
 import ReceptionistDashboard from './pages/receptionist/ReceptionistDashboard';
 import ReceptionistPatients from './pages/receptionist/ReceptionistPatients';
@@ -99,6 +100,7 @@ function App() {
       <Route path="/patient/history" element={<PrivateRoute allowedRoles={['patient']}><PatientHistory /></PrivateRoute>} />
       <Route path="/patient/records" element={<PrivateRoute allowedRoles={['patient']}><PatientRecords /></PrivateRoute>} />
       <Route path="/patient/medications" element={<PrivateRoute allowedRoles={['patient']}><PatientMedications /></PrivateRoute>} />
+      <Route path="/patient/profile" element={<PrivateRoute allowedRoles={['patient']}><PatientProfilePage /></PrivateRoute>} />
 
       {/* Receptionist Routes */}
       <Route path="/receptionist" element={<PrivateRoute allowedRoles={['receptionist']}><ReceptionistDashboard /></PrivateRoute>} />

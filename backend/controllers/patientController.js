@@ -47,17 +47,39 @@ const getMedicalHistory = async (req, res) => {
       return res.status(404).json({ message: 'Patient profile not found' });
     }
 
-    // Get all visits with billing information
+    // Get all visits with billing information and medical records
     const visits = await Visit.find({ patientId: patient._id })
       .populate('registeredBy', 'fullName')
+      .populate('supervisingDoctor', 'fullName specialization')
       .sort({ admissionDate: -1 });
 
-    // Get billing for each visit
-    const visitsWithBilling = await Promise.all(
+    // Get billing and medical records for each visit
+    const visitsWithDetails = await Promise.all(
       visits.map(async (visit) => {
         const billing = await Billing.findOne({ visitId: visit._id });
+
+        // Get medical records associated with this visit (by date range or visitId if linked)
+        const visitStartDate = new Date(visit.admissionDate);
+        visitStartDate.setHours(0, 0, 0, 0);
+
+        const visitEndDate = visit.dischargeDate
+          ? new Date(visit.dischargeDate)
+          : new Date();
+        visitEndDate.setHours(23, 59, 59, 999);
+
+        // Fetch medical records (lab results, imaging, reports) created during visit
+        const medicalRecords = await MedicalRecord.find({
+          patientId: patient._id,
+          createdAt: { $gte: visitStartDate, $lte: visitEndDate }
+        }).populate('uploadedBy', 'fullName');
+
         return {
           _id: visit._id,
+          title: visit.title || `${visit.reason.charAt(0).toUpperCase() + visit.reason.slice(1)} Visit`,
+          description: visit.description,
+          reason: visit.reason,
+          hospitalName: visit.hospitalName,
+          supervisingDoctor: visit.supervisingDoctor,
           admissionDate: visit.admissionDate,
           dischargeDate: visit.dischargeDate,
           status: visit.status,
@@ -68,7 +90,15 @@ const getMedicalHistory = async (req, res) => {
             dueAmount: billing.dueAmount,
             paymentStatus: billing.paymentStatus,
             items: billing.items
-          } : null
+          } : null,
+          medicalRecords: medicalRecords.map(record => ({
+            _id: record._id,
+            recordType: record.recordType,
+            fileName: record.fileName,
+            description: record.description,
+            uploadedBy: record.uploadedBy?.fullName || 'Unknown',
+            createdAt: record.createdAt
+          }))
         };
       })
     );
@@ -106,7 +136,7 @@ const getMedicalHistory = async (req, res) => {
         contactInfo: patient.contactInfo,
         phone: patient.phone
       },
-      visits: visitsWithBilling,
+      visits: visitsWithDetails,
       appointments,
       cases: formattedCases
     });

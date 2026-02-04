@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { notificationAPI } from '../../services/api';
 import {
   FiGrid, FiUsers, FiActivity, FiAlertTriangle, FiMessageSquare,
-  FiSettings, FiUser, FiLogOut, FiFileText, FiDollarSign,
+  FiUser, FiLogOut, FiFileText, FiDollarSign,
   FiCalendar, FiClipboard, FiHeart, FiFolder, FiClock, FiPackage
 } from 'react-icons/fi';
 
@@ -64,8 +64,7 @@ const Sidebar = ({ appName, role }) => {
           { path: '/patient', icon: FiGrid, label: 'Dashboard', exact: true },
           { path: '/patient/history', icon: FiFileText, label: 'History' },
           { path: '/patient/records', icon: FiFolder, label: 'Medical Records' },
-          { path: '/patient/medications', icon: FiHeart, label: 'Medications' },
-          { path: '/patient/profile', icon: FiUser, label: 'Profile' }
+          { path: '/patient/medications', icon: FiHeart, label: 'Medications' }
         ];
       case 'receptionist':
         return [
@@ -136,19 +135,8 @@ const Sidebar = ({ appName, role }) => {
       </nav>
 
       <div className="sidebar-footer">
-        {(role === 'nurse' || role === 'doctor' || role === 'receptionist') ? (
+        {(role === 'nurse' || role === 'doctor' || role === 'receptionist' || role === 'patient') && (
           <NavLink to={`/${role}/profile`} className="nav-item">
-            <FiUser className="nav-icon" />
-            <span>Profile</span>
-          </NavLink>
-        ) : (
-          <NavLink to={`/${role}/settings`} className="nav-item">
-            <FiSettings className="nav-icon" />
-            <span>Settings</span>
-          </NavLink>
-        )}
-        {role === 'patient' && (
-          <NavLink to="/patient/profile" className="nav-item">
             <FiUser className="nav-icon" />
             <span>Profile</span>
           </NavLink>

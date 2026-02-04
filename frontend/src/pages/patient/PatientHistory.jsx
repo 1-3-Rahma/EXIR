@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/common/Layout';
-import { patientAPI } from '../../services/api';
+import { patientAPI, medicalRecordAPI } from '../../services/api';
 import {
   FiFileText, FiCalendar, FiUser, FiChevronDown, FiChevronUp,
   FiClock, FiDollarSign, FiActivity, FiClipboard, FiHeart,
-  FiCheckCircle, FiAlertCircle, FiXCircle
+  FiCheckCircle, FiAlertCircle, FiXCircle, FiDownload, FiMapPin,
+  FiImage, FiFile
 } from 'react-icons/fi';
 
 const PatientHistory = () => {
@@ -58,6 +59,45 @@ const PatientHistory = () => {
 
   const toggleExpand = (id) => {
     setExpandedId(expandedId === id ? null : id);
+  };
+
+  const handleDownload = async (record) => {
+    try {
+      const response = await medicalRecordAPI.downloadFile(record._id);
+      const blob = new Blob([response.data]);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = record.fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Failed to download file');
+    }
+  };
+
+  const getReasonBadgeClass = (reason) => {
+    switch (reason) {
+      case 'emergency': return 'danger';
+      case 'surgery': return 'warning';
+      case 'consultation': return 'info';
+      case 'test': return 'purple';
+      case 'checkup': return 'success';
+      case 'follow-up': return 'secondary';
+      default: return '';
+    }
+  };
+
+  const getRecordIcon = (type) => {
+    switch (type) {
+      case 'lab': return <FiFileText className="record-icon lab" />;
+      case 'imaging': return <FiImage className="record-icon imaging" />;
+      case 'report': return <FiFileText className="record-icon report" />;
+      default: return <FiFile className="record-icon" />;
+    }
   };
 
   const getStatusIcon = (status) => {
@@ -116,43 +156,124 @@ const PatientHistory = () => {
             >
               <div className="history-date">
                 <FiCalendar />
-                <span>{formatDate(visit.admissionDate)}</span>
+                <div className="date-info">
+                  <span>{formatDate(visit.admissionDate)}</span>
+                  <span className={`reason-badge ${getReasonBadgeClass(visit.reason)}`}>
+                    {visit.reason}
+                  </span>
+                </div>
               </div>
               <div className="history-summary">
-                <span className="visit-status">
-                  {getStatusIcon(visit.status)}
-                  <span className={`status-badge ${getStatusClass(visit.status)}`}>
-                    {visit.status === 'admitted' ? 'Active Visit' : 'Discharged'}
-                  </span>
+                <span className="visit-title">
+                  {visit.title || `${visit.reason.charAt(0).toUpperCase() + visit.reason.slice(1)} Visit`}
                 </span>
-                {visit.billing && (
-                  <span className="billing-preview">
-                    <FiDollarSign />
-                    {visit.billing.totalAmount} EGP
-                    <span className={`payment-status ${getStatusClass(visit.billing.paymentStatus)}`}>
-                      ({visit.billing.paymentStatus})
+                <div className="visit-meta">
+                  {visit.supervisingDoctor && (
+                    <span className="doctor-info">
+                      <FiUser /> Dr. {visit.supervisingDoctor.fullName}
                     </span>
+                  )}
+                  <span className="hospital-info">
+                    <FiMapPin /> {visit.hospitalName || 'EXIR Medical Center'}
                   </span>
-                )}
+                </div>
               </div>
+              <span className={`status-badge ${getStatusClass(visit.status)}`}>
+                {visit.status === 'admitted' ? 'Active' : 'Discharged'}
+              </span>
               {expandedId === visit._id ? <FiChevronUp /> : <FiChevronDown />}
             </div>
 
             {expandedId === visit._id && (
               <div className="history-details">
-                <div className="detail-row">
-                  <div className="detail-section">
-                    <h4>Admission Date</h4>
-                    <p>{formatDateTime(visit.admissionDate)}</p>
-                  </div>
-                  {visit.dischargeDate && (
+                {/* Visit Information */}
+                <div className="visit-info-section">
+                  <div className="detail-row">
                     <div className="detail-section">
-                      <h4>Discharge Date</h4>
-                      <p>{formatDateTime(visit.dischargeDate)}</p>
+                      <h4>Visit Title</h4>
+                      <p>{visit.title || 'General Visit'}</p>
+                    </div>
+                    <div className="detail-section">
+                      <h4>Reason</h4>
+                      <span className={`reason-badge large ${getReasonBadgeClass(visit.reason)}`}>
+                        {visit.reason}
+                      </span>
+                    </div>
+                    <div className="detail-section">
+                      <h4>Hospital</h4>
+                      <p><FiMapPin className="inline-icon" /> {visit.hospitalName || 'EXIR Medical Center'}</p>
+                    </div>
+                  </div>
+
+                  <div className="detail-row">
+                    <div className="detail-section">
+                      <h4>Admission Date</h4>
+                      <p>{formatDateTime(visit.admissionDate)}</p>
+                    </div>
+                    {visit.dischargeDate && (
+                      <div className="detail-section">
+                        <h4>Discharge Date</h4>
+                        <p>{formatDateTime(visit.dischargeDate)}</p>
+                      </div>
+                    )}
+                    {visit.supervisingDoctor && (
+                      <div className="detail-section">
+                        <h4>Supervising Doctor</h4>
+                        <p>Dr. {visit.supervisingDoctor.fullName}</p>
+                        <span className="sub-info">{visit.supervisingDoctor.specialization}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {visit.description && (
+                    <div className="detail-section">
+                      <h4>Description</h4>
+                      <p className="description-text">{visit.description}</p>
                     </div>
                   )}
                 </div>
 
+                {/* Medical Records Section */}
+                {visit.medicalRecords && visit.medicalRecords.length > 0 && (
+                  <div className="records-section">
+                    <h4><FiFileText /> Test Results & Documents</h4>
+                    <div className="records-grid">
+                      {visit.medicalRecords.map((record) => (
+                        <div key={record._id} className="record-card">
+                          <div className="record-header">
+                            {getRecordIcon(record.recordType)}
+                            <div className="record-info">
+                              <span className="record-name">{record.fileName}</span>
+                              <span className={`record-type-badge ${record.recordType}`}>
+                                {record.recordType}
+                              </span>
+                            </div>
+                          </div>
+                          {record.description && (
+                            <p className="record-description">{record.description}</p>
+                          )}
+                          <div className="record-footer">
+                            <span className="record-meta">
+                              <FiUser /> {record.uploadedBy}
+                            </span>
+                            <span className="record-date">{formatDate(record.createdAt)}</span>
+                          </div>
+                          <button
+                            className="download-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownload(record);
+                            }}
+                          >
+                            <FiDownload /> Download
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Billing Section */}
                 {visit.billing && (
                   <div className="billing-section">
                     <h4><FiDollarSign /> Billing Information</h4>
@@ -729,6 +850,174 @@ const PatientHistory = () => {
           color: var(--text-secondary);
         }
 
+        /* Visit specific styles */
+        .date-info {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+        .visit-title {
+          font-weight: 600;
+          font-size: 0.95rem;
+          color: var(--text-primary);
+        }
+        .visit-meta {
+          display: flex;
+          gap: 1rem;
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+        }
+        .doctor-info, .hospital-info {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+        }
+        .reason-badge {
+          display: inline-flex;
+          padding: 0.2rem 0.5rem;
+          border-radius: var(--radius-sm);
+          font-size: 0.7rem;
+          font-weight: 500;
+          text-transform: capitalize;
+          background: var(--bg-light);
+          color: var(--text-secondary);
+        }
+        .reason-badge.large {
+          padding: 0.375rem 0.75rem;
+          font-size: 0.8rem;
+        }
+        .reason-badge.success { background: rgba(34, 197, 94, 0.1); color: var(--accent-green); }
+        .reason-badge.warning { background: rgba(245, 158, 11, 0.1); color: var(--accent-orange); }
+        .reason-badge.danger { background: rgba(239, 68, 68, 0.1); color: var(--accent-red); }
+        .reason-badge.info { background: rgba(59, 130, 246, 0.1); color: var(--accent-blue); }
+        .reason-badge.purple { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+        .reason-badge.secondary { background: var(--bg-light); color: var(--text-secondary); }
+
+        .visit-info-section {
+          margin-bottom: 1rem;
+          padding-bottom: 1rem;
+          border-bottom: 1px solid var(--border-color);
+        }
+        .description-text {
+          background: white;
+          padding: 0.75rem;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border-color);
+          line-height: 1.5;
+        }
+        .inline-icon {
+          font-size: 0.85rem;
+          vertical-align: middle;
+          margin-right: 0.25rem;
+        }
+
+        /* Medical Records Section */
+        .records-section {
+          background: white;
+          padding: 1rem;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border-color);
+          margin-bottom: 1rem;
+        }
+        .records-section h4 {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          margin-bottom: 1rem;
+          font-size: 0.9rem;
+          font-weight: 600;
+        }
+        .records-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 1rem;
+        }
+        .record-card {
+          background: var(--bg-light);
+          padding: 1rem;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border-color);
+          transition: all 0.2s;
+        }
+        .record-card:hover {
+          border-color: var(--accent-blue);
+          box-shadow: var(--shadow-sm);
+        }
+        .record-header {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.75rem;
+          margin-bottom: 0.5rem;
+        }
+        .record-icon {
+          font-size: 1.5rem;
+          padding: 0.5rem;
+          background: white;
+          border-radius: var(--radius-md);
+        }
+        .record-icon.lab { color: var(--accent-blue); }
+        .record-icon.imaging { color: #8b5cf6; }
+        .record-icon.report { color: var(--accent-orange); }
+        .record-info {
+          flex: 1;
+        }
+        .record-name {
+          display: block;
+          font-weight: 500;
+          font-size: 0.9rem;
+          margin-bottom: 0.25rem;
+          word-break: break-word;
+        }
+        .record-type-badge {
+          display: inline-block;
+          padding: 0.125rem 0.375rem;
+          border-radius: var(--radius-sm);
+          font-size: 0.7rem;
+          text-transform: capitalize;
+          background: var(--bg-light);
+        }
+        .record-type-badge.lab { background: rgba(59, 130, 246, 0.1); color: var(--accent-blue); }
+        .record-type-badge.imaging { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+        .record-type-badge.report { background: rgba(245, 158, 11, 0.1); color: var(--accent-orange); }
+        .record-description {
+          font-size: 0.8rem;
+          color: var(--text-secondary);
+          margin-bottom: 0.5rem;
+          line-height: 1.4;
+        }
+        .record-footer {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 0.75rem;
+          color: var(--text-muted);
+          margin-bottom: 0.75rem;
+        }
+        .record-meta {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+        }
+        .download-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          width: 100%;
+          padding: 0.5rem 0.75rem;
+          background: var(--accent-blue);
+          color: white;
+          border: none;
+          border-radius: var(--radius-md);
+          font-size: 0.8rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+        .download-btn:hover {
+          background: var(--primary-blue);
+        }
+
         @media (max-width: 768px) {
           .tabs {
             flex-wrap: wrap;
@@ -746,7 +1035,14 @@ const PatientHistory = () => {
             min-width: 100%;
             margin-bottom: 0.5rem;
           }
+          .visit-meta {
+            flex-direction: column;
+            gap: 0.25rem;
+          }
           .detail-row {
+            grid-template-columns: 1fr;
+          }
+          .records-grid {
             grid-template-columns: 1fr;
           }
         }
