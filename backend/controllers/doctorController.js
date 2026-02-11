@@ -44,7 +44,7 @@ const getNursingStaff = async (req, res) => {
         fullName: p.fullName,
         dateOfBirth: p.dateOfBirth,
         age,
-        room: p.contactInfo || '—',
+        room: p.room || '—',
         condition: '—'
       });
     }
@@ -474,14 +474,14 @@ const getCriticalCases = async (req, res) => {
     });
     const roomByPatient = {};
     assignments.forEach(a => {
-      roomByPatient[a.patientId.toString()] = a.patientId?.contactInfo || 'N/A';
+      roomByPatient[a.patientId.toString()] = a.patientId?.room || 'N/A';
     });
 
     const list = cases.map(c => ({
       _id: c._id,
       patientId: c.patientId._id,
       patientName: c.patientId?.fullName || 'Unknown',
-      room: c.patientId?.contactInfo || 'N/A',
+      room: c.patientId?.room || 'N/A',
       reason: c.diagnosis || 'Marked critical by doctor',
       severity: 'high',
       createdAt: c.updatedAt

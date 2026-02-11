@@ -96,7 +96,7 @@ const NursePatients = () => {
           fullName: patient.fullName,
           age: age,
           gender: patient.gender || 'N/A',
-          room: patient.contactInfo || patient.room || vitalData?.room || 'N/A',
+          room:patient.room || 'N/A',
           condition: patient.condition || patient.diagnosis || 'Under Observation',
           status: status,
           assignedDoctor: patient.assignedDoctor,

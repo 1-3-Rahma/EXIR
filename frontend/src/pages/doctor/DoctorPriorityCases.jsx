@@ -69,9 +69,6 @@ const DoctorPriorityCases = () => {
                     <span className="severity-badge">
                       {caseItem.severity || 'High'}
                     </span>
-                    <Link to={`/doctor/patients`} className="view-link">
-                      View Patient <FiArrowRight />
-                    </Link>
                   </div>
                 </div>
               ))}
