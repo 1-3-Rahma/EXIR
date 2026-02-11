@@ -56,7 +56,7 @@ const getAssignedPatients = async (req, res) => {
     const nurseId = req.user._id;
 
     const assignments = await Assignment.find({ nurseId, isActive: true })
-      .populate('patientId', '_id nationalID fullName dateOfBirth contactInfo gender')
+      .populate('patientId', '_id nationalID fullName dateOfBirth contactInfo room gender')
       .populate('doctorId', 'fullName');
 
     const patientIds = assignments.map(a => a.patientId._id);
@@ -75,6 +75,7 @@ const getAssignedPatients = async (req, res) => {
         fullName: a.patientId.fullName,
         dateOfBirth: a.patientId.dateOfBirth,
         contactInfo: a.patientId.contactInfo,
+        room: a.patientId.room || '',
         gender: a.patientId.gender,
         assignedDoctor: a.doctorId?.fullName,
         shift: a.shift,
@@ -103,12 +104,12 @@ const getCriticalEvents = async (req, res) => {
     })
       .sort({ createdAt: -1 })
       .limit(50)
-      .populate('relatedPatientId', 'fullName nationalID contactInfo');
+      .populate('relatedPatientId', 'fullName nationalID room');
 
     const formatted = criticalNotifications.map(n => ({
       _id: n._id,
       patientName: n.relatedPatientId?.fullName || 'Unknown Patient',
-      room: n.relatedPatientId?.contactInfo || 'N/A',
+      room: n.relatedPatientId?.room || 'N/A',
       reason: n.message || n.title || 'Critical alert',
       type: 'critical',
       createdAt: n.createdAt,
@@ -143,7 +144,7 @@ const getUrgentCases = async (req, res) => {
       status: 'open',
       patientStatus: 'critical'
     })
-      .populate('patientId', 'fullName contactInfo')
+      .populate('patientId', 'fullName room')
       .populate('doctorId', 'fullName')
       .sort({ updatedAt: -1 });
 
@@ -162,7 +163,7 @@ const getUrgentCases = async (req, res) => {
     })
       .sort({ createdAt: -1 })
       .limit(50)
-      .populate('relatedPatientId', 'fullName contactInfo');
+      .populate('relatedPatientId', 'fullName room');
 
     const byPatient = new Map();
 
@@ -174,7 +175,7 @@ const getUrgentCases = async (req, res) => {
           _id: `case-${c._id}`,
           patientId: c.patientId._id,
           patientName: c.patientId.fullName || 'Unknown Patient',
-          room: c.patientId.contactInfo || 'N/A',
+          room: c.patientId.room || 'N/A',
           reason: `Marked critical by Dr. ${c.doctorId?.fullName || 'Doctor'}`,
           source: 'doctor',
           createdAt: c.updatedAt,
@@ -194,7 +195,7 @@ const getUrgentCases = async (req, res) => {
           _id: n._id,
           patientId: patient._id,
           patientName: patient.fullName || 'Unknown Patient',
-          room: patient.contactInfo || 'N/A',
+          room: patient.room || 'N/A',
           reason: n.message || 'Critical vital alert',
           source: 'vitals',
           createdAt: n.createdAt
@@ -328,7 +329,7 @@ const getMedications = async (req, res) => {
     const nurseId = req.user._id;
 
     const assignments = await Assignment.find({ nurseId, isActive: true })
-      .populate('patientId', 'fullName nationalID contactInfo');
+      .populate('patientId', 'fullName nationalID room');
     const patientIds = assignments.map(a => a.patientId._id);
 
     const medications = [];
@@ -342,12 +343,12 @@ const getMedications = async (req, res) => {
         { 'ivOrders.0': { $exists: true } }
       ]
     })
-      .populate('patientId', 'fullName nationalID contactInfo');
+      .populate('patientId', 'fullName nationalID room');
 
     cases.forEach(c => {
       const patientName = c.patientId?.fullName || 'Unknown';
       const patientId = c.patientId?._id;
-      const room = c.patientId?.contactInfo || 'N/A';
+      const room = c.patientId?.room || 'N/A';
 
       if (c.medications && c.medications.length > 0) {
         c.medications.forEach((med, idx) => {
@@ -642,10 +643,9 @@ const updatePatientRoom = async (req, res) => {
       return res.status(403).json({ message: 'You are not assigned to this patient' });
     }
 
-    // Update patient's contactInfo (used as room number)
     const patient = await Patient.findByIdAndUpdate(
       patientId,
-      { contactInfo: room },
+      { room },
       { new: true }
     );
 
@@ -656,7 +656,7 @@ const updatePatientRoom = async (req, res) => {
     res.json({
       success: true,
       message: 'Room number updated',
-      data: { room: patient.contactInfo }
+      data: { room: patient.room }
     });
   } catch (error) {
     console.error('Update patient room error:', error);

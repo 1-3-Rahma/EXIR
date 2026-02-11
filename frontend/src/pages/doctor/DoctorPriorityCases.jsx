@@ -62,7 +62,7 @@ const DoctorPriorityCases = () => {
                     <p className="priority-reason">{caseItem.reason}</p>
                     <div className="priority-meta">
                       <span><FiClock /> {formatTime(caseItem.createdAt)}</span>
-                      <span className="room">Room {caseItem.room || 'N/A'}</span>
+                      <span className="room">Room: {caseItem.room || 'N/A'}</span>
                     </div>
                   </div>
                   <div className="priority-actions">

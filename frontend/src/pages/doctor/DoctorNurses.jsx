@@ -7,7 +7,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 const shiftLabel = (s) => {
   if (!s) return '—';
-  const map = { morning: 'Morning (7 AM - 3 PM)', afternoon: 'Afternoon (3 PM - 11 PM)', night: 'Night (11 PM - 7 AM)' };
+  const map = { morning: 'Morning (7 AM - 3 PM)'};
   return map[s] || s;
 };
 
@@ -434,14 +434,7 @@ const DoctorNurses = () => {
                   ))}
                 </select>
               </div>
-              <div className="form-group">
-                <label>Shift</label>
-                <select value={assignShift} onChange={(e) => setAssignShift(e.target.value)}>
-                  <option value="morning">Morning (7 AM - 3 PM)</option>
-                  <option value="afternoon">Afternoon (3 PM - 11 PM)</option>
-                  <option value="night">Night (11 PM - 7 AM)</option>
-                </select>
-              </div>
+
               <div className="modal-actions">
                 <button type="button" onClick={() => setShowAssignModal(false)}>Cancel</button>
                 <button type="submit" disabled={assignSubmitting}>{assignSubmitting ? 'Assigning...' : 'Assign'}</button>

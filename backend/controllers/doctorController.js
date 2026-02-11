@@ -21,7 +21,7 @@ const getNursingStaff = async (req, res) => {
       .sort({ fullName: 1 });
 
     const assignments = await Assignment.find({ isActive: true })
-      .populate('patientId', 'fullName dateOfBirth contactInfo')
+      .populate('patientId', 'fullName dateOfBirth contactInfo room')
       .populate('nurseId', 'fullName shift');
 
     const byNurse = {};
@@ -44,7 +44,7 @@ const getNursingStaff = async (req, res) => {
         fullName: p.fullName,
         dateOfBirth: p.dateOfBirth,
         age,
-        room: p.contactInfo || '—',
+        room: p.room || '—',
         condition: '—'
       });
     }
@@ -316,7 +316,7 @@ const getPatients = async (req, res) => {
     const search = (req.query.search || '').trim();
 
     const cases = await Case.find({ doctorId, status: 'open' })
-      .populate('patientId', 'nationalID fullName dateOfBirth contactInfo');
+      .populate('patientId', 'nationalID fullName dateOfBirth contactInfo room');
 
     // Appointments where this doctor is assigned (receptionist assigns patients to this doctor)
     const appointments = await Appointment.find({
@@ -324,7 +324,7 @@ const getPatients = async (req, res) => {
       status: { $nin: ['cancelled'] },
       patientId: { $exists: true, $ne: null }
     })
-      .populate('patientId', 'nationalID fullName dateOfBirth contactInfo');
+      .populate('patientId', 'nationalID fullName dateOfBirth contactInfo room');
 
     const patientMap = new Map();
 
@@ -466,7 +466,7 @@ const getCriticalCases = async (req, res) => {
     const doctorId = req.user._id;
 
     const cases = await Case.find({ doctorId, status: 'open', patientStatus: 'critical' })
-      .populate('patientId', 'fullName nationalID contactInfo');
+      .populate('patientId', 'fullName nationalID room');
 
     const assignments = await Assignment.find({
       patientId: { $in: cases.map(c => c.patientId._id) },
@@ -474,14 +474,14 @@ const getCriticalCases = async (req, res) => {
     });
     const roomByPatient = {};
     assignments.forEach(a => {
-      roomByPatient[a.patientId.toString()] = a.patientId?.contactInfo || 'N/A';
+      roomByPatient[a.patientId.toString()] = a.patientId?.room || 'N/A';
     });
 
     const list = cases.map(c => ({
       _id: c._id,
       patientId: c.patientId._id,
       patientName: c.patientId?.fullName || 'Unknown',
-      room: c.patientId?.contactInfo || 'N/A',
+      room: c.patientId?.room || 'N/A',
       reason: c.diagnosis || 'Marked critical by doctor',
       severity: 'high',
       createdAt: c.updatedAt

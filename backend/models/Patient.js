@@ -63,6 +63,10 @@ const patientSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  room: {
+    type: String,
+    default: ''
+  },
   registeredByReceptionistId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
