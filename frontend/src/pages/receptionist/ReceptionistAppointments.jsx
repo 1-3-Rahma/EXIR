@@ -47,7 +47,6 @@ const ReceptionistAppointments = () => {
     'Urology',
     'Psychiatry',
     'Oncology',
-    'Emergency',
     'Other'
   ];
 

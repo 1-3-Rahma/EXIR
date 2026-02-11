@@ -762,14 +762,7 @@ const NurseMessages = () => {
                     <div style={styles.contactRole}>{selectedContact.role} - {selectedContact.status}</div>
                   </div>
                 </div>
-                <div style={styles.chatActions}>
-                  {selectedContact.phone ? (
-                    <a href={`tel:${selectedContact.phone}`} style={{ ...styles.actionBtn, textDecoration: 'none', color: 'inherit' }}>📞 Call</a>
-                  ) : (
-                    <button style={styles.actionBtn} title="No phone number on file">📞 Call</button>
-                  )}
-                  <button style={styles.actionBtn} title="Video call (coming soon)">📹 Video</button>
-                </div>
+                
               </div>
               <div style={styles.chatMessages}>
                 {loadingMessages ? (

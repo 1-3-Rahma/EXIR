@@ -130,7 +130,6 @@ const DoctorPatients = () => {
                         </div>
                       </td>
                       <td>{patient.nationalID}</td>
-                      <td>{patient.appointmentDoctorName || '—'}</td>
                       <td>{formatAppointmentDateTime(patient.appointmentDate, patient.appointmentTime)}</td>
                       <td>
                         <span className={`status-pill ${patient.patientStatus === 'critical' ? 'critical' : 'stable'}`}>

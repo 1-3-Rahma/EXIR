@@ -434,7 +434,11 @@ const DoctorNurses = () => {
                   ))}
                 </select>
               </div>
+<<<<<<< HEAD
 
+=======
+             
+>>>>>>> 3510409b5cb2bc47917ce6f00a9bc953d49ac921
               <div className="modal-actions">
                 <button type="button" onClick={() => setShowAssignModal(false)}>Cancel</button>
                 <button type="submit" disabled={assignSubmitting}>{assignSubmitting ? 'Assigning...' : 'Assign'}</button>
