@@ -40,6 +40,7 @@ const caseSchema = new mongoose.Schema({
   medications: [{
     medicineName: { type: String, required: true },
     timesPerDay: { type: Number, required: true },
+    schedule: { type: [String], enum: ['morning', 'afternoon', 'evening', 'night'], default: [] },
     note: { type: String, default: '' },
     status: { type: String, enum: ['active', 'given'], default: 'active' },
     givenAt: { type: Date, default: null },

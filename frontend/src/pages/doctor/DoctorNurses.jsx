@@ -25,7 +25,13 @@ const DoctorNurses = () => {
   const [assignSubmitting, setAssignSubmitting] = useState(false);
   const [showRxModal, setShowRxModal] = useState(false);
   const [selectedPatientForRx, setSelectedPatientForRx] = useState(null);
-  const [rxRows, setRxRows] = useState([{ medicineName: '', timesPerDay: '', note: '' }]);
+  const SCHEDULE_OPTIONS = [
+    { value: 'morning', label: 'Morning' },
+    { value: 'afternoon', label: 'Afternoon' },
+    { value: 'evening', label: 'Evening' },
+    { value: 'night', label: 'Night' }
+  ];
+  const [rxRows, setRxRows] = useState([{ medicineName: '', timesPerDay: '', schedule: [], note: '' }]);
   const [rxSubmitting, setRxSubmitting] = useState(false);
   const [showIvModal, setShowIvModal] = useState(false);
   const [selectedPatientForIv, setSelectedPatientForIv] = useState(null);
@@ -107,12 +113,24 @@ const DoctorNurses = () => {
 
   const openAddRx = (patient) => {
     setSelectedPatientForRx(patient);
-    setRxRows([{ medicineName: '', timesPerDay: '', note: '' }]);
+    setRxRows([{ medicineName: '', timesPerDay: '', schedule: [], note: '' }]);
     setShowRxModal(true);
   };
 
   const addRxRow = () => {
-    setRxRows((prev) => [...prev, { medicineName: '', timesPerDay: '', note: '' }]);
+    setRxRows((prev) => [...prev, { medicineName: '', timesPerDay: '', schedule: [], note: '' }]);
+  };
+
+  const toggleSchedule = (rowIndex, slot) => {
+    setRxRows((prev) => prev.map((row, i) => {
+      if (i !== rowIndex) return row;
+      const n = Number(row.timesPerDay) || 0;
+      const current = Array.isArray(row.schedule) ? [...row.schedule] : [];
+      const has = current.includes(slot);
+      if (has) return { ...row, schedule: current.filter(s => s !== slot) };
+      if (current.length >= n && n > 0) return row;
+      return { ...row, schedule: [...current, slot].sort() };
+    }));
   };
 
   const removeRxRow = (index) => {
@@ -142,6 +160,14 @@ const DoctorNurses = () => {
     medications.forEach((m, i) => {
       doc.text(`${i + 1}. ${m.medicineName}`, 25, y);
       doc.text(`${m.timesPerDay}x per day`, 120, y);
+      y += 5;
+      const when = (m.schedule && m.schedule.length) ? m.schedule.map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(', ') : '';
+      if (when) {
+        doc.setFontSize(9);
+        doc.text(`   When: ${when}`, 25, y);
+        doc.setFontSize(10);
+        y += 5;
+      }
       if (m.note) {
         y += 5;
         doc.setFontSize(9);
@@ -157,11 +183,26 @@ const DoctorNurses = () => {
   const getValidMedications = () => {
     return rxRows
       .filter((r) => String(r.medicineName || '').trim() && (r.timesPerDay != null && r.timesPerDay !== ''))
-      .map((r) => ({
-        medicineName: String(r.medicineName || '').trim(),
-        timesPerDay: Number(r.timesPerDay),
-        note: String(r.note || '').trim()
-      }));
+      .map((r) => {
+        const timesPerDay = Number(r.timesPerDay);
+        let schedule = Array.isArray(r.schedule) ? r.schedule : [];
+        if (schedule.length !== timesPerDay && timesPerDay >= 1 && timesPerDay <= 4) {
+          const defaults = [
+            ['morning'],
+            ['morning', 'evening'],
+            ['morning', 'afternoon', 'night'],
+            ['morning', 'afternoon', 'evening', 'night']
+          ];
+          schedule = defaults[timesPerDay - 1] || ['morning'];
+        }
+        if (schedule.length === 0) schedule = ['morning'];
+        return {
+          medicineName: String(r.medicineName || '').trim(),
+          timesPerDay,
+          schedule,
+          note: String(r.note || '').trim()
+        };
+      });
   };
 
   const handleRxSubmit = async (e) => {
@@ -332,18 +373,24 @@ const DoctorNurses = () => {
                                 <h5><FiPackage size={14} /> Prescriptions</h5>
                                 {patient.prescriptions && patient.prescriptions.length > 0 ? (
                                   <div className="orders-list">
-                                    {patient.prescriptions.map((rx, idx) => (
-                                      <div key={rx._id || idx} className={`order-item ${rx.status === 'given' ? 'given' : ''}`}>
-                                        <div className="order-main">
-                                          <span className="order-name">{rx.medicineName}</span>
-                                          <span className="order-dosage">{rx.timesPerDay}x per day</span>
+                                    {patient.prescriptions.map((rx, idx) => {
+                                      const when = (rx.schedule && rx.schedule.length)
+                                        ? rx.schedule.map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(', ')
+                                        : `${rx.timesPerDay}x per day`;
+                                      return (
+                                        <div key={rx._id || idx} className={`order-item ${rx.status === 'given' ? 'given' : ''}`}>
+                                          <div className="order-main">
+                                            <span className="order-name">{rx.medicineName}</span>
+                                            <span className="order-dosage">{rx.timesPerDay}x/day {rx.schedule?.length ? `(${when})` : ''}</span>
+                                          </div>
+                                          {rx.schedule?.length ? <p className="order-note">Take at: {when}</p> : null}
+                                          {rx.note && <p className="order-note">{rx.note}</p>}
+                                          {rx.status === 'given' && (
+                                            <span className="status-badge given">Given</span>
+                                          )}
                                         </div>
-                                        {rx.note && <p className="order-note">{rx.note}</p>}
-                                        {rx.status === 'given' && (
-                                          <span className="status-badge given">Given</span>
-                                        )}
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
                                 ) : (
                                   <p className="no-orders">No prescriptions yet</p>
@@ -476,45 +523,68 @@ const DoctorNurses = () => {
                     <tr>
                       <th>Medicine name</th>
                       <th>Times per day</th>
+                      <th>When (select times)</th>
                       <th>Note</th>
                       <th></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rxRows.map((row, index) => (
-                      <tr key={index}>
-                        <td>
-                          <input
-                            type="text"
-                            value={row.medicineName}
-                            onChange={(e) => updateRxRow(index, 'medicineName', e.target.value)}
-                            placeholder="e.g. Paracetamol"
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="number"
-                            min={1}
-                            value={row.timesPerDay}
-                            onChange={(e) => updateRxRow(index, 'timesPerDay', e.target.value)}
-                            placeholder="e.g. 2"
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="text"
-                            value={row.note}
-                            onChange={(e) => updateRxRow(index, 'note', e.target.value)}
-                            placeholder="Optional note"
-                          />
-                        </td>
-                        <td>
-                          <button type="button" className="btn-remove-row" onClick={() => removeRxRow(index)} title="Remove row">
-                            <FiTrash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {rxRows.map((row, index) => {
+                      const n = Number(row.timesPerDay) || 0;
+                      const selected = Array.isArray(row.schedule) ? row.schedule : [];
+                      return (
+                        <tr key={index}>
+                          <td>
+                            <input
+                              type="text"
+                              value={row.medicineName}
+                              onChange={(e) => updateRxRow(index, 'medicineName', e.target.value)}
+                              placeholder="e.g. Paracetamol"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              min={1}
+                              max={4}
+                              value={row.timesPerDay}
+                              onChange={(e) => updateRxRow(index, 'timesPerDay', e.target.value)}
+                              placeholder="1–4"
+                            />
+                          </td>
+                          <td className="rx-when-cell">
+                            {SCHEDULE_OPTIONS.map((opt) => {
+                              const checked = selected.includes(opt.value);
+                              const disabled = !checked && n > 0 && selected.length >= n;
+                              return (
+                                <label key={opt.value} className={`rx-when-check ${disabled ? 'disabled' : ''}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    disabled={disabled}
+                                    onChange={() => toggleSchedule(index, opt.value)}
+                                  />
+                                  <span>{opt.label}</span>
+                                </label>
+                              );
+                            })}
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              value={row.note}
+                              onChange={(e) => updateRxRow(index, 'note', e.target.value)}
+                              placeholder="Optional note"
+                            />
+                          </td>
+                          <td>
+                            <button type="button" className="btn-remove-row" onClick={() => removeRxRow(index)} title="Remove row">
+                              <FiTrash2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -601,6 +671,10 @@ const DoctorNurses = () => {
         .modal-rx .rx-table th, .modal-rx .rx-table td { padding: 0.5rem; border-bottom: 1px solid #e2e8f0; text-align: left; }
         .modal-rx .rx-table th { font-size: 0.8rem; font-weight: 600; color: #64748b; }
         .modal-rx .rx-table input { width: 100%; padding: 0.5rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.9rem; }
+        .modal-rx .rx-when-cell { min-width: 180px; }
+        .modal-rx .rx-when-check { display: inline-flex; align-items: center; gap: 0.35rem; margin-right: 0.75rem; font-size: 0.8rem; cursor: pointer; white-space: nowrap; }
+        .modal-rx .rx-when-check.disabled { opacity: 0.6; cursor: not-allowed; }
+        .modal-rx .rx-when-check input { width: auto; }
         .modal-rx .btn-remove-row { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 0.25rem; }
         .modal-rx .btn-remove-row:hover { color: #ef4444; }
         .modal-rx .btn-add-row { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.5rem 0.75rem; margin-bottom: 1rem; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; cursor: pointer; }

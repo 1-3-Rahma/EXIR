@@ -37,8 +37,26 @@ const PatientMedications = () => {
     }
   };
 
-  // Calculate dosage schedule based on timesPerDay
-  const getDoseSchedule = (timesPerDay) => {
+  const timeToIcon = {
+    morning: <FiSun className="dose-icon morning" />,
+    afternoon: <FiSunset className="dose-icon afternoon" />,
+    evening: <FiSunset className="dose-icon evening" />,
+    night: <FiMoon className="dose-icon night" />
+  };
+  const timeToLabel = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening', night: 'Night' };
+
+  // Use stored schedule if present, else derive from timesPerDay
+  const getDoseSchedule = (med) => {
+    const schedule = med.schedule && Array.isArray(med.schedule) && med.schedule.length > 0
+      ? med.schedule
+      : null;
+    if (schedule) {
+      const order = ['morning', 'afternoon', 'evening', 'night'];
+      return [...schedule]
+        .sort((a, b) => order.indexOf(a) - order.indexOf(b))
+        .map(s => ({ time: timeToLabel[s] || s, icon: timeToIcon[s] || <FiClock className="dose-icon" /> }));
+    }
+    const timesPerDay = med.timesPerDay;
     switch (timesPerDay) {
       case 1:
         return [{ time: 'Morning', icon: <FiSun className="dose-icon morning" /> }];
@@ -68,7 +86,7 @@ const PatientMedications = () => {
   // Count medications by dose time
   const countByTime = (timeLabel) => {
     return medicationsData.medications.filter(med => {
-      const schedule = getDoseSchedule(med.timesPerDay);
+      const schedule = getDoseSchedule(med);
       return schedule.some(s => s.time === timeLabel);
     }).length;
   };
@@ -154,7 +172,7 @@ const PatientMedications = () => {
           ) : (
             <div className="med-list">
               {activeMedications.map((med, index) => {
-                const schedule = getDoseSchedule(med.timesPerDay);
+                const schedule = getDoseSchedule(med);
                 return (
                   <div key={med._id || index} className="med-card">
                     <div className="med-status active">
@@ -239,8 +257,8 @@ const PatientMedications = () => {
                   <span className="time-hint">6:00 AM - 9:00 AM</span>
                 </div>
                 <div className="schedule-meds">
-                  {activeMedications
-                    .filter(med => getDoseSchedule(med.timesPerDay).some(s => s.time === 'Morning'))
+                  {                  activeMedications
+                    .filter(med => getDoseSchedule(med).some(s => s.time === 'Morning'))
                     .map((med, i) => (
                       <div key={i} className="schedule-med-item">
                         <FiCheckCircle className="check-icon" />
@@ -260,15 +278,15 @@ const PatientMedications = () => {
                   <span className="time-hint">12:00 PM - 2:00 PM</span>
                 </div>
                 <div className="schedule-meds">
-                  {activeMedications
-                    .filter(med => getDoseSchedule(med.timesPerDay).some(s => s.time === 'Afternoon' || s.time === 'Noon'))
+                  {                  activeMedications
+                    .filter(med => getDoseSchedule(med).some(s => s.time === 'Afternoon' || s.time === 'Noon'))
                     .map((med, i) => (
                       <div key={i} className="schedule-med-item">
                         <FiCheckCircle className="check-icon" />
                         <span>{med.medicineName}</span>
                       </div>
                     ))}
-                  {activeMedications.filter(med => getDoseSchedule(med.timesPerDay).some(s => s.time === 'Afternoon' || s.time === 'Noon')).length === 0 && (
+                  {activeMedications.filter(med => getDoseSchedule(med).some(s => s.time === 'Afternoon' || s.time === 'Noon')).length === 0 && (
                     <p className="no-meds">No medications</p>
                   )}
                 </div>
@@ -281,8 +299,8 @@ const PatientMedications = () => {
                   <span className="time-hint">6:00 PM - 8:00 PM</span>
                 </div>
                 <div className="schedule-meds">
-                  {activeMedications
-                    .filter(med => getDoseSchedule(med.timesPerDay).some(s => s.time === 'Evening'))
+                  {                  activeMedications
+                    .filter(med => getDoseSchedule(med).some(s => s.time === 'Evening'))
                     .map((med, i) => (
                       <div key={i} className="schedule-med-item">
                         <FiCheckCircle className="check-icon" />
@@ -302,8 +320,8 @@ const PatientMedications = () => {
                   <span className="time-hint">9:00 PM - 10:00 PM</span>
                 </div>
                 <div className="schedule-meds">
-                  {activeMedications
-                    .filter(med => getDoseSchedule(med.timesPerDay).some(s => s.time === 'Night'))
+                  {                  activeMedications
+                    .filter(med => getDoseSchedule(med).some(s => s.time === 'Night'))
                     .map((med, i) => (
                       <div key={i} className="schedule-med-item">
                         <FiCheckCircle className="check-icon" />

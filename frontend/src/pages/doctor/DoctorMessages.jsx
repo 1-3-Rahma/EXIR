@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Layout from '../../components/common/Layout';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import { getSocket } from '../../services/socket';
 
 const DoctorMessages = () => {
   const { user } = useAuth();
@@ -21,55 +22,116 @@ const DoctorMessages = () => {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const messagesEndRef = useRef(null);
-  const pollIntervalRef = useRef(null);
   const contactsPollRef = useRef(null);
+  const fallbackPollRef = useRef(null);
+  const currentChatIdRef = useRef(null);
+  const contactsRef = useRef([]);
+  const currentUserId = user?._id?.toString?.() || user?.id?.toString?.() || '';
+
+  const normalizeMsg = (msg, isOwn = false) => ({
+    id: String(msg.id ?? msg._id ?? ''),
+    senderId: msg.senderId,
+    text: msg.content || msg.text || '',
+    time: new Date(msg.timestamp || Date.now()).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+    isOwn,
+    read: !!msg.read
+  });
+
+  useEffect(() => {
+    currentChatIdRef.current = currentChatId;
+  }, [currentChatId]);
+
+  useEffect(() => {
+    contactsRef.current = contacts;
+  }, [contacts]);
 
   useEffect(() => {
     fetchContacts();
     fetchAlerts();
 
     if (contactsPollRef.current) clearInterval(contactsPollRef.current);
-    contactsPollRef.current = setInterval(() => {
-      fetchContacts();
-    }, 10000);
+    contactsPollRef.current = setInterval(() => fetchContacts(), 15000);
 
-    // Real-time online/offline status updates
     const handleStatusChange = (e) => {
       const { userId, status } = e.detail;
       setContacts(prev => prev.map(c =>
-        (c._id === userId || c.id === userId) ? { ...c, status } : c
+        (String(c._id) === String(userId) || String(c.id) === String(userId)) ? { ...c, status } : c
       ));
     };
+
+    const handleNewChatMessage = (e) => {
+      const { chatId, message: msg } = e.detail || {};
+      if (!msg?.content) return;
+      const chatIdStr = String(chatId);
+      const isCurrentChat = chatIdStr === String(currentChatIdRef.current);
+      const senderIdStr = msg.senderId?.toString?.() || msg.senderId;
+      const transformed = normalizeMsg(msg, senderIdStr === currentUserId);
+
+      if (isCurrentChat) {
+        setMessages(prev => {
+          if (prev.some(m => String(m.id) === String(transformed.id))) return prev;
+          return [...prev, transformed];
+        });
+      } else {
+        currentChatIdRef.current = chatIdStr;
+        setCurrentChatId(chatIdStr);
+        const contact = contactsRef.current.find(
+          c => String(c._id) === String(msg.senderId) || String(c.id) === String(msg.senderId)
+        );
+        if (contact) setSelectedContact(contact);
+        fetchContacts(true);
+      }
+    };
+
+    const handleChatMessagesRead = (e) => {
+      if (String(e.detail?.chatId) !== String(currentChatIdRef.current)) return;
+      setMessages(prev => prev.map(m => ({ ...m, read: true })));
+    };
+
+    const handleSocketReconnect = () => {
+      const cid = currentChatIdRef.current;
+      if (cid) fetchMessagesForChat(cid, false);
+    };
+
     window.addEventListener('userStatusChanged', handleStatusChange);
+    window.addEventListener('newChatMessage', handleNewChatMessage);
+    window.addEventListener('chatMessagesRead', handleChatMessagesRead);
+    window.addEventListener('socketConnected', handleSocketReconnect);
 
     return () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       if (contactsPollRef.current) clearInterval(contactsPollRef.current);
       window.removeEventListener('userStatusChanged', handleStatusChange);
+      window.removeEventListener('newChatMessage', handleNewChatMessage);
+      window.removeEventListener('chatMessagesRead', handleChatMessagesRead);
+      window.removeEventListener('socketConnected', handleSocketReconnect);
     };
-  }, []);
+  }, [currentUserId]);
 
   useEffect(() => {
     if (selectedContact) {
       const contactId = selectedContact._id || selectedContact.id;
       fetchChatWithUser(contactId);
-
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-      pollIntervalRef.current = setInterval(() => {
-        if (currentChatId) {
-          fetchMessagesForChat(currentChatId, false);
-        }
-      }, 5000);
     }
-
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-    };
   }, [selectedContact]);
+
+  // Fallback poll when socket is disconnected (so messages still appear)
+  useEffect(() => {
+    if (fallbackPollRef.current) clearInterval(fallbackPollRef.current);
+    const cid = currentChatIdRef.current;
+    if (!cid) return;
+    const sock = getSocket();
+    if (sock?.connected) return;
+    fallbackPollRef.current = setInterval(() => {
+      if (getSocket()?.connected) {
+        if (fallbackPollRef.current) clearInterval(fallbackPollRef.current);
+        return;
+      }
+      fetchMessagesForChat(cid, false);
+    }, 8000);
+    return () => {
+      if (fallbackPollRef.current) clearInterval(fallbackPollRef.current);
+    };
+  }, [currentChatId]);
 
   // Keep selectedContact status in sync with contacts list
   useEffect(() => {
@@ -89,9 +151,9 @@ const DoctorMessages = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const fetchContacts = async () => {
+  const fetchContacts = async (skipLoading = false) => {
     try {
-      setLoadingContacts(true);
+      if (!skipLoading) setLoadingContacts(true);
       const resp = await api.get('/chat/contacts');
       const data = resp.data;
       const rawList = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
@@ -116,7 +178,7 @@ const DoctorMessages = () => {
       console.error('Failed to fetch contacts:', error);
       setContacts([]);
     } finally {
-      setLoadingContacts(false);
+      if (!skipLoading) setLoadingContacts(false);
     }
   };
 
@@ -127,21 +189,21 @@ const DoctorMessages = () => {
       setLoadingMessages(true);
       const resp = await api.get(`/chat/with/${id}`);
       const chat = resp.data?.data || resp.data;
-      const chatId = chat?._id || chat?.chatId;
+      const chatId = chat?._id ?? chat?.chatId;
       setCurrentChatId(chatId);
+      currentChatIdRef.current = chatId;
 
-      const transformedMessages = (chat.messages || []).map(msg => ({
-        id: msg._id,
-        senderId: msg.senderId,
-        text: msg.content,
-        time: new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        isOwn: (msg.senderId?.toString?.() || msg.senderId) === (user?._id?.toString?.() || user?.id?.toString?.()),
-        read: msg.read
-      }));
+      const myId = user?._id?.toString?.() || user?.id?.toString?.() || '';
+      const transformedMessages = (chat.messages || []).map(msg =>
+        normalizeMsg(
+          { ...msg, id: msg.id ?? msg._id, content: msg.content },
+          (msg.senderId?.toString?.() || msg.senderId) === myId
+        )
+      );
       setMessages(transformedMessages);
 
       if (chatId) {
-        api.patch(`/chat/${chatId}/read`).catch(err => console.error('Failed to mark as read:', err));
+        api.patch(`/chat/${chatId}/read`).catch(() => {});
       }
     } catch (error) {
       console.error('Failed to fetch chat:', error);
@@ -152,23 +214,20 @@ const DoctorMessages = () => {
   };
 
   const fetchMessagesForChat = async (chatId, showLoading = true) => {
-    if (!chatId) return;
+    const cid = chatId?.toString?.();
+    if (!cid) return;
     try {
       if (showLoading) setLoadingMessages(true);
-      const resp = await api.get(`/chat/${chatId}/messages`);
+      const resp = await api.get(`/chat/${cid}/messages`);
       const data = resp.data;
       const list = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
-      const currentUserId = user?._id?.toString?.() || user?.id?.toString?.();
+      const myId = user?._id?.toString?.() || user?.id?.toString?.() || '';
       const transformedMessages = list.map(msg => {
         const senderIdStr = msg.senderId?.toString?.() || msg.senderId?._id?.toString?.() || '';
-        return {
-          id: msg._id,
-          senderId: msg.senderId,
-          text: msg.content,
-          time: new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-          isOwn: senderIdStr === currentUserId,
-          read: msg.read
-        };
+        return normalizeMsg(
+          { ...msg, id: msg.id ?? msg._id, content: msg.content },
+          senderIdStr === myId
+        );
       });
       setMessages(transformedMessages);
     } catch (error) {
@@ -189,12 +248,14 @@ const DoctorMessages = () => {
     const messageText = newMessage;
     setNewMessage('');
 
+    const optimisticId = String(Date.now());
     const optimisticMessage = {
-      id: Date.now(),
+      id: optimisticId,
       senderId: user?._id,
       text: messageText,
       time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
       isOwn: true,
+      read: false
     };
     setMessages(prev => [...prev, optimisticMessage]);
 
@@ -203,18 +264,24 @@ const DoctorMessages = () => {
       const contactId = selectedContact._id || selectedContact.id;
       const resp = await api.post(`/chat/send/${contactId}`, { content: messageText });
       const data = resp.data;
+      const serverChatId = data.data?.chatId || data.chatId;
+      const serverMessage = data.message || data.data?.message;
 
-      if (!currentChatId && (data.data?.chatId || data.chatId)) {
-        setCurrentChatId(data.data?.chatId || data.chatId);
+      if (serverChatId) {
+        setCurrentChatId(serverChatId);
+        currentChatIdRef.current = String(serverChatId);
       }
 
-      const newChatId = currentChatId || data.data?.chatId || data.chatId;
-      if (newChatId) {
-        await fetchMessagesForChat(newChatId, false);
+      if (serverMessage?.id != null) {
+        const realId = String(serverMessage.id);
+        const timeStr = serverMessage.time || new Date(serverMessage.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        setMessages(prev => prev.map(m =>
+          String(m.id) === optimisticId ? { ...m, id: realId, time: timeStr } : m
+        ));
       }
     } catch (error) {
       console.error('Failed to send message:', error);
-      setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+      setMessages(prev => prev.filter(m => String(m.id) !== optimisticId));
       setNewMessage(messageText);
       alert('Failed to send message. Please try again.');
     } finally {
@@ -345,7 +412,6 @@ const DoctorMessages = () => {
                 { key: 'all', label: 'All' },
                 { key: 'doctors', label: 'Doctors' },
                 { key: 'nurses', label: 'Nurses' },
-                { key: 'departments', label: 'Depts' },
               ].map((tab) => (
                 <button
                   key={tab.key}

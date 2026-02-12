@@ -575,13 +575,29 @@ const addPrescription = async (req, res) => {
     }
     if (!patientCase.medications) patientCase.medications = [];
 
+    const SLOTS = ['morning', 'afternoon', 'evening', 'night'];
     const validMeds = medications.filter(m =>
       m && String(m.medicineName || '').trim() && (m.timesPerDay != null && m.timesPerDay !== '')
-    ).map(m => ({
-      medicineName: String(m.medicineName || '').trim(),
-      timesPerDay: Number(m.timesPerDay),
-      note: String(m.note || '').trim()
-    }));
+    ).map(m => {
+      const timesPerDay = Number(m.timesPerDay);
+      let schedule = Array.isArray(m.schedule) ? m.schedule.filter(s => SLOTS.includes(s)) : [];
+      if (schedule.length === 0 && timesPerDay >= 1 && timesPerDay <= 4) {
+        const defaults = [
+          ['morning'],
+          ['morning', 'evening'],
+          ['morning', 'afternoon', 'night'],
+          ['morning', 'afternoon', 'evening', 'night']
+        ];
+        schedule = defaults[timesPerDay - 1] || ['morning'];
+      }
+      if (schedule.length === 0) schedule = ['morning'];
+      return {
+        medicineName: String(m.medicineName || '').trim(),
+        timesPerDay,
+        schedule,
+        note: String(m.note || '').trim()
+      };
+    });
 
     patientCase.medications.push(...validMeds);
     await patientCase.save();

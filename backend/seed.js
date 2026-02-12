@@ -201,12 +201,12 @@ const seedData = async () => {
       dateOfBirth: new Date('1999-01-01'),
       gender: 'male',
       contactInfo: 'Cairo, Egypt',
-      phone: '01012345678',
+      phone: '01098765432',
       email: 'mohamed.ibrahim@email.com',
       address: '15 Tahrir Street, Cairo, Egypt',
-      emergencyContact: '01098765432',
+      emergencyContact: '01012345678',
       emergencyContactName: 'Ahmed Ibrahim',
-      emergencyContactPhone: '01098765432',
+      emergencyContactPhone: '01012345678',
       emergencyContactRelation: 'Brother',
       registeredByReceptionistId: receptionist._id,
       totalVisits: 1,
@@ -219,12 +219,12 @@ const seedData = async () => {
       dateOfBirth: new Date('1995-12-31'),
       gender: 'female',
       contactInfo: 'Alexandria, Egypt',
-      phone: '01123456789',
+      phone: '01198765432',
       email: 'hana.mahmoud@email.com',
       address: '23 Corniche Road, Alexandria, Egypt',
-      emergencyContact: '01198765432',
+      emergencyContact: '01123456789',
       emergencyContactName: 'Fatma Mahmoud',
-      emergencyContactPhone: '01198765432',
+      emergencyContactPhone: '01123456789',
       emergencyContactRelation: 'Mother',
       registeredByReceptionistId: receptionist._id,
       totalVisits: 1,
@@ -363,7 +363,7 @@ const seedData = async () => {
     console.log('----------------------------------------');
     console.log('Patient (OTP Login):');
     console.log('  National ID: 29901011234567');
-    console.log('  Phone: 01012345678');
+    console.log('  Phone: 01098765432');
     console.log('  (Request OTP, check console for code)');
     console.log('----------------------------------------\n');
 

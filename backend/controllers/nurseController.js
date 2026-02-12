@@ -352,6 +352,9 @@ const getMedications = async (req, res) => {
 
       if (c.medications && c.medications.length > 0) {
         c.medications.forEach((med, idx) => {
+          const when = (med.schedule && med.schedule.length)
+            ? med.schedule.map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(', ')
+            : 'As scheduled';
           medications.push({
             _id: med._id || `rx-${c._id}-${idx}`,
             patientId,
@@ -360,11 +363,11 @@ const getMedications = async (req, res) => {
             medication: med.medicineName,
             dosage: `${med.timesPerDay}x/day`,
             frequency: `${med.timesPerDay} times per day`,
+            scheduledTime: when,
             route: 'Oral',
             status: med.status || 'active',
             type: 'prescription',
             priority: 'medium',
-            scheduledTime: 'As scheduled',
             notes: med.note,
             instructions: med.note,
             givenAt: med.givenAt,

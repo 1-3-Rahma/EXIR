@@ -24,6 +24,10 @@ export function connectSocket(token) {
   socketRef.current = s;
   s.on('connect', () => {
     console.debug('[Socket] Connected for real-time events');
+    window.dispatchEvent(new CustomEvent('socketConnected', { detail: {} }));
+  });
+  s.on('disconnect', (reason) => {
+    window.dispatchEvent(new CustomEvent('socketDisconnected', { detail: { reason } }));
   });
   s.on('patientStatusChanged', (payload) => {
     window.dispatchEvent(new CustomEvent('patientStatusChanged', { detail: payload }));
@@ -33,6 +37,12 @@ export function connectSocket(token) {
   });
   s.on('userStatusChanged', (payload) => {
     window.dispatchEvent(new CustomEvent('userStatusChanged', { detail: payload }));
+  });
+  s.on('newChatMessage', (payload) => {
+    window.dispatchEvent(new CustomEvent('newChatMessage', { detail: payload }));
+  });
+  s.on('chatMessagesRead', (payload) => {
+    window.dispatchEvent(new CustomEvent('chatMessagesRead', { detail: payload }));
   });
   s.on('connect_error', (err) => {
     console.warn('[Socket] Connection error:', err.message);

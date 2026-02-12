@@ -184,6 +184,25 @@ router.post('/:chatId/messages', async (req, res) => {
 
     const message = await chat.addMessage(req.user._id, content.trim());
 
+    // Real-time: notify both participants
+    const io = req.app.get('io');
+    if (io) {
+      const payload = {
+        chatId: chat._id.toString(),
+        message: {
+          id: (message._id || message.id || '').toString(),
+          senderId: (message.senderId && message.senderId.toString && message.senderId.toString()) || message.senderId,
+          content: message.content,
+          timestamp: message.timestamp,
+          read: !!message.read
+        }
+      };
+      chat.participants.forEach((pid) => {
+        const uid = (pid && (pid._id || pid)) ? (pid._id || pid).toString() : '';
+        if (uid) io.to(`user:${uid}`).emit('newChatMessage', payload);
+      });
+    }
+
     res.status(201).json({
       id: message._id,
       senderId: message.senderId,
@@ -223,15 +242,39 @@ router.post('/send/:userId', async (req, res) => {
 
     // Add message
     const message = await chat.addMessage(req.user._id, content.trim());
+    const lastMsg = chat.messages[chat.messages.length - 1];
+    const msg = lastMsg || message;
 
+    // Real-time: notify both participants (use string IDs so client room names match)
+    const io = req.app.get('io');
+    if (io) {
+      const msgId = (msg && (msg._id || msg.id)) ? (msg._id || msg.id).toString() : '';
+      const payload = {
+        chatId: chat._id.toString(),
+        message: {
+          id: msgId,
+          senderId: (msg && msg.senderId) ? msg.senderId.toString() : req.user._id.toString(),
+          content: msg ? msg.content : '',
+          timestamp: msg ? msg.timestamp : new Date(),
+          read: msg ? !!msg.read : false
+        }
+      };
+      chat.participants.forEach((pid) => {
+        const uid = (pid && (pid._id || pid)) ? (pid._id || pid).toString() : '';
+        if (uid) io.to(`user:${uid}`).emit('newChatMessage', payload);
+      });
+    }
+
+    const msgForResponse = msg || message;
     res.status(201).json({
       chatId: chat._id,
+      data: { chatId: chat._id },
       message: {
-        id: message._id,
-        senderId: message.senderId,
-        content: message.content,
-        timestamp: message.timestamp,
-        time: new Date(message.timestamp).toLocaleTimeString('en-US', {
+        id: msgForResponse._id || msgForResponse.id,
+        senderId: msgForResponse.senderId,
+        content: msgForResponse.content,
+        timestamp: msgForResponse.timestamp,
+        time: new Date(msgForResponse.timestamp).toLocaleTimeString('en-US', {
           hour: '2-digit',
           minute: '2-digit'
         }),
@@ -255,6 +298,17 @@ router.patch('/:chatId/read', async (req, res) => {
     }
 
     await chat.markAsRead(req.user._id);
+
+    // Notify other participant so their UI can update read state
+    const io = req.app.get('io');
+    if (io) {
+      const myId = req.user._id.toString();
+      chat.participants.forEach((pid) => {
+        const uid = (pid && (pid._id || pid)) ? (pid._id || pid).toString() : '';
+        if (uid && uid !== myId) io.to(`user:${uid}`).emit('chatMessagesRead', { chatId: chat._id.toString() });
+      });
+    }
+
     res.json({ message: 'Messages marked as read' });
   } catch (error) {
     console.error('Error marking messages as read:', error);
