@@ -197,9 +197,10 @@ router.post('/:chatId/messages', async (req, res) => {
           read: !!message.read
         }
       };
+      const myId = req.user._id.toString();
       chat.participants.forEach((pid) => {
         const uid = (pid && (pid._id || pid)) ? (pid._id || pid).toString() : '';
-        if (uid) io.to(`user:${uid}`).emit('newChatMessage', payload);
+        if (uid && uid !== myId) io.to(`user:${uid}`).emit('newChatMessage', payload);
       });
     }
 
@@ -259,9 +260,10 @@ router.post('/send/:userId', async (req, res) => {
           read: msg ? !!msg.read : false
         }
       };
+      const myId = req.user._id.toString();
       chat.participants.forEach((pid) => {
         const uid = (pid && (pid._id || pid)) ? (pid._id || pid).toString() : '';
-        if (uid) io.to(`user:${uid}`).emit('newChatMessage', payload);
+        if (uid && uid !== myId) io.to(`user:${uid}`).emit('newChatMessage', payload);
       });
     }
 

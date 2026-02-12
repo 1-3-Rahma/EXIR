@@ -302,6 +302,11 @@ const DoctorMessages = () => {
     const matchesSearch = contact.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = filterCategory === 'all' || contact.category === filterCategory;
     return matchesSearch && matchesCategory;
+  }).sort((a, b) => {
+    const aOnline = a.status === 'online' ? 1 : 0;
+    const bOnline = b.status === 'online' ? 1 : 0;
+    if (bOnline !== aOnline) return bOnline - aOnline;
+    return (a.name || '').localeCompare(b.name || '');
   });
 
   const getStatusColor = (status) => {
@@ -333,10 +338,10 @@ const DoctorMessages = () => {
 
   const styles = {
     container: { padding: '24px', backgroundColor: '#f8fafc', minHeight: 'calc(100vh - 64px)' },
-    header: { marginBottom: '24px' },
+    header: { marginBottom: '16px' },
     title: { fontSize: '28px', fontWeight: '700', color: '#1e293b', margin: 0 },
     subtitle: { color: '#64748b', margin: '4px 0 0 0' },
-    mainGrid: { display: 'grid', gridTemplateColumns: '320px 1fr 300px', gap: '24px', height: 'calc(100vh - 180px)' },
+    mainGrid: { display: 'grid', gridTemplateColumns: '300px 1fr', gap: '20px', height: 'calc(100vh - 160px)' },
     contactsPanel: { backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
     contactsHeader: { padding: '20px', borderBottom: '1px solid #e2e8f0' },
     searchInput: { width: '100%', padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '14px', marginBottom: '12px', outline: 'none' },
@@ -397,8 +402,8 @@ const DoctorMessages = () => {
         <p style={styles.subtitle}>Message nurses and colleagues</p>
       </div>
 
-      <div style={styles.mainGrid}>
-        <div style={styles.contactsPanel}>
+      <div className="chat-main-grid" style={styles.mainGrid}>
+        <div className="chat-contacts-panel" style={styles.contactsPanel}>
           <div style={styles.contactsHeader}>
             <input
               type="text"
@@ -457,7 +462,7 @@ const DoctorMessages = () => {
           </div>
         </div>
 
-        <div style={styles.chatPanel}>
+        <div className="chat-panel" style={styles.chatPanel}>
           {selectedContact ? (
             <>
               <div style={styles.chatHeader}>
@@ -602,6 +607,31 @@ const DoctorMessages = () => {
           </div>
         </div>
       )}
+
+      <style>{`
+        @media (max-width: 900px) {
+          .chat-main-grid {
+            grid-template-columns: 1fr !important;
+            height: auto !important;
+          }
+          .chat-contacts-panel {
+            max-height: 300px;
+          }
+          .chat-panel {
+            height: calc(100vh - 380px);
+            min-height: 400px;
+          }
+        }
+        @media (max-width: 600px) {
+          .chat-contacts-panel {
+            max-height: 250px;
+          }
+          .chat-panel {
+            height: calc(100vh - 340px);
+            min-height: 350px;
+          }
+        }
+      `}</style>
     </Layout>
   );
 };

@@ -81,6 +81,9 @@ io.use((socket, next) => {
 
 const User = require('./models/User');
 
+// Reset all users to offline on server start (clears stale statuses from previous sessions)
+User.updateMany({}, { isLoggedIn: false }).catch(() => {});
+
 io.on('connection', async (socket) => {
   const uid = socket.userId && (typeof socket.userId === 'string' ? socket.userId : socket.userId.toString());
   socket.join(`user:${uid}`);

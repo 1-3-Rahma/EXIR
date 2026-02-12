@@ -312,6 +312,11 @@ const NurseMessages = () => {
     const matchesSearch = contact.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = filterCategory === 'all' || contact.category === filterCategory;
     return matchesSearch && matchesCategory;
+  }).sort((a, b) => {
+    const aOnline = a.status === 'online' ? 1 : 0;
+    const bOnline = b.status === 'online' ? 1 : 0;
+    if (bOnline !== aOnline) return bOnline - aOnline;
+    return (a.name || '').localeCompare(b.name || '');
   });
 
   const getStatusColor = (status) => {
@@ -348,7 +353,7 @@ const NurseMessages = () => {
       minHeight: 'calc(100vh - 64px)',
     },
     header: {
-      marginBottom: '24px',
+      marginBottom: '16px',
     },
     title: {
       fontSize: '28px',
@@ -362,9 +367,9 @@ const NurseMessages = () => {
     },
     mainGrid: {
       display: 'grid',
-      gridTemplateColumns: '320px 1fr 300px',
-      gap: '24px',
-      height: 'calc(100vh - 180px)',
+      gridTemplateColumns: '300px 1fr',
+      gap: '20px',
+      height: 'calc(100vh - 160px)',
     },
     // Contacts Panel
     contactsPanel: {
@@ -747,9 +752,9 @@ const NurseMessages = () => {
         <p style={styles.subtitle}>Stay connected with your team</p>
       </div>
 
-      <div style={styles.mainGrid}>
+      <div className="chat-main-grid" style={styles.mainGrid}>
         {/* Contacts Panel */}
-        <div style={styles.contactsPanel}>
+        <div className="chat-contacts-panel" style={styles.contactsPanel}>
           <div style={styles.contactsHeader}>
             <input
               type="text"
@@ -820,7 +825,7 @@ const NurseMessages = () => {
         </div>
 
         {/* Chat Panel */}
-        <div style={styles.chatPanel}>
+        <div className="chat-panel" style={styles.chatPanel}>
           {selectedContact ? (
             <>
               <div style={styles.chatHeader}>
@@ -980,6 +985,31 @@ const NurseMessages = () => {
           </div>
         </div>
       )}
+
+      <style>{`
+        @media (max-width: 900px) {
+          .chat-main-grid {
+            grid-template-columns: 1fr !important;
+            height: auto !important;
+          }
+          .chat-contacts-panel {
+            max-height: 300px;
+          }
+          .chat-panel {
+            height: calc(100vh - 380px);
+            min-height: 400px;
+          }
+        }
+        @media (max-width: 600px) {
+          .chat-contacts-panel {
+            max-height: 250px;
+          }
+          .chat-panel {
+            height: calc(100vh - 340px);
+            min-height: 350px;
+          }
+        }
+      `}</style>
     </Layout>
   );
 };
