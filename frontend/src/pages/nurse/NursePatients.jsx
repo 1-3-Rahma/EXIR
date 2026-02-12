@@ -96,11 +96,7 @@ const NursePatients = () => {
           fullName: patient.fullName,
           age: age,
           gender: patient.gender || 'N/A',
-<<<<<<< HEAD
           room: patient.room || vitalData?.room || 'N/A',
-=======
-          room:patient.room || 'N/A',
->>>>>>> 3510409b5cb2bc47917ce6f00a9bc953d49ac921
           condition: patient.condition || patient.diagnosis || 'Under Observation',
           status: status,
           assignedDoctor: patient.assignedDoctor,

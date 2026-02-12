@@ -4,6 +4,7 @@ const Assignment = require('../models/Assignment');
 const Case = require('../models/Case');
 const Notification = require('../models/Notification');
 const Appointment = require('../models/Appointment');
+const Visit = require('../models/Visit');
 
 // @desc    Get nursing staff with assigned patients (for doctor UI)
 // @route   GET /api/v1/doctor/nursing-staff
@@ -314,11 +315,65 @@ const getPatients = async (req, res) => {
     }
     const doctorId = req.user._id;
     const search = (req.query.search || '').trim();
+    const isEmergency = req.user.department === 'Emergency';
 
+    const patientMap = new Map();
+
+    // Emergency doctors: see ALL checked-in patients (active visits)
+    // EXCEPT patients who already have an appointment with a specific doctor
+    if (isEmergency) {
+      const activeVisits = await Visit.find({ status: 'admitted' })
+        .populate('patientId', 'nationalID fullName dateOfBirth contactInfo room');
+
+      const visitPatientIds = activeVisits
+        .filter(v => v.patientId)
+        .map(v => v.patientId._id);
+
+      // Find patients that have active appointments (exclude them from emergency list)
+      const appointedPatients = await Appointment.find({
+        patientId: { $in: visitPatientIds },
+        status: { $in: ['pending', 'confirmed'] }
+      });
+      const appointedPatientIds = new Set(
+        appointedPatients.map(a => a.patientId.toString())
+      );
+
+      // Check if any of these patients have open cases (from any doctor)
+      const openCases = await Case.find({
+        patientId: { $in: visitPatientIds },
+        status: 'open'
+      });
+      const caseByPatient = {};
+      openCases.forEach(c => {
+        caseByPatient[c.patientId.toString()] = c;
+      });
+
+      for (const v of activeVisits) {
+        if (!v.patientId) continue;
+        const pid = v.patientId._id.toString();
+        // Skip patients who have an appointment with a doctor
+        if (appointedPatientIds.has(pid)) continue;
+        const existingCase = caseByPatient[pid];
+        const activeAssignment = await Assignment.findOne({ patientId: v.patientId._id, isActive: true })
+          .populate('nurseId', 'fullName');
+        patientMap.set(pid, {
+          ...v.patientId.toObject(),
+          caseId: existingCase?._id || null,
+          caseStatus: existingCase ? 'open' : null,
+          patientStatus: existingCase?.patientStatus || 'stable',
+          medications: existingCase?.medications || [],
+          assignedNurse: activeAssignment?.nurseId?.fullName || null,
+          appointmentDoctorName: req.user.fullName,
+          appointmentDate: null,
+          appointmentTime: null
+        });
+      }
+    }
+
+    // All doctors (including emergency): also include their own cases and appointments
     const cases = await Case.find({ doctorId, status: 'open' })
       .populate('patientId', 'nationalID fullName dateOfBirth contactInfo room');
 
-    // Appointments where this doctor is assigned (receptionist assigns patients to this doctor)
     const appointments = await Appointment.find({
       doctorId,
       status: { $nin: ['cancelled'] },
@@ -326,11 +381,10 @@ const getPatients = async (req, res) => {
     })
       .populate('patientId', 'nationalID fullName dateOfBirth contactInfo room');
 
-    const patientMap = new Map();
-
     for (const c of cases) {
       if (!c.patientId) continue;
       const pid = c.patientId._id.toString();
+      if (patientMap.has(pid)) continue; // already added from visits
       const activeAssignment = await Assignment.findOne({ patientId: c.patientId._id, isActive: true })
         .populate('nurseId', 'fullName');
       patientMap.set(pid, {

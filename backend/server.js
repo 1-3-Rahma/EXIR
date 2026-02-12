@@ -79,11 +79,31 @@ io.use((socket, next) => {
   }
 });
 
-io.on('connection', (socket) => {
+const User = require('./models/User');
+
+io.on('connection', async (socket) => {
+  // All users join their own room
+  socket.join(`user:${socket.userId}`);
   if (socket.role === 'nurse') {
     socket.join(`nurse:${socket.userId}`);
   }
-  socket.on('disconnect', () => {});
+
+  // Mark user online and broadcast
+  try {
+    await User.findByIdAndUpdate(socket.userId, { isLoggedIn: true });
+    io.emit('userStatusChanged', { userId: socket.userId, status: 'online' });
+  } catch (_) {}
+
+  socket.on('disconnect', async () => {
+    // Check if user has any other active sockets before marking offline
+    const rooms = io.sockets.adapter.rooms.get(`user:${socket.userId}`);
+    if (!rooms || rooms.size === 0) {
+      try {
+        await User.findByIdAndUpdate(socket.userId, { isLoggedIn: false });
+        io.emit('userStatusChanged', { userId: socket.userId, status: 'offline' });
+      } catch (_) {}
+    }
+  });
 });
 
 app.set('io', io);

@@ -110,6 +110,45 @@ const seedData = async () => {
       isActive: true
     });
 
+    const doctor7 = await User.create({
+      role: 'doctor',
+      hospitalId: 'HOSP001',
+      identifier: 'DOC007',
+      password: 'password123',
+      fullName: 'Dr. Hassan El-Sayed',
+      specialization: 'Emergency Medicine',
+      department: 'Emergency',
+      shift: 'morning',
+      phone: '+201012345609',
+      isActive: true
+    });
+
+    const doctor8 = await User.create({
+      role: 'doctor',
+      hospitalId: 'HOSP001',
+      identifier: 'DOC008',
+      password: 'password123',
+      fullName: 'Dr. Amira Nabil',
+      specialization: 'Emergency Medicine',
+      department: 'Emergency',
+      shift: 'afternoon',
+      phone: '+201012345610',
+      isActive: true
+    });
+
+    const doctor9 = await User.create({
+      role: 'doctor',
+      hospitalId: 'HOSP001',
+      identifier: 'DOC009',
+      password: 'password123',
+      fullName: 'Dr. Mostafa Reda',
+      specialization: 'Emergency Medicine',
+      department: 'Emergency',
+      shift: 'night',
+      phone: '+201012345611',
+      isActive: true
+    });
+
     const nurse1 = await User.create({
       role: 'nurse',
       hospitalId: 'HOSP001',
@@ -304,6 +343,9 @@ const seedData = async () => {
     console.log('  DOC004 - Dr. Nadia Kamal (Pediatrics, Afternoon)');
     console.log('  DOC005 - Dr. Tarek Mostafa (Orthopedics, Night)');
     console.log('  DOC006 - Dr. Mariam Fathy (Dermatology, Morning)');
+    console.log('  DOC007 - Dr. Hassan El-Sayed (Emergency, Morning)');
+    console.log('  DOC008 - Dr. Amira Nabil (Emergency, Afternoon)');
+    console.log('  DOC009 - Dr. Mostafa Reda (Emergency, Night)');
     console.log('  Password: password123');
     console.log('  Role: doctor');
     console.log('----------------------------------------');

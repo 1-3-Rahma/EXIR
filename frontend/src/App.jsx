@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
-import { connectNurseSocket } from './services/socket';
+import { connectSocket } from './services/socket';
 
 import Login from './pages/Login';
 import NurseDashboard from './pages/nurse/NurseDashboard';
@@ -43,10 +43,10 @@ function App() {
   const { user, loading } = useAuth();
 
   useEffect(() => {
-    if (user?.role === 'nurse') {
+    if (user?.role === 'nurse' || user?.role === 'doctor') {
       const token = localStorage.getItem('token');
       if (token) {
-        const disconnect = connectNurseSocket(token);
+        const disconnect = connectSocket(token);
         return disconnect;
       }
     }

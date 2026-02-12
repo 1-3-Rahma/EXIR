@@ -67,6 +67,13 @@ const DoctorNurses = () => {
     setExpandedPatient((prev) => (prev === id ? null : id));
   };
 
+  // Collect all patient IDs already assigned to any nurse
+  const assignedPatientIds = new Set();
+  staff.forEach((nurse) => {
+    (nurse.assignedPatients || []).forEach((p) => assignedPatientIds.add(p._id));
+  });
+  const unassignedPatients = patients.filter((p) => !assignedPatientIds.has(p._id));
+
   const openAssign = (nurse) => {
     setSelectedNurse(nurse);
     setAssignPatientId('');
@@ -88,6 +95,7 @@ const DoctorNurses = () => {
         shift: assignShift
       });
       await fetchStaff();
+      await fetchPatients();
       setShowAssignModal(false);
       setSelectedNurse(null);
     } catch (err) {
@@ -146,16 +154,20 @@ const DoctorNurses = () => {
     return doc;
   };
 
-  const handleRxSubmit = async (e) => {
-    e.preventDefault();
-    if (!selectedPatientForRx) return;
-    const medications = rxRows
+  const getValidMedications = () => {
+    return rxRows
       .filter((r) => String(r.medicineName || '').trim() && (r.timesPerDay != null && r.timesPerDay !== ''))
       .map((r) => ({
         medicineName: String(r.medicineName || '').trim(),
         timesPerDay: Number(r.timesPerDay),
         note: String(r.note || '').trim()
       }));
+  };
+
+  const handleRxSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedPatientForRx) return;
+    const medications = getValidMedications();
     if (medications.length === 0) {
       alert('Add at least one medicine with name and times per day.');
       return;
@@ -163,17 +175,25 @@ const DoctorNurses = () => {
     try {
       setRxSubmitting(true);
       await doctorAPI.addPrescription({ patientId: selectedPatientForRx._id, medications });
-      const doc = generatePrescriptionPdf(selectedPatientForRx.fullName || 'Patient', medications);
-      doc.save(`prescription-${(selectedPatientForRx.fullName || 'patient').replace(/\s+/g, '-')}.pdf`);
       setShowRxModal(false);
       setSelectedPatientForRx(null);
-      // Refresh staff data to update prescription counts
       await fetchStaff();
     } catch (err) {
       alert(err.response?.data?.message || err.message || 'Failed to add prescription');
     } finally {
       setRxSubmitting(false);
     }
+  };
+
+  const handleDownloadPdf = () => {
+    if (!selectedPatientForRx) return;
+    const medications = getValidMedications();
+    if (medications.length === 0) {
+      alert('Add at least one medicine with name and times per day.');
+      return;
+    }
+    const doc = generatePrescriptionPdf(selectedPatientForRx.fullName || 'Patient', medications);
+    doc.save(`prescription-${(selectedPatientForRx.fullName || 'patient').replace(/\s+/g, '-')}.pdf`);
   };
 
   const openAddIv = (patient) => {
@@ -429,16 +449,13 @@ const DoctorNurses = () => {
                 <label>Patient</label>
                 <select value={assignPatientId} onChange={(e) => setAssignPatientId(e.target.value)} required>
                   <option value="">Select patient</option>
-                  {patients.map((p) => (
+                  {unassignedPatients.map((p) => (
                     <option key={p._id} value={p._id}>{p.fullName}</option>
                   ))}
                 </select>
               </div>
-<<<<<<< HEAD
 
-=======
-             
->>>>>>> 3510409b5cb2bc47917ce6f00a9bc953d49ac921
+
               <div className="modal-actions">
                 <button type="button" onClick={() => setShowAssignModal(false)}>Cancel</button>
                 <button type="submit" disabled={assignSubmitting}>{assignSubmitting ? 'Assigning...' : 'Assign'}</button>
@@ -506,7 +523,8 @@ const DoctorNurses = () => {
               </button>
               <div className="modal-actions">
                 <button type="button" onClick={() => setShowRxModal(false)}>Cancel</button>
-                <button type="submit" disabled={rxSubmitting}>{rxSubmitting ? 'Saving...' : 'Save & Download PDF'}</button>
+                <button type="button" className="btn-download-pdf" onClick={handleDownloadPdf} disabled={rxSubmitting}>Download PDF</button>
+                <button type="submit" disabled={rxSubmitting}>{rxSubmitting ? 'Saving...' : 'Save'}</button>
               </div>
             </form>
           </div>
@@ -588,7 +606,9 @@ const DoctorNurses = () => {
         .modal-rx .btn-add-row { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.5rem 0.75rem; margin-bottom: 1rem; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; cursor: pointer; }
         .modal-rx .btn-add-row:hover { background: #e2e8f0; }
         .modal-rx .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 0.5rem; }
-        .modal-rx .modal-actions button { padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
+        .modal-rx .modal-actions button { padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; border: 1px solid #e2e8f0; }
+        .modal-rx .modal-actions .btn-download-pdf { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+        .modal-rx .modal-actions .btn-download-pdf:hover { background: #e2e8f0; }
         .modal-rx .modal-actions button[type=submit] { background: #0ea5e9; color: white; border: none; }
         .modal-iv { max-width: 420px; }
         .modal-iv .form-group { margin-bottom: 1rem; }

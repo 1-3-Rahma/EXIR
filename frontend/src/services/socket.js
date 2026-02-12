@@ -8,13 +8,12 @@ const getSocketUrl = () => {
 const socketRef = { current: null };
 
 /**
- * Connect nurse socket for real-time patient status updates.
- * When doctor changes patient status (stable/critical), server emits 'patientStatusChanged';
- * we dispatch a custom event so nurse pages can refetch immediately without refresh.
+ * Connect socket for real-time events (works for all roles).
+ * Events: patientStatusChanged, newNotification, userStatusChanged
  * @param {string} token - JWT token
  * @returns {function} disconnect function
  */
-export function connectNurseSocket(token) {
+export function connectSocket(token) {
   if (socketRef.current?.connected) return () => socketRef.current.disconnect();
   const url = getSocketUrl();
   const s = io(url, {
@@ -24,13 +23,16 @@ export function connectNurseSocket(token) {
   });
   socketRef.current = s;
   s.on('connect', () => {
-    console.debug('[Socket] Nurse connected for real-time alerts');
+    console.debug('[Socket] Connected for real-time events');
   });
   s.on('patientStatusChanged', (payload) => {
     window.dispatchEvent(new CustomEvent('patientStatusChanged', { detail: payload }));
   });
   s.on('newNotification', (payload) => {
     window.dispatchEvent(new CustomEvent('newNotification', { detail: payload }));
+  });
+  s.on('userStatusChanged', (payload) => {
+    window.dispatchEvent(new CustomEvent('userStatusChanged', { detail: payload }));
   });
   s.on('connect_error', (err) => {
     console.warn('[Socket] Connection error:', err.message);
@@ -42,6 +44,9 @@ export function connectNurseSocket(token) {
     }
   };
 }
+
+// Backward-compatible alias
+export const connectNurseSocket = connectSocket;
 
 export function getSocket() {
   return socketRef.current;

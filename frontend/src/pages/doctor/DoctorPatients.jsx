@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/common/Layout';
+import { useAuth } from '../../context/AuthContext';
 import { doctorAPI } from '../../services/api';
-import { FiUser, FiActivity, FiHeart, FiThermometer, FiWind, FiCheckCircle, FiAlertCircle, FiSearch } from 'react-icons/fi';
+import { FiUser, FiActivity, FiHeart, FiThermometer, FiWind, FiCheckCircle, FiAlertCircle, FiSearch, FiClock } from 'react-icons/fi';
 
 const DoctorPatients = () => {
+  const { user } = useAuth();
+  const isEmergencyDoctor = user?.department === 'Emergency';
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,6 +41,25 @@ const DoctorPatients = () => {
     if (!date && !time) return '—';
     const d = date ? new Date(date).toLocaleDateString() : '';
     return [d, time].filter(Boolean).join(' ');
+  };
+
+  // Check if a patient's appointment time has arrived
+  const isAppointmentReady = (patient) => {
+    if (isEmergencyDoctor) return true;
+    if (!patient.appointmentDate && !patient.appointmentTime) return true; // no appointment = always active
+    if (!patient.appointmentTime) return true;
+    const now = new Date();
+    const apptDate = patient.appointmentDate ? new Date(patient.appointmentDate) : new Date();
+    // Parse time like "09:00 AM"
+    const timeParts = patient.appointmentTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!timeParts) return true;
+    let hours = parseInt(timeParts[1]);
+    const minutes = parseInt(timeParts[2]);
+    const ampm = timeParts[3].toUpperCase();
+    if (ampm === 'PM' && hours !== 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+    apptDate.setHours(hours, minutes, 0, 0);
+    return now >= apptDate;
   };
 
   const handleCloseCase = async (patientId, caseId) => {
@@ -119,8 +141,10 @@ const DoctorPatients = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {patients.map((patient) => (
-                    <tr key={patient._id}>
+                  {patients.map((patient) => {
+                    const ready = isAppointmentReady(patient);
+                    return (
+                    <tr key={patient._id} className={!ready ? 'row-inactive' : ''}>
                       <td>
                         <div className="patient-cell">
                           <div className="patient-avatar-sm">
@@ -130,7 +154,10 @@ const DoctorPatients = () => {
                         </div>
                       </td>
                       <td>{patient.nationalID}</td>
-                      <td>{formatAppointmentDateTime(patient.appointmentDate, patient.appointmentTime)}</td>
+                      <td>
+                        {formatAppointmentDateTime(patient.appointmentDate, patient.appointmentTime)}
+                        {!ready && <span className="waiting-badge"><FiClock /> Waiting</span>}
+                      </td>
                       <td>
                         <span className={`status-pill ${patient.patientStatus === 'critical' ? 'critical' : 'stable'}`}>
                           {patient.patientStatus === 'critical' ? (
@@ -144,6 +171,7 @@ const DoctorPatients = () => {
                             type="button"
                             className={`status-btn ${patient.patientStatus !== 'critical' ? 'active' : ''}`}
                             onClick={() => handleSetStatus(patient._id, patient.caseId, 'stable')}
+                            disabled={!ready}
                           >
                             Stable
                           </button>
@@ -151,6 +179,7 @@ const DoctorPatients = () => {
                             type="button"
                             className={`status-btn critical ${patient.patientStatus === 'critical' ? 'active' : ''}`}
                             onClick={() => handleSetStatus(patient._id, patient.caseId, 'critical')}
+                            disabled={!ready}
                           >
                             Critical
                           </button>
@@ -161,23 +190,15 @@ const DoctorPatients = () => {
                         <button
                           className="action-btn-view"
                           onClick={() => openViewDetails(patient)}
-                          title="View patient vitals and details"
+                          title={ready ? "View patient vitals and details" : "Appointment time has not arrived yet"}
+                          disabled={!ready}
                         >
                           <FiActivity /> View Details
                         </button>
-                        {/* {patient.caseStatus === 'open' && patient.caseId && (
-                          <button
-                            className="action-btn-sm close"
-                            onClick={() => handleCloseCase(patient._id, patient.caseId)}
-                            title="Close Case"
-                            style={{ marginLeft: '8px' }}
-                          >
-                            <FiCheckCircle /> Close Case
-                          </button>
-                        )} */}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -307,9 +328,38 @@ const DoctorPatients = () => {
           cursor: pointer;
           transition: all 0.2s;
         }
-        .action-btn-view:hover {
+        .action-btn-view:hover:not(:disabled) {
           background: #6366f1;
           color: white;
+        }
+        .action-btn-view:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+        .row-inactive {
+          opacity: 0.5;
+          pointer-events: none;
+          background: #f8fafc;
+        }
+        .row-inactive td {
+          color: #94a3b8;
+        }
+        .row-inactive .status-actions button,
+        .row-inactive .action-btn-view {
+          pointer-events: auto;
+          cursor: not-allowed;
+        }
+        .waiting-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25rem;
+          margin-left: 0.5rem;
+          padding: 0.2rem 0.5rem;
+          background: #fef3c7;
+          color: #d97706;
+          border-radius: 12px;
+          font-size: 0.7rem;
+          font-weight: 600;
         }
       `}</style>
 

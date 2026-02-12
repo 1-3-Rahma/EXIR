@@ -33,9 +33,19 @@ const DoctorMessages = () => {
       fetchContacts();
     }, 10000);
 
+    // Real-time online/offline status updates
+    const handleStatusChange = (e) => {
+      const { userId, status } = e.detail;
+      setContacts(prev => prev.map(c =>
+        (c._id === userId || c.id === userId) ? { ...c, status } : c
+      ));
+    };
+    window.addEventListener('userStatusChanged', handleStatusChange);
+
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       if (contactsPollRef.current) clearInterval(contactsPollRef.current);
+      window.removeEventListener('userStatusChanged', handleStatusChange);
     };
   }, []);
 
@@ -60,6 +70,16 @@ const DoctorMessages = () => {
       }
     };
   }, [selectedContact]);
+
+  // Keep selectedContact status in sync with contacts list
+  useEffect(() => {
+    if (selectedContact) {
+      const updated = contacts.find(c => (c._id || c.id) === (selectedContact._id || selectedContact.id));
+      if (updated && updated.status !== selectedContact.status) {
+        setSelectedContact(prev => ({ ...prev, status: updated.status }));
+      }
+    }
+  }, [contacts]);
 
   useEffect(() => {
     scrollToBottom();
