@@ -358,10 +358,7 @@ const PatientHistory = () => {
                   <FiUser /> {apt.doctorId?.fullName || apt.doctorName || 'Doctor'}
                 </span>
                 <span className="appointment-dept">{apt.department}</span>
-              </div>
-              <span className={`status-badge ${getStatusClass(apt.status)}`}>
-                {apt.status}
-              </span>
+              </div>          
               {expandedId === apt._id ? <FiChevronUp /> : <FiChevronDown />}
             </div>
 
@@ -420,9 +417,9 @@ const PatientHistory = () => {
                 <span>{formatDate(caseItem.createdAt)}</span>
               </div>
               <div className="history-summary">
-                <span className="case-diagnosis">
+                {/* <span className="case-diagnosis">
                   {caseItem.diagnosis || 'No diagnosis recorded'}
-                </span>
+                </span> */}
                 <span className="case-doctor">
                   <FiUser /> Dr. {caseItem.doctor?.fullName || 'Unknown'}
                 </span>
@@ -455,7 +452,7 @@ const PatientHistory = () => {
                   )}
                 </div>
 
-                <div className="detail-section">
+                {/* <div className="detail-section">
                   <h4>Diagnosis</h4>
                   <p>{caseItem.diagnosis || 'No diagnosis recorded'}</p>
                 </div>
@@ -463,7 +460,7 @@ const PatientHistory = () => {
                 <div className="detail-section">
                   <h4>Treatment Plan</h4>
                   <p>{caseItem.treatmentPlan || 'No treatment plan recorded'}</p>
-                </div>
+                </div> */}
 
                 {caseItem.notes && (
                   <div className="detail-section notes-section">

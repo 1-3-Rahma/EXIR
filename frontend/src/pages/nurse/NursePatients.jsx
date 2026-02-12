@@ -176,14 +176,7 @@ const NursePatients = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="filter-group">
-          <button className="filter-btn" onClick={() => setShowFilters(!showFilters)}>
-            <FiFilter /> All Patients <FiChevronDown />
-          </button>
-          <button className="more-filters-btn">
-            <FiFilter /> More Filters
-          </button>
-        </div>
+     
       </div>
 
       {/* Status Filter Pills */}
