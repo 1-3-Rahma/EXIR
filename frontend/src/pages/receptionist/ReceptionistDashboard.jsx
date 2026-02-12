@@ -209,7 +209,7 @@ const ReceptionistDashboard = () => {
       <div className="card arrivals-section">
         <div className="card-header">
           <h2>
-            <FiClock /> Today's Arrivals
+            <FiClock /> Today's Arrivals (emergency)
           </h2>
         </div>
         <div className="card-body">

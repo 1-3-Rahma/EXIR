@@ -114,7 +114,7 @@ const ReceptionistPatients = () => {
   return (
     <Layout appName="MedHub" role="receptionist">
       <div className="page-header">
-        <h1>Patient Management</h1>
+        <h1>Patient Management (emergency)</h1>
         <p>View, search, and manage all patients</p>
       </div>
 
