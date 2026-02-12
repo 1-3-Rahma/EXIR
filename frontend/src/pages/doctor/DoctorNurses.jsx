@@ -31,7 +31,7 @@ const DoctorNurses = () => {
     { value: 'evening', label: 'Evening' },
     { value: 'night', label: 'Night' }
   ];
-  const [rxRows, setRxRows] = useState([{ medicineName: '', timesPerDay: '', schedule: [], note: '' }]);
+  const [rxRows, setRxRows] = useState([{ medicineName: '', timesPerDay: '', schedule: [], note: '', duration: '', durationUnit: 'days' }]);
   const [rxSubmitting, setRxSubmitting] = useState(false);
   const [showIvModal, setShowIvModal] = useState(false);
   const [selectedPatientForIv, setSelectedPatientForIv] = useState(null);
@@ -113,12 +113,12 @@ const DoctorNurses = () => {
 
   const openAddRx = (patient) => {
     setSelectedPatientForRx(patient);
-    setRxRows([{ medicineName: '', timesPerDay: '', schedule: [], note: '' }]);
+    setRxRows([{ medicineName: '', timesPerDay: '', schedule: [], note: '', duration: '', durationUnit: 'days' }]);
     setShowRxModal(true);
   };
 
   const addRxRow = () => {
-    setRxRows((prev) => [...prev, { medicineName: '', timesPerDay: '', schedule: [], note: '' }]);
+    setRxRows((prev) => [...prev, { medicineName: '', timesPerDay: '', schedule: [], note: '', duration: '', durationUnit: 'days' }]);
   };
 
   const toggleSchedule = (rowIndex, slot) => {
@@ -196,11 +196,15 @@ const DoctorNurses = () => {
           schedule = defaults[timesPerDay - 1] || ['morning'];
         }
         if (schedule.length === 0) schedule = ['morning'];
+        const duration = r.duration != null && r.duration !== '' ? Number(r.duration) : null;
+        const durationUnit = r.durationUnit || 'days';
         return {
           medicineName: String(r.medicineName || '').trim(),
           timesPerDay,
           schedule,
-          note: String(r.note || '').trim()
+          note: String(r.note || '').trim(),
+          duration,
+          durationUnit
         };
       });
   };
@@ -525,6 +529,7 @@ const DoctorNurses = () => {
                       <th>Times per day</th>
                       <th>When (select times)</th>
                       <th>Note</th>
+                      <th>Duration</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -576,6 +581,26 @@ const DoctorNurses = () => {
                               onChange={(e) => updateRxRow(index, 'note', e.target.value)}
                               placeholder="Optional note"
                             />
+                          </td>
+                          <td className="rx-duration-cell">
+                            <div className="rx-duration-group">
+                              <input
+                                type="number"
+                                min={1}
+                                value={row.duration}
+                                onChange={(e) => updateRxRow(index, 'duration', e.target.value)}
+                                placeholder="e.g. 7"
+                                className="rx-duration-input"
+                              />
+                              <select
+                                value={row.durationUnit}
+                                onChange={(e) => updateRxRow(index, 'durationUnit', e.target.value)}
+                                className="rx-duration-unit"
+                              >
+                                <option value="days">Days</option>
+                                <option value="weeks">Weeks</option>
+                              </select>
+                            </div>
                           </td>
                           <td>
                             <button type="button" className="btn-remove-row" onClick={() => removeRxRow(index)} title="Remove row">
@@ -663,7 +688,7 @@ const DoctorNurses = () => {
         .modal-assign .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1rem; }
         .modal-assign .modal-actions button { padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
         .modal-assign .modal-actions button[type=submit] { background: #0ea5e9; color: white; border: none; }
-        .modal-rx { background: white; border-radius: 12px; padding: 1.5rem; width: 90%; max-width: 640px; max-height: 90vh; overflow-y: auto; }
+        .modal-rx { background: white; border-radius: 12px; padding: 1.5rem; width: 95%; max-width: 850px; max-height: 90vh; overflow-y: auto; }
         .modal-rx h3 { margin: 0 0 0.25rem 0; font-size: 1.1rem; }
         .modal-rx .rx-subtitle { margin: 0 0 1rem 0; font-size: 0.85rem; color: #64748b; }
         .modal-rx .rx-table-wrap { overflow-x: auto; margin-bottom: 0.75rem; }
@@ -675,6 +700,10 @@ const DoctorNurses = () => {
         .modal-rx .rx-when-check { display: inline-flex; align-items: center; gap: 0.35rem; margin-right: 0.75rem; font-size: 0.8rem; cursor: pointer; white-space: nowrap; }
         .modal-rx .rx-when-check.disabled { opacity: 0.6; cursor: not-allowed; }
         .modal-rx .rx-when-check input { width: auto; }
+        .modal-rx .rx-duration-cell { min-width: 150px; }
+        .modal-rx .rx-duration-group { display: flex; gap: 0.35rem; align-items: center; }
+        .modal-rx .rx-duration-input { width: 60px !important; }
+        .modal-rx .rx-duration-unit { width: 80px !important; padding: 0.35rem; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 0.85rem; }
         .modal-rx .btn-remove-row { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 0.25rem; }
         .modal-rx .btn-remove-row:hover { color: #ef4444; }
         .modal-rx .btn-add-row { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.5rem 0.75rem; margin-bottom: 1rem; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.85rem; cursor: pointer; }

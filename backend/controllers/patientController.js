@@ -326,13 +326,44 @@ const getMedications = async (req, res) => {
     }).populate('doctorId', 'fullName specialization');
 
     if (!activeCase) {
-      return res.json({ medications: [], ivOrders: [] });
+      return res.json({ medications: [], ivOrders: [], medicationHistory: [] });
     }
 
-    // Filter active medications
-    const activeMedications = activeCase.medications.filter(
-      med => med.status === 'active'
-    );
+    const now = new Date();
+
+    // Helper: check if a medication's duration has expired
+    const isExpired = (med) => {
+      if (!med.duration || !med.startDate) return false;
+      const daysTotal = med.durationUnit === 'weeks' ? med.duration * 7 : med.duration;
+      const endDate = new Date(med.startDate);
+      endDate.setDate(endDate.getDate() + daysTotal);
+      return now >= endDate;
+    };
+
+    // Helper: compute end date
+    const getEndDate = (med) => {
+      if (!med.duration || !med.startDate) return null;
+      const daysTotal = med.durationUnit === 'weeks' ? med.duration * 7 : med.duration;
+      const endDate = new Date(med.startDate);
+      endDate.setDate(endDate.getDate() + daysTotal);
+      return endDate;
+    };
+
+    // Split medications into active and history
+    const activeMedications = [];
+    const medicationHistory = [];
+
+    for (const med of activeCase.medications) {
+      const medObj = med.toObject ? med.toObject() : { ...med };
+      medObj.endDate = getEndDate(med);
+      medObj.isExpired = isExpired(med);
+
+      if (med.status === 'given' || medObj.isExpired) {
+        medicationHistory.push(medObj);
+      } else {
+        activeMedications.push(medObj);
+      }
+    }
 
     // Filter active IV orders
     const activeIvOrders = activeCase.ivOrders.filter(
@@ -345,6 +376,7 @@ const getMedications = async (req, res) => {
       diagnosis: activeCase.diagnosis,
       treatmentPlan: activeCase.treatmentPlan,
       medications: activeMedications,
+      medicationHistory,
       ivOrders: activeIvOrders
     });
   } catch (error) {

@@ -9,6 +9,7 @@ import {
 const PatientMedications = () => {
   const [medicationsData, setMedicationsData] = useState({
     medications: [],
+    medicationHistory: [],
     ivOrders: [],
     doctor: null,
     diagnosis: '',
@@ -25,6 +26,7 @@ const PatientMedications = () => {
       const response = await patientAPI.getMedications();
       setMedicationsData({
         medications: response.data.medications || [],
+        medicationHistory: response.data.medicationHistory || [],
         ivOrders: response.data.ivOrders || [],
         doctor: response.data.doctor || null,
         diagnosis: response.data.diagnosis || '',
@@ -93,6 +95,29 @@ const PatientMedications = () => {
 
   const activeMedications = medicationsData.medications.filter(med => med.status === 'active');
   const activeIvOrders = medicationsData.ivOrders.filter(iv => iv.status === 'active');
+
+  // Compute remaining time text for a medication with duration
+  const getRemainingText = (med) => {
+    if (!med.duration || !med.startDate) return null;
+    const daysTotal = med.durationUnit === 'weeks' ? med.duration * 7 : med.duration;
+    const endDate = new Date(med.startDate);
+    endDate.setDate(endDate.getDate() + daysTotal);
+    const now = new Date();
+    const diffMs = endDate - now;
+    if (diffMs <= 0) return 'Expired';
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays >= 7) {
+      const weeks = Math.floor(diffDays / 7);
+      const days = diffDays % 7;
+      return days > 0 ? `${weeks}w ${days}d remaining` : `${weeks}w remaining`;
+    }
+    return `${diffDays}d remaining`;
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
 
   return (
     <Layout appName="Patient View" role="patient">
@@ -183,7 +208,13 @@ const PatientMedications = () => {
                       <p className="med-dosage">
                         {med.timesPerDay}x daily
                         {med.dosage && ` - ${med.dosage}`}
+                        {med.duration && ` · ${med.duration} ${med.durationUnit}`}
                       </p>
+                      {getRemainingText(med) && (
+                        <p className="med-remaining">
+                          <FiClock className="remaining-icon" /> {getRemainingText(med)}
+                        </p>
+                      )}
                       {med.note && (
                         <p className="med-note">
                           <FiInfo className="note-icon" /> {med.note}
@@ -234,6 +265,41 @@ const PatientMedications = () => {
                         <FiInfo className="note-icon" /> {iv.instructions}
                       </p>
                     )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Medication History */}
+      {medicationsData.medicationHistory.length > 0 && (
+        <div className="card">
+          <div className="card-header">
+            <h2><FiClock /> Medication History</h2>
+            <span className="count-badge history-badge">{medicationsData.medicationHistory.length} completed</span>
+          </div>
+          <div className="card-body">
+            <div className="med-list">
+              {medicationsData.medicationHistory.map((med, index) => (
+                <div key={med._id || index} className="med-card history-card">
+                  <div className={`med-status ${med.isExpired ? 'expired' : 'given'}`}>
+                    {med.isExpired ? <FiClock /> : <FiCheckCircle />}
+                  </div>
+                  <div className="med-info">
+                    <h3>{med.medicineName}</h3>
+                    <p className="med-dosage">
+                      {med.timesPerDay}x daily
+                      {med.duration && ` · ${med.duration} ${med.durationUnit}`}
+                    </p>
+                    <div className="med-history-dates">
+                      {med.startDate && <span>Started: {formatDate(med.startDate)}</span>}
+                      {med.endDate && <span>Ended: {formatDate(med.endDate)}</span>}
+                    </div>
+                  </div>
+                  <div className={`history-status-badge ${med.isExpired ? 'expired' : 'completed'}`}>
+                    {med.isExpired ? 'Duration Ended' : 'Completed'}
                   </div>
                 </div>
               ))}
@@ -655,6 +721,57 @@ const PatientMedications = () => {
         .reminder-item p {
           font-size: 0.9rem;
           color: var(--text-secondary);
+        }
+        .med-remaining {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+          font-size: 0.8rem;
+          color: var(--accent-blue);
+          font-weight: 500;
+          margin-bottom: 0.5rem;
+        }
+        .remaining-icon {
+          font-size: 0.85rem;
+        }
+        .history-badge {
+          background: rgba(100, 116, 139, 0.1) !important;
+          color: var(--text-secondary) !important;
+        }
+        .med-card.history-card {
+          opacity: 0.85;
+          border-left: 3px solid var(--text-muted);
+        }
+        .med-status.expired {
+          background: rgba(245, 158, 11, 0.1);
+          color: var(--accent-orange);
+        }
+        .med-status.given {
+          background: rgba(34, 197, 94, 0.1);
+          color: var(--accent-green);
+        }
+        .med-history-dates {
+          display: flex;
+          gap: 1rem;
+          font-size: 0.8rem;
+          color: var(--text-muted);
+          margin-top: 0.25rem;
+        }
+        .history-status-badge {
+          padding: 0.25rem 0.75rem;
+          border-radius: var(--radius-full);
+          font-size: 0.75rem;
+          font-weight: 500;
+          white-space: nowrap;
+          align-self: center;
+        }
+        .history-status-badge.expired {
+          background: rgba(245, 158, 11, 0.1);
+          color: var(--accent-orange);
+        }
+        .history-status-badge.completed {
+          background: rgba(34, 197, 94, 0.1);
+          color: var(--accent-green);
         }
         .empty-state {
           text-align: center;

@@ -186,6 +186,27 @@ const assignPatient = async (req, res) => {
       relatedPatientId: patientId
     });
 
+    // Notify the patient about nurse assignment
+    if (patient.userId) {
+      await Notification.create({
+        userId: patient.userId,
+        type: 'assignment',
+        message: `Nurse ${nurse.fullName} has been assigned to your care by Dr. ${req.user.fullName}`,
+        relatedPatientId: patientId
+      });
+
+      // Real-time notification for patient
+      const io = req.app.get('io');
+      if (io) {
+        const patientUserId = patient.userId?.toString?.() || patient.userId;
+        io.to(`user:${patientUserId}`).emit('newNotification', {
+          type: 'assignment',
+          message: `Nurse ${nurse.fullName} has been assigned to your care by Dr. ${req.user.fullName}`,
+          patientId
+        });
+      }
+    }
+
     res.status(201).json({
       message: 'Patient assigned successfully',
       assignment
@@ -591,19 +612,24 @@ const addPrescription = async (req, res) => {
         schedule = defaults[timesPerDay - 1] || ['morning'];
       }
       if (schedule.length === 0) schedule = ['morning'];
+      const duration = m.duration != null && m.duration !== '' ? Number(m.duration) : null;
+      const durationUnit = ['days', 'weeks'].includes(m.durationUnit) ? m.durationUnit : 'days';
       return {
         medicineName: String(m.medicineName || '').trim(),
         timesPerDay,
         schedule,
-        note: String(m.note || '').trim()
+        note: String(m.note || '').trim(),
+        duration,
+        durationUnit,
+        startDate: new Date()
       };
     });
 
     patientCase.medications.push(...validMeds);
     await patientCase.save();
 
-    // Send notification to assigned nurses
-    const patient = await Patient.findById(patientId).select('fullName');
+    // Send notification to assigned nurses and patient
+    const patient = await Patient.findById(patientId).select('fullName userId');
     const patientName = patient?.fullName || 'Unknown';
     const doctorName = req.user.fullName || 'Doctor';
     const assignments = await Assignment.find({ patientId, isActive: true });
@@ -634,6 +660,26 @@ const addPrescription = async (req, res) => {
       for (const a of assignments) {
         const nurseId = a.nurseId?.toString?.() || a.nurseId;
         if (nurseId) io.to(`nurse:${nurseId}`).emit('newNotification', payload);
+      }
+    }
+
+    // Notify the patient about the new prescription
+    if (patient?.userId) {
+      await Notification.create({
+        userId: patient.userId,
+        type: 'medication',
+        message: `Dr. ${doctorName} prescribed new medication: ${medList}`,
+        relatedPatientId: patientId
+      });
+
+      // Real-time notification for patient
+      if (io) {
+        const patientUserId = patient.userId?.toString?.() || patient.userId;
+        io.to(`user:${patientUserId}`).emit('newNotification', {
+          type: 'medication',
+          message: `Dr. ${doctorName} prescribed new medication: ${medList}`,
+          patientId
+        });
       }
     }
 

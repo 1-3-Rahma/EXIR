@@ -207,9 +207,7 @@ const PatientDashboard = () => {
                         <FiClock /> {med.timesPerDay}x daily
                       </span>
                     </div>
-                    <div className={`med-status ${med.status}`}>
-                      {med.status === 'given' ? 'Taken' : 'Pending'}
-                    </div>
+                  
                   </div>
                 ))}
                 {ivOrders.map((iv, index) => (

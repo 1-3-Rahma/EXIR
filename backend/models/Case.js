@@ -42,6 +42,9 @@ const caseSchema = new mongoose.Schema({
     timesPerDay: { type: Number, required: true },
     schedule: { type: [String], enum: ['morning', 'afternoon', 'evening', 'night'], default: [] },
     note: { type: String, default: '' },
+    duration: { type: Number, default: null },
+    durationUnit: { type: String, enum: ['days', 'weeks'], default: 'days' },
+    startDate: { type: Date, default: Date.now },
     status: { type: String, enum: ['active', 'given'], default: 'active' },
     givenAt: { type: Date, default: null },
     givenBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
