@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
 import {
   FiSearch, FiFilter, FiUser, FiFileText, FiActivity,
-  FiMessageSquare, FiChevronDown, FiEdit2, FiX
+  FiMessageSquare, FiChevronDown, FiEdit2, FiX, FiDroplet
 } from 'react-icons/fi';
 import { nurseAPI } from '../../services/api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
 const NursePatients = () => {
+  const navigate = useNavigate();
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -304,6 +306,15 @@ const NursePatients = () => {
                   <button className="action-btn">
                     <FiActivity /> Vitals
                   </button>
+                  <button
+                    className="action-btn action-btn--iv"
+                    onClick={() => navigate(`/nurse/iv-regulator/${patient._id}`, {
+                      state: { patientName: patient.fullName, room: patient.room }
+                    })}
+                    title="Open IV Regulator for this patient"
+                  >
+                    <FiDroplet /> IV
+                  </button>
                   <button className="action-btn icon-only">
                     <FiMessageSquare />
                   </button>
@@ -576,6 +587,11 @@ const NursePatients = () => {
           background: #f8fafc;
           border-color: #3b82f6;
           color: #3b82f6;
+        }
+
+        .action-btn--iv:hover {
+          border-color: #6366f1 !important;
+          color: #6366f1 !important;
         }
 
         .action-btn.icon-only {
