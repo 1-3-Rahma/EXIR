@@ -347,7 +347,7 @@ const seedData = async () => {
     console.log('  DOC008 - Dr. Amira Nabil (Emergency, Afternoon)');
     console.log('  DOC009 - Dr. Mostafa Reda (Emergency, Night)');
     console.log('  Password: password123');
-    console.log('  Role: doctor')
+    console.log('  Role: doctor');
     console.log('----------------------------------------');
     console.log('Nurse:');
     console.log('  Identifier: NUR001');
