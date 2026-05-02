@@ -26,11 +26,27 @@ JWT_SECRET=your_jwt_secret_key_change_in_production
 JWT_EXPIRE=24h
 MAX_FILE_SIZE=10485760
 UPLOAD_PATH=./uploads
+AI_SERVICE_URL=http://localhost:8000
 ```
 
 ### Run the Server
 
+Start the AI service first:
+
 ```bash
+cd ai-service
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8001
+```
+
+Then start the backend:
+
+```bash
+cd backend
+npm install
+
 # Development mode
 npm run dev
 
@@ -153,14 +169,82 @@ backend/
 └── server.js
 ```
 
-## Critical Event Detection
+## AI Vitals Flow
 
-Vitals are automatically checked for critical conditions:
+Vitals sent to `POST /api/v1/vitals/receive` are forwarded to the FastAPI AI service at `AI_SERVICE_URL`. The backend saves the raw vital reading, stores the AI prediction fields on the `Vital` document, and creates notifications only from the AI result:
+
+- `Normal`: save reading only
+- `warning` alert level or `Abnormal` predicted label: create warning notifications
+- `critical` alert level or `Critical` predicted label: create critical notifications
+
+The legacy `utils/criticalDetection.js` file is still present but is not used as the main notification logic.
+
+### AI Artifact Layout
+
+Place the Python model package files here:
+
+```text
+ai-service/artifacts/backend/health_alert_engine.py
+ai-service/artifacts/model/xgb_risk_model.joblib
+ai-service/artifacts/preprocessing/features.json
+ai-service/artifacts/preprocessing/label_mapping.json
+ai-service/artifacts/config/alert_config.json
+```
+
+### Postman Examples
+
+Normal:
+
+```http
+POST http://localhost:5000/api/v1/vitals/receive
+Content-Type: application/json
+
+{
+  "patientId": "PUT_REAL_PATIENT_ID_HERE",
+  "heartRate": 78,
+  "spo2": 98,
+  "temperature": 36.8,
+  "source": "sensor-simulator"
+}
+```
+
+Abnormal:
+
+```http
+POST http://localhost:5000/api/v1/vitals/receive
+Content-Type: application/json
+
+{
+  "patientId": "PUT_REAL_PATIENT_ID_HERE",
+  "heartRate": 120,
+  "spo2": 90,
+  "temperature": 38.5,
+  "source": "sensor-simulator"
+}
+```
+
+Critical:
+
+```http
+POST http://localhost:5000/api/v1/vitals/receive
+Content-Type: application/json
+
+{
+  "patientId": "PUT_REAL_PATIENT_ID_HERE",
+  "heartRate": 145,
+  "spo2": 84,
+  "temperature": 40.2,
+  "source": "sensor-simulator"
+}
+```
+
+## Legacy Critical Event Detection
+
+This section describes the old threshold utility that remains in `utils/criticalDetection.js` for reference only. AI predictions are now the main notification source.
+
+The old utility checked these fixed threshold conditions:
 - Heart Rate: < 50 or > 120 bpm
 - SpO2: < 90%
 - Temperature: < 35°C or > 39°C
 
-When critical vitals are detected:
-1. Vital is marked as `isCritical: true`
-2. Notifications sent to assigned nurse and doctor
-3. Alert appears in nurse's critical events
+That old flow has been replaced for sensor ingestion by the AI service flow above.

@@ -1,0 +1,38 @@
+### AI health check
+GET http://localhost:8000/health
+
+### Backend vitals - Normal
+POST http://localhost:5000/api/v1/vitals/receive
+Content-Type: application/json
+
+{
+  "patientId": "PUT_REAL_PATIENT_ID_HERE",
+  "heartRate": 78,
+  "spo2": 98,
+  "temperature": 36.8,
+  "source": "sensor-simulator"
+}
+
+### Backend vitals - Abnormal
+POST http://localhost:5000/api/v1/vitals/receive
+Content-Type: application/json
+
+{
+  "patientId": "PUT_REAL_PATIENT_ID_HERE",
+  "heartRate": 120,
+  "spo2": 90,
+  "temperature": 38.5,
+  "source": "sensor-simulator"
+}
+
+### Backend vitals - Critical
+POST http://localhost:5000/api/v1/vitals/receive
+Content-Type: application/json
+
+{
+  "patientId": "PUT_REAL_PATIENT_ID_HERE",
+  "heartRate": 145,
+  "spo2": 84,
+  "temperature": 40.2,
+  "source": "sensor-simulator"
+}

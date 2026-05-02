@@ -480,6 +480,12 @@ const getFormattedVitalsOverview = async (req, res) => {
           name: assignment.patientId.fullName,
           room: assignment.patientId.room || 'N/A',
           updatedAt: latestVital.createdAt,
+          latestVitals: {
+            riskLevel: latestVital.riskLevel,
+            confidenceScore: latestVital.confidenceScore,
+            isCritical: latestVital.isCritical,
+            isAbnormal: latestVital.isAbnormal
+          },
           vitals,
           alert
         };

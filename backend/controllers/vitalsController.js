@@ -3,7 +3,151 @@ const Patient = require('../models/Patient');
 const Assignment = require('../models/Assignment');
 const Notification = require('../models/Notification');
 const Case = require('../models/Case');
-const { checkCriticalVitals } = require('../utils/criticalDetection');
+const { predictVitalsRisk } = require('../utils/aiService');
+
+const getNestedValue = (source, paths) => {
+  for (const path of paths) {
+    const value = path.split('.').reduce((current, key) => current?.[key], source);
+    if (value !== undefined && value !== null) {
+      return value;
+    }
+  }
+
+  return undefined;
+};
+
+const normalizeAiResult = (aiResult) => {
+  if (!aiResult) {
+    return {
+      aiPrediction: undefined,
+      aiAlert: undefined,
+      riskLevel: undefined,
+      confidenceScore: undefined,
+      isAbnormal: false,
+      isCritical: false
+    };
+  }
+
+  const predictedClass = getNestedValue(aiResult, [
+    'model_prediction.predicted_class',
+    'predictedClass',
+    'predicted_class',
+    'prediction.predictedClass',
+    'prediction.predicted_class',
+    'prediction.class'
+  ]);
+  const predictedLabel = getNestedValue(aiResult, [
+    'model_prediction.predicted_label',
+    'predictedLabel',
+    'predicted_label',
+    'prediction.predictedLabel',
+    'prediction.predicted_label',
+    'prediction.label',
+    'risk_level',
+    'riskLevel'
+  ]);
+  const classProbabilities = getNestedValue(aiResult, [
+    'model_prediction.class_probabilities',
+    'classProbabilities',
+    'class_probabilities',
+    'prediction.classProbabilities',
+    'prediction.class_probabilities',
+    'probabilities'
+  ]);
+  const alertLevel = getNestedValue(aiResult, [
+    'alertLevel',
+    'alert_level',
+    'alert.alertLevel',
+    'alert.alert_level',
+    'alert.level'
+  ]);
+  const alertMessage = getNestedValue(aiResult, [
+    'alertMessage',
+    'alert_message',
+    'alert.alertMessage',
+    'alert.alert_message',
+    'alert.message'
+  ]);
+  const recommendedAction = getNestedValue(aiResult, [
+    'recommendedAction',
+    'recommended_action',
+    'alert.recommendedAction',
+    'alert.recommended_action'
+  ]);
+  const reasons = getNestedValue(aiResult, [
+    'reasons',
+    'alert.reasons'
+  ]);
+  const rawConfidenceScore = getNestedValue(aiResult, [
+    'confidenceScore',
+    'confidence_score',
+    'model_prediction.confidence_score',
+    'prediction.confidenceScore',
+    'prediction.confidence_score',
+    'confidence'
+  ]);
+
+  const probabilityEntries = classProbabilities && typeof classProbabilities === 'object'
+    ? Object.entries(classProbabilities)
+    : [];
+  const confidenceFromPrediction = predictedLabel && probabilityEntries.length > 0
+    ? probabilityEntries.find(([label]) => label.toLowerCase() === String(predictedLabel).toLowerCase())?.[1]
+    : undefined;
+  const confidenceScore = confidenceFromPrediction !== undefined
+    ? Number(confidenceFromPrediction)
+    : rawConfidenceScore;
+
+  const isCritical = predictedLabel === 'Critical';
+  const isAbnormal = predictedLabel === 'Abnormal' || predictedLabel === 'Critical';
+
+  return {
+    aiPrediction: {
+      predictedClass: predictedClass === undefined ? undefined : Number(predictedClass),
+      predictedLabel,
+      classProbabilities
+    },
+    aiAlert: {
+      alertLevel,
+      alertMessage,
+      recommendedAction,
+      reasons: Array.isArray(reasons) ? reasons : []
+    },
+    riskLevel: predictedLabel,
+    confidenceScore,
+    isAbnormal,
+    isCritical
+  };
+};
+
+const createAiNotifications = async ({ patient, vital, notificationType, alertMessage }) => {
+  if (!notificationType) {
+    return;
+  }
+
+  const assignments = await Assignment.find({ patientId: patient._id, isActive: true });
+  const userIds = new Set();
+
+  assignments.forEach((assignment) => {
+    if (assignment.nurseId) userIds.add(String(assignment.nurseId));
+    if (assignment.doctorId) userIds.add(String(assignment.doctorId));
+  });
+
+  const openCase = await Case.findOne({ patientId: patient._id, status: 'open' });
+  if (openCase?.doctorId) {
+    userIds.add(String(openCase.doctorId));
+  }
+
+  const messagePrefix = notificationType === 'critical' ? 'CRITICAL' : 'WARNING';
+  const message = `${messagePrefix}: Patient ${patient.fullName} - ${alertMessage || 'AI detected elevated health risk'}`;
+
+  await Promise.all([...userIds].map((userId) => Notification.create({
+    userId,
+    type: notificationType,
+    message,
+    relatedPatientId: patient._id,
+    relatedVitalId: vital._id
+  })));
+};
 
 // @desc    Receive vitals from sensors
 // @route   POST /api/v1/vitals/receive
@@ -23,7 +167,15 @@ const receiveVitals = async (req, res) => {
       return res.status(404).json({ message: 'Patient not found' });
     }
 
-    const criticalCheck = checkCriticalVitals({ heartRate, spo2, temperature });
+    const timestamp = new Date().toISOString();
+    const aiResult = await predictVitalsRisk({
+      patientId,
+      heartRate,
+      spo2,
+      temperature,
+      timestamp
+    });
+    const normalizedAiResult = normalizeAiResult(aiResult);
 
     const vital = await Vital.create({
       patientId,
@@ -31,52 +183,28 @@ const receiveVitals = async (req, res) => {
       spo2,
       temperature,
       source,
-      isCritical: criticalCheck.isCritical
+      ...normalizedAiResult,
+      aiRawResponse: aiResult
     });
 
-    if (criticalCheck.isCritical) {
-      const assignments = await Assignment.find({ patientId, isActive: true })
-        .populate('doctorId');
+    const predictedLabel = normalizedAiResult.aiPrediction?.predictedLabel;
+    const notificationType = predictedLabel === 'Critical'
+      ? 'critical'
+      : predictedLabel === 'Abnormal'
+        ? 'warning'
+        : null;
 
-      const criticalMessage = `CRITICAL: Patient ${patient.fullName} - ${criticalCheck.conditions.join('; ')}`;
-
-      for (const assignment of assignments) {
-        await Notification.create({
-          userId: assignment.nurseId,
-          type: 'critical',
-          message: criticalMessage,
-          relatedPatientId: patientId,
-          relatedVitalId: vital._id
-        });
-
-        if (assignment.doctorId) {
-          await Notification.create({
-            userId: assignment.doctorId._id,
-            type: 'critical',
-            message: criticalMessage,
-            relatedPatientId: patientId,
-            relatedVitalId: vital._id
-          });
-        }
-      }
-
-      const openCase = await Case.findOne({ patientId, status: 'open' });
-      if (openCase) {
-        await Notification.create({
-          userId: openCase.doctorId,
-          type: 'critical',
-          message: criticalMessage,
-          relatedPatientId: patientId,
-          relatedVitalId: vital._id
-        });
-      }
-    }
+    await createAiNotifications({
+      patient,
+      vital,
+      notificationType,
+      alertMessage: normalizedAiResult.aiAlert?.alertMessage
+    });
 
     res.status(201).json({
       message: 'Vitals recorded',
       vital,
-      isCritical: criticalCheck.isCritical,
-      criticalConditions: criticalCheck.conditions
+      aiResult
     });
   } catch (error) {
     console.error('Receive vitals error:', error);

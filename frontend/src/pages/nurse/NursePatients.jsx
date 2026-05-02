@@ -51,6 +51,20 @@ const NursePatients = () => {
     };
   };
 
+  const normalizeStatus = (status) => String(status || '').toLowerCase();
+
+  const isPatientCritical = (patient) =>
+    patient.latestVitals?.riskLevel === 'Critical' || patient.latestVitals?.isCritical === true;
+
+  const formatConfidence = (score) => {
+    if (score === undefined || score === null || Number.isNaN(Number(score))) {
+      return 'N/A';
+    }
+
+    const numericScore = Number(score);
+    return numericScore <= 1 ? `${Math.round(numericScore * 100)}%` : `${Math.round(numericScore)}%`;
+  };
+
   const fetchPatients = async () => {
     try {
       // Fetch both patients and their vitals
@@ -69,22 +83,9 @@ const NursePatients = () => {
       const enrichedPatients = patientsList.map(patient => {
         const vitalData = vitalsList.find(v => v._id === patient._id);
         const vitals = vitalData?.vitals;
+        const latestVitals = vitalData?.latestVitals || null;
 
-        // Single source of truth: when doctor (e.g. Ahmed) re-converts patient (e.g. Reham) to stable, nurse (Fatima) sees stable here too
-        let status = 'stable';
-        if (patient.patientStatus === 'critical') {
-          status = 'critical';
-        } else if (patient.patientStatus === 'stable') {
-          status = 'stable';
-        } else if (vitals) {
-          if (vitals.bp?.status === 'critical' || vitals.hr?.status === 'critical' ||
-              vitals.o2?.status === 'critical' || vitals.temp?.status === 'critical') {
-            status = 'critical';
-          } else if (vitals.bp?.status === 'warning' || vitals.hr?.status === 'warning' ||
-                     vitals.o2?.status === 'warning' || vitals.temp?.status === 'warning') {
-            status = 'moderate';
-          }
-        }
+        const status = latestVitals?.riskLevel || patient.patientStatus || 'stable';
 
         // Calculate age from date of birth
         const age = patient.dateOfBirth
@@ -99,6 +100,7 @@ const NursePatients = () => {
           room: patient.room || vitalData?.room || 'N/A',
           condition: patient.condition || patient.diagnosis || 'Under Observation',
           status: status,
+          latestVitals,
           assignedDoctor: patient.assignedDoctor,
           vitals: vitals ? {
             bp: vitals.bp ? `${vitals.bp.systolic}/${vitals.bp.diastolic}` : 'N/A',
@@ -119,8 +121,9 @@ const NursePatients = () => {
   };
 
   const getStatusColor = (status) => {
-    switch (status) {
+    switch (normalizeStatus(status)) {
       case 'critical': return { bg: '#fee2e2', border: '#ef4444', text: '#dc2626' };
+      case 'abnormal':
       case 'moderate': return { bg: '#fef3c7', border: '#f59e0b', text: '#d97706' };
       case 'stable': return { bg: '#dcfce7', border: '#22c55e', text: '#16a34a' };
       default: return { bg: '#f1f5f9', border: '#94a3b8', text: '#64748b' };
@@ -130,7 +133,8 @@ const NursePatients = () => {
   const filteredPatients = patients.filter(patient => {
     const matchesSearch = patient.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          patient.room?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || patient.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' ||
+      (statusFilter === 'critical' ? isPatientCritical(patient) : normalizeStatus(patient.status) === statusFilter);
     return matchesSearch && matchesStatus;
   });
 
@@ -191,14 +195,14 @@ const NursePatients = () => {
           className={`pill critical ${statusFilter === 'critical' ? 'active' : ''}`}
           onClick={() => setStatusFilter('critical')}
         >
-          Critical ({patients.filter(p => p.status === 'critical').length})
+          Critical ({patients.filter(isPatientCritical).length})
         </button>
 
         <button
           className={`pill stable ${statusFilter === 'stable' ? 'active' : ''}`}
           onClick={() => setStatusFilter('stable')}
         >
-          Stable ({patients.filter(p => p.status === 'stable').length})
+          Stable ({patients.filter(p => normalizeStatus(p.status) === 'stable').length})
         </button>
       </div>
 
@@ -259,6 +263,14 @@ const NursePatients = () => {
                 <div className="vitals-section">
                   <h4>Latest Vitals</h4>
                   <div className="vitals-grid">
+                    <div className="vital-item">
+                      <span className="vital-label">AI Risk</span>
+                      <span className="vital-value">{patient.latestVitals?.riskLevel || 'N/A'}</span>
+                    </div>
+                    <div className="vital-item">
+                      <span className="vital-label">AI Conf.</span>
+                      <span className="vital-value">{formatConfidence(patient.latestVitals?.confidenceScore)}</span>
+                    </div>
                     <div className="vital-item">
                       <span className="vital-label">BP</span>
                       <span className="vital-value">{patient.vitals?.bp || 'N/A'}</span>
