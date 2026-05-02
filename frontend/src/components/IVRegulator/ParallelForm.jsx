@@ -6,11 +6,7 @@ const DEFAULT_PUMPS = [
   { pump: 3, flowRateMlMin: '' },
 ];
 
-/**
- * ParallelForm — configure flow rates for pumps 1-3.
- * Calls POST /api/iv/parallel and reports the generated command to the parent.
- */
-const ParallelForm = ({ onConfigured }) => {
+const ParallelForm = ({ onConfigured, patientId }) => {
   const [pumps, setPumps] = useState(DEFAULT_PUMPS);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -21,7 +17,6 @@ const ParallelForm = ({ onConfigured }) => {
       i === index ? { ...p, flowRateMlMin: value } : p
     );
     setPumps(updated);
-    // Clear field-level error when nurse starts typing
     if (errors[index]) {
       setErrors((prev) => { const e = { ...prev }; delete e[index]; return e; });
     }
@@ -29,12 +24,23 @@ const ParallelForm = ({ onConfigured }) => {
 
   const validate = () => {
     const newErrors = {};
+    let anyActive = false;
     pumps.forEach((p, i) => {
+      if (p.flowRateMlMin === '' || p.flowRateMlMin === '0') return; // optional — skip
       const val = parseFloat(p.flowRateMlMin);
-      if (p.flowRateMlMin === '' || isNaN(val) || val <= 0) {
-        newErrors[i] = 'Enter a flow rate > 0';
+      if (isNaN(val) || val < 1 || val > 17) {
+        newErrors[i] = 'Enter 1–17 mL/min (or leave blank to disable)';
+      } else {
+        anyActive = true;
       }
     });
+    pumps.forEach((p) => {
+      const val = parseFloat(p.flowRateMlMin);
+      if (!isNaN(val) && val >= 1 && val <= 17) anyActive = true;
+    });
+    if (!anyActive) {
+      newErrors['_global'] = 'At least one pump must have a flow rate';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -47,9 +53,10 @@ const ParallelForm = ({ onConfigured }) => {
     try {
       const payload = {
         mode: 'parallel',
+        patientId: patientId || null,
         pumps: pumps.map((p) => ({
           pump: p.pump,
-          flowRateMlMin: parseFloat(p.flowRateMlMin),
+          flowRateMlMin: p.flowRateMlMin === '' ? 0 : parseFloat(p.flowRateMlMin),
         })),
       };
       const res = await fetch('http://localhost:5000/api/iv/parallel', {
@@ -70,8 +77,12 @@ const ParallelForm = ({ onConfigured }) => {
   return (
     <form className="iv-form" onSubmit={handleSubmit}>
       <h3 className="iv-form-title">Configure Pumps (Parallel Mode)</h3>
+      <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '-0.25rem 0 0.75rem' }}>
+        Leave a pump blank to disable it. Active pumps: 1–17 mL/min.
+      </p>
 
       {apiError && <div className="iv-error-banner">{apiError}</div>}
+      {errors['_global'] && <div className="iv-error-banner">{errors['_global']}</div>}
 
       <div className="iv-form-grid">
         <div className="iv-form-header">
@@ -82,21 +93,27 @@ const ParallelForm = ({ onConfigured }) => {
 
         {pumps.map((p, i) => {
           const flowVal = parseFloat(p.flowRateMlMin);
-          // Drop factor: 20 gtt/mL → gtt/min = mL/min × 20
-          const dropRate = (!isNaN(flowVal) && flowVal > 0)
-            ? (flowVal * 20).toFixed(0)
-            : '—';
+          const isDisabled = p.flowRateMlMin === '' || p.flowRateMlMin === '0' || isNaN(flowVal) || flowVal === 0;
+          const dropRate = !isDisabled ? (flowVal * 20).toFixed(0) : null;
 
           return (
             <div key={p.pump} className="iv-form-row">
-              <label className="iv-pump-label">Pump {p.pump}</label>
+              <label className="iv-pump-label">
+                Pump {p.pump}
+                {isDisabled && (
+                  <span style={{ display: 'block', fontSize: '0.7rem', color: '#94a3b8', fontWeight: 400 }}>
+                    disabled
+                  </span>
+                )}
+              </label>
 
               <div className="iv-input-group">
                 <input
                   type="number"
-                  min="0.01"
+                  min="1"
+                  max="17"
                   step="0.01"
-                  placeholder="e.g. 2.0"
+                  placeholder="Optional (1–17)"
                   value={p.flowRateMlMin}
                   onChange={(e) => handleChange(i, e.target.value)}
                   className={`iv-input ${errors[i] ? 'iv-input--error' : ''}`}
@@ -104,7 +121,9 @@ const ParallelForm = ({ onConfigured }) => {
                 {errors[i] && <span className="iv-field-error">{errors[i]}</span>}
               </div>
 
-              <span className="iv-calc">{dropRate} gtt/min</span>
+              <span className="iv-calc">
+                {dropRate !== null ? `${dropRate} gtt/min` : '—'}
+              </span>
             </div>
           );
         })}

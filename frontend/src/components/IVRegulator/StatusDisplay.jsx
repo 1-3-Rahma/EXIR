@@ -18,7 +18,7 @@ const STATUS_COLORS = {
   idle:      '#9ca3af',  // gray
 };
 
-const StatusDisplay = ({ onExternalStatusChange }) => {
+const StatusDisplay = ({ onExternalStatusChange, patientId }) => {
   const [status, setStatus] = useState(null);
   const [fetchError, setFetchError] = useState(null);
 
@@ -27,7 +27,10 @@ const StatusDisplay = ({ onExternalStatusChange }) => {
 
     const poll = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/iv/status');
+        const url = patientId
+          ? `http://localhost:5000/api/iv/status?patientId=${encodeURIComponent(patientId)}`
+          : 'http://localhost:5000/api/iv/status';
+        const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (!cancelled) {
@@ -45,7 +48,7 @@ const StatusDisplay = ({ onExternalStatusChange }) => {
     poll();
     const interval = setInterval(poll, 2000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [onExternalStatusChange]);
+  }, [onExternalStatusChange, patientId]);
 
   if (fetchError) {
     return (
@@ -97,14 +100,6 @@ const StatusDisplay = ({ onExternalStatusChange }) => {
             style={{ backgroundColor: status.esp32Connected ? '#22c55e' : '#ef4444' }}
           >
             {status.esp32Connected ? 'CONNECTED' : 'DISCONNECTED'}
-          </span>
-        </div>
-
-        {/* Last command sent to ESP32 */}
-        <div className="iv-status-row">
-          <span className="iv-status-label">Last Command</span>
-          <span className="iv-status-value iv-status-value--mono">
-            {status.lastResponse || '—'}
           </span>
         </div>
 

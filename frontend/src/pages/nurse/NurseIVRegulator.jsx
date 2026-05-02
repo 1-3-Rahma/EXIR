@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import ModeSelector from '../../components/IVRegulator/ModeSelector';
 import ParallelForm from '../../components/IVRegulator/ParallelForm';
@@ -8,41 +8,29 @@ import StatusDisplay from '../../components/IVRegulator/StatusDisplay';
 import ConnectionPanel from '../../components/IVRegulator/ConnectionPanel';
 import Layout from '../../components/common/Layout';
 
-/**
- * NurseIVRegulator — main IV regulator page, accessible only to nurses.
- *
- * Workflow:
- *   1. Nurse picks a mode (ModeSelector)
- *   2. Nurse fills in pump/valve config (ParallelForm or SequentialForm)
- *   3. Nurse controls the session (ControlButtons)
- *   4. StatusDisplay polls hardware state every 2 s
- */
 const NurseIVRegulator = () => {
   const { patientId } = useParams();
   const location = useLocation();
   const patientName = location.state?.patientName || null;
   const patientRoom = location.state?.room || null;
 
-  const [selectedMode, setSelectedMode]   = useState(null);
-  const [configured, setConfigured]       = useState(false);
-  const [lastCommand, setLastCommand]     = useState(null);
-  const [sessionStatus, setSessionStatus] = useState('idle');
-  const [primed, setPrimed]               = useState(false);   // sequential: PRIME done
-  const [esp32Status, setEsp32Status]     = useState(null);
+  const [selectedMode, setSelectedMode]     = useState(null);
+  const [configured, setConfigured]         = useState(false);
+  const [lastCommand, setLastCommand]       = useState(null);
+  const [sessionStatus, setSessionStatus]   = useState('idle');
+  const [esp32Status, setEsp32Status]       = useState(null);
+  const [activePatientId, setActivePatientId] = useState(null);
 
   const handleModeSelected = (mode) => {
     setSelectedMode(mode);
     setConfigured(false);
-    setPrimed(false);
     setSessionStatus('idle');
     setLastCommand(null);
   };
 
   const handleConfigured = (cmdOrCmds) => {
-    // ParallelForm returns a string; SequentialForm returns an array of SEQSET strings
     setLastCommand(Array.isArray(cmdOrCmds) ? cmdOrCmds.join('\n') : cmdOrCmds);
     setConfigured(true);
-    setPrimed(false);   // new config means must re-prime for sequential
     setSessionStatus('idle');
   };
 
@@ -50,14 +38,18 @@ const NurseIVRegulator = () => {
     setSessionStatus(newStatus);
   };
 
-  // StatusDisplay calls this on every 2-second poll
   const handleExternalStatus = useCallback((statusObj) => {
     if (typeof statusObj === 'string') {
       setSessionStatus(statusObj);
     } else if (statusObj && typeof statusObj === 'object') {
-      setSessionStatus(statusObj.sessionStatus || 'idle');
-      setPrimed(statusObj.primed || false);
+      const status = statusObj.sessionStatus || 'idle';
+      setSessionStatus(status);
       if (statusObj.config) setConfigured(true);
+      // Restore mode so ControlButtons re-appear after navigation without reload
+      if (statusObj.mode && (status === 'running' || status === 'paused')) {
+        setSelectedMode(statusObj.mode);
+      }
+      setActivePatientId(statusObj.patientId || null);
       setEsp32Status({
         connected: statusObj.esp32Connected,
         portPath:  statusObj.esp32PortPath,
@@ -66,6 +58,17 @@ const NurseIVRegulator = () => {
       });
     }
   }, []);
+
+  // Immediately restore this patient's session state on mount/patientId change
+  useEffect(() => {
+    const url = patientId
+      ? `http://localhost:5000/api/iv/status?patientId=${encodeURIComponent(patientId)}`
+      : 'http://localhost:5000/api/iv/status';
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => { if (data.success) handleExternalStatus(data); })
+      .catch(() => {});
+  }, [handleExternalStatus, patientId]);
 
   return (
     <Layout appName="EXIR" role="nurse">
@@ -95,10 +98,10 @@ const NurseIVRegulator = () => {
 
             {/* Step 2 — configure pumps or valves */}
             {selectedMode === 'parallel' && (
-              <ParallelForm onConfigured={handleConfigured} />
+              <ParallelForm patientId={patientId} onConfigured={handleConfigured} />
             )}
             {selectedMode === 'sequential' && (
-              <SequentialForm onConfigured={handleConfigured} />
+              <SequentialForm patientId={patientId} onConfigured={handleConfigured} />
             )}
 
             {/* Step 3 — control buttons (shown once mode is selected) */}
@@ -114,14 +117,14 @@ const NurseIVRegulator = () => {
                   sessionStatus={sessionStatus}
                   mode={selectedMode}
                   configured={configured}
-                  primed={primed}
+                  patientId={patientId}
                   onStatusChange={handleStatusChange}
                   onNewSession={() => {
                     setSelectedMode(null);
                     setConfigured(false);
                     setLastCommand(null);
-                    setPrimed(false);
                     setSessionStatus('idle');
+                    setActivePatientId(null);
                   }}
                 />
               </>
@@ -135,7 +138,7 @@ const NurseIVRegulator = () => {
               onConnectionChange={() => {/* StatusDisplay will pick up the change on next poll */}}
             />
             <div style={{ marginTop: '1rem' }}>
-              <StatusDisplay onExternalStatusChange={handleExternalStatus} />
+              <StatusDisplay patientId={patientId} onExternalStatusChange={handleExternalStatus} />
             </div>
           </div>
         </div>
@@ -270,15 +273,7 @@ const NurseIVRegulator = () => {
           background: #f0fdf4; border: 1px solid #86efac; color: #15803d;
           padding: 0.6rem 0.9rem; border-radius: 0.5rem; font-size: 0.875rem; margin-bottom: 0.75rem;
         }
-        /* Prime button */
-        .iv-prime-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
-        .iv-prime-hint { font-size: 0.8rem; color: #92400e; background: #fef3c7; padding: 0.2rem 0.5rem; border-radius: 0.35rem; }
-        .iv-btn--prime { background: #7c3aed; color: #fff; }
-        .iv-btn--prime:hover:not(:disabled) { background: #6d28d9; }
-        .iv-btn--prime-done { background: #059669; }
-        .iv-btn--prime-done:hover:not(:disabled) { background: #047857; }
-
-        .iv-session-complete {
+.iv-session-complete {
           margin-top: 0.75rem; padding: 0.65rem 0.9rem;
           background: #f0fdf4; border: 1px solid #86efac; border-radius: 0.5rem;
           color: #15803d; font-size: 0.875rem; display: flex; align-items: center;

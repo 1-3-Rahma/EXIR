@@ -1,27 +1,13 @@
 /**
  * IV Regulator Routes  —  /api/iv/*
  *
- * All commands match the ESP32 firmware's exact serial protocol:
+ * Per-patient session tracking: each patient gets their own session entry.
+ * Only one patient can own the ESP32 hardware at a time (hardwareOwnerKey).
  *
- *  Mode:
- *    MODE PARALLEL
- *    MODE SEQUENTIAL
- *
- *  Parallel start:
- *    PARALLEL <f1> <f2> <f3>        (opens valves 2-4, starts pumps 1-3)
- *
- *  Sequential configure + run:
- *    SEQSET <valve> <flow> <vol>    (sent once per valve at configure time)
- *    PRIME                          (primes all 3 lines, ~10 s on ESP32)
- *    START                          (starts sequence)
- *    PAUSE / RESUME
- *    STOPSEQ
- *
- *  Parallel stop:
- *    STOPPARALLEL
- *
- *  General:
- *    STATUS
+ * Parallel:    PARALLEL <f1> <f2> <f3>   — sent on /start
+ * Sequential:  MODE SEQUENTIAL + SEQSET×3 + PRIME + START  — all sent on /start
+ * Stop:        STOPPARALLEL / STOPSEQ
+ * Pause/Resume: PAUSE / RESUME  (sequential only)
  */
 
 const express = require('express');
@@ -31,33 +17,56 @@ const InfusionSession = require('../models/InfusionSession');
 const InfusionLog     = require('../models/InfusionLog');
 
 // ---------------------------------------------------------------------------
-// In-memory session snapshot (mirrors the active MongoDB document)
+// Per-patient session map
+// key  : patientId string, or 'anonymous' when no patientId is provided
+// value: { sessionId, patientId, mode, config, status, startedAt }
 // ---------------------------------------------------------------------------
-let activeSession = null;
-// shape: { sessionId, mode, config, status, primed, startedAt }
+const patientSessions = new Map();
+
+// Parallel and sequential use entirely different hardware (different pumps/valves),
+// so they can run concurrently. Each mode has its own ownership lock.
+let parallelOwnerKey   = null; // patient key currently running PARALLEL (pumps 1-3, valves 2-4)
+let sequentialOwnerKey = null; // patient key currently running SEQUENTIAL (pump 4, valves 5-7)
+
+function patientKey(patientId) {
+  return patientId || 'anonymous';
+}
+
+async function getOrCreateSession(pKey, patientId, mode) {
+  const existing = patientSessions.get(pKey);
+  if (existing && existing.status !== 'completed' && existing.status !== 'error') {
+    existing.mode = mode;
+    return existing;
+  }
+  const doc = await InfusionSession.create({ mode });
+  const session = {
+    sessionId: doc.sessionId,
+    patientId: patientId || null,
+    mode,
+    config:    null,
+    status:    'idle',
+    startedAt: null,
+  };
+  patientSessions.set(pKey, session);
+  return session;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Send a command and return 503 to the client if the ESP32 is not connected.
- *  Returns true on success, false if a 503 was already sent.
- */
 async function tryCommand(res, command) {
   try {
-    await esp32Service.sendCommand(command);   // write + drain
+    await esp32Service.sendCommand(command);
     return true;
   } catch (err) {
-    res.status(503).json({
-      success: false,
-      error: `ESP32 command failed: ${err.message}`,
-    });
+    res.status(503).json({ success: false, error: `ESP32 command failed: ${err.message}` });
     return false;
   }
 }
 
 async function appendLog(sessionId, event, command) {
-  const hw = esp32Service.getStatus();
+  const hw    = esp32Service.getStatus();
   const entry = { timestamp: new Date(), event, command: command || null, response: hw.lastResponse || null };
   await Promise.all([
     InfusionSession.findOneAndUpdate(
@@ -66,23 +75,6 @@ async function appendLog(sessionId, event, command) {
     ),
     InfusionLog.create({ sessionId, ...entry }),
   ]);
-}
-
-/** Create a new DB session, or reuse the current idle/running one.
- *  Always creates fresh when previous session is completed/error.
- */
-async function ensureSession(mode) {
-  const needsNew = !activeSession ||
-    activeSession.status === 'completed' ||
-    activeSession.status === 'error';
-
-  if (needsNew) {
-    const doc = await InfusionSession.create({ mode });
-    activeSession = { sessionId: doc.sessionId, mode, config: null, status: 'idle', primed: false, startedAt: null };
-  } else {
-    activeSession.mode = mode;
-  }
-  return activeSession;
 }
 
 // ---------------------------------------------------------------------------
@@ -124,65 +116,50 @@ router.post('/disconnect', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/iv/mode  — Body: { mode: "parallel" | "sequential" }
-// Sends "MODE PARALLEL" or "MODE SEQUENTIAL" to the firmware.
-// ---------------------------------------------------------------------------
-router.post('/mode', async (req, res) => {
-  try {
-    const { mode } = req.body;
-    if (!['parallel', 'sequential'].includes(mode)) {
-      return res.status(400).json({ success: false, error: 'mode must be "parallel" or "sequential"' });
-    }
-
-    const cmd = mode === 'parallel' ? 'MODE PARALLEL' : 'MODE SEQUENTIAL';
-    if (!await tryCommand(res, cmd)) return;
-
-    await ensureSession(mode);
-    await InfusionSession.findOneAndUpdate({ sessionId: activeSession.sessionId }, { mode });
-
-    res.json({ success: true, mode });
-  } catch (err) {
-    console.error('[IV /mode]', err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// ---------------------------------------------------------------------------
-// POST /api/iv/parallel  — Body: { pumps: [{pump,flowRateMlMin}, ...] }
-// Stores config. Nothing sent to ESP32 yet — command goes on /start.
+// POST /api/iv/parallel  — Body: { patientId, pumps: [{pump, flowRateMlMin}] }
+// Stores config per patient. No ESP32 command yet — sent on /start.
 // ---------------------------------------------------------------------------
 router.post('/parallel', async (req, res) => {
   try {
-    const { pumps } = req.body;
+    const { pumps, patientId } = req.body;
+    const pKey = patientKey(patientId);
 
     if (!Array.isArray(pumps) || pumps.length < 1 || pumps.length > 3) {
       return res.status(400).json({ success: false, error: 'pumps must be an array of 1–3 entries' });
     }
+    let anyActive = false;
     for (const p of pumps) {
       if (![1, 2, 3].includes(Number(p.pump))) {
         return res.status(400).json({ success: false, error: `Pump number must be 1, 2, or 3 (got ${p.pump})` });
       }
-      if (!p.flowRateMlMin || Number(p.flowRateMlMin) <= 0) {
-        return res.status(400).json({ success: false, error: `flowRateMlMin for pump ${p.pump} must be > 0` });
+      const flow = Number(p.flowRateMlMin);
+      if (flow > 0) {
+        if (flow < 1 || flow > 17) {
+          return res.status(400).json({ success: false, error: `flowRateMlMin for pump ${p.pump} must be 1–17 mL/min` });
+        }
+        anyActive = true;
       }
     }
+    if (!anyActive) {
+      return res.status(400).json({ success: false, error: 'At least one pump must have a flow rate > 0' });
+    }
 
-    // Build the PARALLEL command string that will be sent on /start
-    // Firmware: PARALLEL <f1> <f2> <f3>  — all 3 values required
     const byPump = [1, 2, 3].map((n) => {
       const found = pumps.find((p) => Number(p.pump) === n);
-      return found ? Number(found.flowRateMlMin).toFixed(2) : '0.00';
+      return found && Number(found.flowRateMlMin) > 0
+        ? Number(found.flowRateMlMin).toFixed(2)
+        : '0.00';
     });
     const commandPreview = `PARALLEL ${byPump.join(' ')}`;
 
-    await ensureSession('parallel');
-    activeSession.config = { mode: 'parallel', pumps };
+    const session = await getOrCreateSession(pKey, patientId, 'parallel');
+    session.config = { mode: 'parallel', pumps };
 
     await InfusionSession.findOneAndUpdate(
-      { sessionId: activeSession.sessionId },
-      { mode: 'parallel', config: activeSession.config }
+      { sessionId: session.sessionId },
+      { mode: 'parallel', config: session.config }
     );
-    await appendLog(activeSession.sessionId, 'CONFIG', commandPreview);
+    await appendLog(session.sessionId, 'CONFIG', commandPreview);
 
     res.json({ success: true, command: commandPreview });
   } catch (err) {
@@ -192,13 +169,13 @@ router.post('/parallel', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/iv/sequential  — Body: { steps: [{valve,flowRateMlMin,volumeMl}, ...] }
-// Sends SEQSET commands to the ESP32 immediately so the firmware has them
-// stored before PRIME and START are called.
+// POST /api/iv/sequential  — Body: { patientId, steps: [{valve,flowRateMlMin,volumeMl,delaySeconds?}] }
+// Stores config per patient. No ESP32 command yet — all sent on /start.
 // ---------------------------------------------------------------------------
 router.post('/sequential', async (req, res) => {
   try {
-    const { steps } = req.body;
+    const { steps, patientId } = req.body;
+    const pKey = patientKey(patientId);
 
     if (!Array.isArray(steps) || steps.length < 1 || steps.length > 3) {
       return res.status(400).json({ success: false, error: 'steps must be an array of 1–3 entries' });
@@ -207,35 +184,33 @@ router.post('/sequential', async (req, res) => {
       if (![5, 6, 7].includes(Number(s.valve))) {
         return res.status(400).json({ success: false, error: `Valve must be 5, 6, or 7 (got ${s.valve})` });
       }
-      if (!s.flowRateMlMin || Number(s.flowRateMlMin) <= 0) {
-        return res.status(400).json({ success: false, error: `flowRateMlMin for valve ${s.valve} must be > 0` });
+      const flow = Number(s.flowRateMlMin);
+      if (!s.flowRateMlMin || isNaN(flow) || flow < 1.5 || flow > 3) {
+        return res.status(400).json({ success: false, error: `flowRateMlMin for valve ${s.valve} must be 1.5–3 mL/min` });
       }
       if (!s.volumeMl || Number(s.volumeMl) <= 0) {
         return res.status(400).json({ success: false, error: `volumeMl for valve ${s.valve} must be > 0` });
       }
     }
 
-    await ensureSession('sequential');
+    const session = await getOrCreateSession(pKey, patientId, 'sequential');
+    session.config = { mode: 'sequential', steps };
 
-    // Send each SEQSET command individually — firmware stores each in its steps array
-    // Firmware command: SEQSET <valve> <flow> <volume>
-    const sentCommands = [];
-    for (const s of steps) {
-      const cmd = `SEQSET ${s.valve} ${Number(s.flowRateMlMin).toFixed(2)} ${Number(s.volumeMl).toFixed(1)}`;
-      if (!await tryCommand(res, cmd)) return;   // 503 already sent if failed
-      sentCommands.push(cmd);
-    }
-
-    activeSession.config  = { mode: 'sequential', steps };
-    activeSession.primed  = false;   // config changed → must prime again
+    // Build command previews (for display only — sent to ESP32 on /start)
+    const commandPreviews = steps.map((s) => {
+      const delaySec = Number(s.delaySeconds) > 0 ? Math.round(Number(s.delaySeconds)) : null;
+      return delaySec
+        ? `SEQSET ${s.valve} ${Number(s.flowRateMlMin).toFixed(2)} ${Number(s.volumeMl).toFixed(1)} ${delaySec}`
+        : `SEQSET ${s.valve} ${Number(s.flowRateMlMin).toFixed(2)} ${Number(s.volumeMl).toFixed(1)}`;
+    });
 
     await InfusionSession.findOneAndUpdate(
-      { sessionId: activeSession.sessionId },
-      { mode: 'sequential', config: activeSession.config, primed: false }
+      { sessionId: session.sessionId },
+      { mode: 'sequential', config: session.config }
     );
-    await appendLog(activeSession.sessionId, 'CONFIG', sentCommands.join(' | '));
+    await appendLog(session.sessionId, 'CONFIG', commandPreviews.join(' | '));
 
-    res.json({ success: true, commands: sentCommands });
+    res.json({ success: true, commands: commandPreviews });
   } catch (err) {
     console.error('[IV /sequential]', err);
     res.status(500).json({ success: false, error: err.message });
@@ -243,45 +218,20 @@ router.post('/sequential', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/iv/prime  (sequential mode only)
-// Sends PRIME to the ESP32. The firmware primes all 3 lines (~10 s, blocking
-// on the ESP32 side). The next START command queues in the serial buffer
-// and is processed automatically when priming finishes.
-// ---------------------------------------------------------------------------
-router.post('/prime', async (req, res) => {
-  try {
-    if (!activeSession || activeSession.mode !== 'sequential') {
-      return res.status(400).json({ success: false, error: 'Switch to Sequential mode and configure steps first.' });
-    }
-    if (!activeSession.config) {
-      return res.status(400).json({ success: false, error: 'Configure steps before priming.' });
-    }
-
-    if (!await tryCommand(res, 'PRIME')) return;
-
-    activeSession.primed = true;
-    await InfusionSession.findOneAndUpdate({ sessionId: activeSession.sessionId }, { primed: true });
-    await appendLog(activeSession.sessionId, 'PRIME', 'PRIME');
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('[IV /prime]', err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// ---------------------------------------------------------------------------
-// POST /api/iv/start
+// POST /api/iv/start  — Body: { patientId }
 //
-//  Parallel:   sends  "PARALLEL <f1> <f2> <f3>"
-//              (firmware opens valves 2-4 and drives pumps 1-3 at once)
+// Parallel:   sends PARALLEL <f1> <f2> <f3>
+// Sequential: sends MODE SEQUENTIAL + SEQSET×N + PRIME + START
 //
-//  Sequential: sends  "START"
-//              (SEQSET already sent; PRIME already sent or queued)
+// Rejects 409 if another patient currently owns the hardware.
 // ---------------------------------------------------------------------------
 router.post('/start', async (req, res) => {
   try {
-    if (!activeSession || !activeSession.config) {
+    const { patientId } = req.body;
+    const pKey    = patientKey(patientId);
+    const session = patientSessions.get(pKey);
+
+    if (!session || !session.config) {
       return res.status(400).json({
         success: false,
         error: 'No session configured. Select a mode and configure pumps/steps first.',
@@ -290,31 +240,57 @@ router.post('/start', async (req, res) => {
 
     let command;
 
-    if (activeSession.mode === 'parallel') {
-      const pumps = activeSession.config.pumps;
-      // Build "PARALLEL f1 f2 f3" — firmware expects all 3 values in pump order
+    if (session.mode === 'parallel') {
+      // Parallel lock: only one parallel session at a time
+      if (parallelOwnerKey !== null && parallelOwnerKey !== pKey) {
+        return res.status(409).json({
+          success: false,
+          error: 'Another patient\'s parallel session is already running. Stop it first.',
+        });
+      }
+      const pumps  = session.config.pumps;
       const byPump = [1, 2, 3].map((n) => {
         const found = pumps.find((p) => Number(p.pump) === n);
-        return found ? Number(found.flowRateMlMin).toFixed(2) : '0.00';
+        return found && Number(found.flowRateMlMin) > 0
+          ? Number(found.flowRateMlMin).toFixed(2)
+          : '0.00';
       });
       command = `PARALLEL ${byPump.join(' ')}`;
+      if (!await tryCommand(res, command)) return;
+      parallelOwnerKey = pKey;
 
     } else {
-      // Sequential — steps already in ESP32 via SEQSET, PRIME already sent
+      // Sequential lock: only one sequential session at a time
+      if (sequentialOwnerKey !== null && sequentialOwnerKey !== pKey) {
+        return res.status(409).json({
+          success: false,
+          error: 'Another patient\'s sequential session is already running. Stop it first.',
+        });
+      }
+      // Send SEQSET×N + PRIME + START without MODE SEQUENTIAL
+      // (avoids resetting firmware state while a parallel session may be running)
+      for (const s of session.config.steps) {
+        const delaySec = Number(s.delaySeconds) > 0 ? Math.round(Number(s.delaySeconds)) : null;
+        const cmd = delaySec
+          ? `SEQSET ${s.valve} ${Number(s.flowRateMlMin).toFixed(2)} ${Number(s.volumeMl).toFixed(1)} ${delaySec}`
+          : `SEQSET ${s.valve} ${Number(s.flowRateMlMin).toFixed(2)} ${Number(s.volumeMl).toFixed(1)}`;
+        if (!await tryCommand(res, cmd)) return;
+      }
+      if (!await tryCommand(res, 'PRIME')) return;
+      if (!await tryCommand(res, 'START')) return;
       command = 'START';
+      sequentialOwnerKey = pKey;
     }
 
-    if (!await tryCommand(res, command)) return;
-
-    const now = new Date();
-    activeSession.status    = 'running';
-    activeSession.startedAt = now;
+    const now         = new Date();
+    session.status    = 'running';
+    session.startedAt = now;
 
     await InfusionSession.findOneAndUpdate(
-      { sessionId: activeSession.sessionId },
+      { sessionId: session.sessionId },
       { status: 'running', startedAt: now }
     );
-    await appendLog(activeSession.sessionId, 'START', command);
+    await appendLog(session.sessionId, 'START', command);
 
     res.json({ success: true, command });
   } catch (err) {
@@ -324,26 +300,29 @@ router.post('/start', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/iv/pause  (sequential only — parallel has no pause)
-// Firmware command: PAUSE
+// POST /api/iv/pause  — Body: { patientId }  (sequential only)
 // ---------------------------------------------------------------------------
 router.post('/pause', async (req, res) => {
   try {
-    if (!activeSession) {
-      return res.status(400).json({ success: false, error: 'No active session.' });
+    const { patientId } = req.body;
+    const pKey    = patientKey(patientId);
+    const session = patientSessions.get(pKey);
+
+    if (!session) {
+      return res.status(400).json({ success: false, error: 'No session found.' });
     }
-    if (activeSession.mode !== 'sequential') {
-      return res.status(400).json({
-        success: false,
-        error: 'Pause is only available in Sequential mode. Use Stop to halt Parallel mode.',
-      });
+    if (session.mode !== 'sequential') {
+      return res.status(400).json({ success: false, error: 'Pause is only available in Sequential mode.' });
+    }
+    if (sequentialOwnerKey !== pKey) {
+      return res.status(409).json({ success: false, error: 'This patient does not own the sequential hardware slot.' });
     }
 
     if (!await tryCommand(res, 'PAUSE')) return;
 
-    activeSession.status = 'paused';
-    await InfusionSession.findOneAndUpdate({ sessionId: activeSession.sessionId }, { status: 'paused' });
-    await appendLog(activeSession.sessionId, 'PAUSE', 'PAUSE');
+    session.status = 'paused';
+    await InfusionSession.findOneAndUpdate({ sessionId: session.sessionId }, { status: 'paused' });
+    await appendLog(session.sessionId, 'PAUSE', 'PAUSE');
 
     res.json({ success: true });
   } catch (err) {
@@ -353,26 +332,29 @@ router.post('/pause', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/iv/resume  (sequential only)
-// Firmware command: RESUME
+// POST /api/iv/resume  — Body: { patientId }  (sequential only)
 // ---------------------------------------------------------------------------
 router.post('/resume', async (req, res) => {
   try {
-    if (!activeSession) {
-      return res.status(400).json({ success: false, error: 'No active session.' });
+    const { patientId } = req.body;
+    const pKey    = patientKey(patientId);
+    const session = patientSessions.get(pKey);
+
+    if (!session) {
+      return res.status(400).json({ success: false, error: 'No session found.' });
     }
-    if (activeSession.mode !== 'sequential') {
-      return res.status(400).json({
-        success: false,
-        error: 'Resume is only available in Sequential mode.',
-      });
+    if (session.mode !== 'sequential') {
+      return res.status(400).json({ success: false, error: 'Resume is only available in Sequential mode.' });
+    }
+    if (sequentialOwnerKey !== pKey) {
+      return res.status(409).json({ success: false, error: 'This patient does not own the sequential hardware slot.' });
     }
 
     if (!await tryCommand(res, 'RESUME')) return;
 
-    activeSession.status = 'running';
-    await InfusionSession.findOneAndUpdate({ sessionId: activeSession.sessionId }, { status: 'running' });
-    await appendLog(activeSession.sessionId, 'RESUME', 'RESUME');
+    session.status = 'running';
+    await InfusionSession.findOneAndUpdate({ sessionId: session.sessionId }, { status: 'running' });
+    await appendLog(session.sessionId, 'RESUME', 'RESUME');
 
     res.json({ success: true });
   } catch (err) {
@@ -382,30 +364,37 @@ router.post('/resume', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/iv/stop
-//  Parallel:   sends  "STOPPARALLEL"  (stops pumps 1-3, closes valves 2-4)
-//  Sequential: sends  "STOPSEQ"       (stops pump 4, closes valves 5-7)
+// POST /api/iv/stop  — Body: { patientId }
 // ---------------------------------------------------------------------------
 router.post('/stop', async (req, res) => {
   try {
-    if (!activeSession) {
-      return res.status(400).json({ success: false, error: 'No active session.' });
+    const { patientId } = req.body;
+    const pKey    = patientKey(patientId);
+    const session = patientSessions.get(pKey);
+
+    if (!session) {
+      return res.status(400).json({ success: false, error: 'No session found.' });
     }
 
-    const command = activeSession.mode === 'parallel' ? 'STOPPARALLEL' : 'STOPSEQ';
+    const isParallel   = session.mode === 'parallel';
+    const ownerKey     = isParallel ? parallelOwnerKey : sequentialOwnerKey;
+    if (ownerKey !== pKey) {
+      return res.status(409).json({ success: false, error: 'This patient does not own the hardware slot for this mode.' });
+    }
+
+    const command = isParallel ? 'STOPPARALLEL' : 'STOPSEQ';
     if (!await tryCommand(res, command)) return;
 
-    const now = new Date();
-    activeSession.status = 'completed';
+    const now      = new Date();
+    session.status = 'completed';
+    if (isParallel) parallelOwnerKey = null;
+    else            sequentialOwnerKey = null;
 
     await InfusionSession.findOneAndUpdate(
-      { sessionId: activeSession.sessionId },
+      { sessionId: session.sessionId },
       { status: 'completed', stoppedAt: now }
     );
-    await appendLog(activeSession.sessionId, 'STOP', command);
-
-    // Keep activeSession so the UI shows 'completed'.
-    // ensureSession() replaces it when the nurse configures the next session.
+    await appendLog(session.sessionId, 'STOP', command);
 
     res.json({ success: true, command });
   } catch (err) {
@@ -415,27 +404,33 @@ router.post('/stop', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// GET /api/iv/status
+// GET /api/iv/status?patientId=xxx
+// Returns the session for the specific patient + hardware state.
 // ---------------------------------------------------------------------------
 router.get('/status', async (req, res) => {
   try {
-    const hw = esp32Service.getStatus();
+    const pId     = req.query.patientId || null;
+    const pKey    = patientKey(pId);
+    const session = patientSessions.get(pKey) || null;
+    const hw      = esp32Service.getStatus();
 
     let sessionDoc = null;
-    if (activeSession?.sessionId) {
+    if (session?.sessionId) {
       sessionDoc = await InfusionSession.findOne(
-        { sessionId: activeSession.sessionId },
+        { sessionId: session.sessionId },
         { logs: 0 }
       ).lean();
     }
 
     res.json({
-      success:       true,
-      sessionStatus: activeSession?.status  || 'idle',
-      mode:          activeSession?.mode    || null,
-      config:        activeSession?.config  || null,
-      primed:        activeSession?.primed  || false,
-      startedAt:     activeSession?.startedAt || null,
+      success:        true,
+      sessionStatus:  session?.status    || 'idle',
+      mode:           session?.mode      || null,
+      config:         session?.config    || null,
+      patientId:           session?.patientId || null,
+      startedAt:           session?.startedAt || null,
+      parallelOwner:       parallelOwnerKey,
+      sequentialOwner:     sequentialOwnerKey,
       esp32Connected: hw.connected,
       esp32State:     hw.state,
       esp32PortPath:  hw.portPath,

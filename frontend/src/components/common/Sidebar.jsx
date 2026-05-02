@@ -5,7 +5,7 @@ import { notificationAPI } from '../../services/api';
 import {
   FiGrid, FiUsers, FiActivity, FiAlertTriangle, FiMessageSquare,
   FiUser, FiLogOut, FiFileText, FiDollarSign,
-  FiCalendar, FiClipboard, FiHeart, FiFolder, FiClock, FiPackage, FiDroplet
+  FiCalendar, FiClipboard, FiHeart, FiFolder, FiClock, FiPackage
 } from 'react-icons/fi';
 
 const Sidebar = ({ appName, role }) => {
@@ -48,8 +48,7 @@ const Sidebar = ({ appName, role }) => {
           { path: '/nurse/vitals', icon: FiActivity, label: 'Vitals' },
           { path: '/nurse/medications', icon: FiPackage, label: 'Medications' },
           { path: '/nurse/tasks', icon: FiClipboard, label: 'Tasks' },
-          { path: '/nurse/messages', icon: FiMessageSquare, label: 'Messages' },
-          { path: '/nurse/iv-regulator', icon: FiDroplet, label: 'IV Regulator' }
+          { path: '/nurse/messages', icon: FiMessageSquare, label: 'Messages' }
         ];
       case 'doctor':
         return [
