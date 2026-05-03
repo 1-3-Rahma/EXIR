@@ -44,7 +44,19 @@ Thumbs.db
 .idea/
 
 # ====================
+# Local assistant settings
+# ====================
+.claude/settings.local.json
+
+# ====================
 # __pycache__
 # ====================
 __pycache__/
 *.pyc
+
+# ====================
+# Python virtual environments
+# ====================
+venv/
+venv,/
+.venv/
