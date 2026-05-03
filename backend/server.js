@@ -112,6 +112,9 @@ io.on('connection', async (socket) => {
 
 app.set('io', io);
 
+// Start ESP32 WiFi WebSocket server (must be called after server is created)
+require('./services/esp32Service').init(server);
+
 server.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗

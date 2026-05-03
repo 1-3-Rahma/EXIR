@@ -135,7 +135,7 @@ const StatusDisplay = ({ onExternalStatusChange, patientId }) => {
       {/* ESP32 error hint */}
       {!status.esp32Connected && status.lastError && (
         <div className="iv-error-banner iv-error-banner--hw" style={{ marginTop: '1rem' }}>
-          Hardware error: {status.lastError}. Check USB cable and ESP32_SERIAL_PORT in .env.
+          Hardware error: {status.lastError}. Check that the ESP32 is powered on and connected to WiFi.
         </div>
       )}
     </div>
