@@ -53,3 +53,9 @@ __pycache__/
 venv/
 venv,/
 .venv/
+
+# ====================
+# Environment / secrets
+# ====================
+backend/.env
+esp32_firmware/**/wifi_config.h

@@ -20,11 +20,10 @@
 #include <WebSocketsClient.h>
 
 // ---------------------------------------------------------------------------
-// WiFi + server — already configured
+// WiFi + server — loaded from wifi_config.h (not committed to git)
+// Copy wifi_config.h.example → wifi_config.h and fill in your values
 // ---------------------------------------------------------------------------
-const char* WIFI_SSID     = "WE_A93DAC";
-const char* WIFI_PASSWORD = "n9v63421";
-const char* SERVER_HOST   = "192.168.1.9";
+#include "wifi_config.h"
 const int   SERVER_PORT   = 5000;
 const char* SERVER_PATH   = "/esp32";
 
