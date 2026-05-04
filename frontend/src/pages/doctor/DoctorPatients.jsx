@@ -391,7 +391,7 @@ const DoctorPatients = () => {
                 )}
                 {latestVital.temperature != null && (
                   <div className="vital-item">
-                    <FiThermometer /> <span>Temperature:</span> {latestVital.temperature} °F
+                    <FiThermometer /> <span>Temperature:</span> {latestVital.temperature} °C
                   </div>
                 )}
                 {(latestVital.oxygenSaturation != null || latestVital.spo2 != null) && (

@@ -283,7 +283,7 @@ const NursePatients = () => {
                     </div>
                     <div className="vital-item">
                       <span className="vital-label">Temp</span>
-                      <span className="vital-value">{patient.vitals?.temp || 'N/A'}°F</span>
+                      <span className="vital-value">{patient.vitals?.temp || 'N/A'}°C</span>
                     </div>
                     <div className="vital-item">
                       <span className="vital-label">O₂</span>

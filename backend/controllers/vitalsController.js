@@ -4,6 +4,7 @@ const Assignment = require('../models/Assignment');
 const Notification = require('../models/Notification');
 const Case = require('../models/Case');
 const { predictVitalsRisk } = require('../utils/aiService');
+const { appendVitalToDataset } = require('../utils/datasetLogger');
 
 const getNestedValue = (source, paths) => {
   for (const path of paths) {
@@ -177,7 +178,7 @@ const receiveVitals = async (req, res) => {
     });
     const normalizedAiResult = normalizeAiResult(aiResult);
 
-    const vital = await Vital.create({
+    const savedVital = await Vital.create({
       patientId,
       heartRate,
       spo2,
@@ -188,6 +189,8 @@ const receiveVitals = async (req, res) => {
       aiRawResponse: aiResult
     });
 
+    await appendVitalToDataset(savedVital);
+
     const predictedLabel = normalizedAiResult.aiPrediction?.predictedLabel;
     const notificationType = predictedLabel === 'Critical'
       ? 'critical'
@@ -197,14 +200,14 @@ const receiveVitals = async (req, res) => {
 
     await createAiNotifications({
       patient,
-      vital,
+      vital: savedVital,
       notificationType,
       alertMessage: normalizedAiResult.aiAlert?.alertMessage
     });
 
     res.status(201).json({
       message: 'Vitals recorded',
-      vital,
+      vital: savedVital,
       aiResult
     });
   } catch (error) {

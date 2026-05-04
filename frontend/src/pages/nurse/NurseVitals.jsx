@@ -296,7 +296,7 @@ const NurseVitals = () => {
                     <span className="vital-value" style={{ color: getStatusColor(patient.vitals.temp.status) }}>
                       {patient.vitals.temp.value}
                     </span>
-                    <span className="vital-unit">°F</span>
+                    <span className="vital-unit">°C</span>
                     <span className="normal-range">Normal: 97.8-99.1</span>
                   </div>
 
