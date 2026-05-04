@@ -20,6 +20,7 @@ const NurseIVRegulator = () => {
   const [sessionStatus, setSessionStatus]   = useState('idle');
   const [esp32Status, setEsp32Status]       = useState(null);
   const [activePatientId, setActivePatientId] = useState(null);
+  const [sessionSteps, setSessionSteps]     = useState([]);
 
   const handleModeSelected = (mode) => {
     setSelectedMode(mode);
@@ -28,10 +29,11 @@ const NurseIVRegulator = () => {
     setLastCommand(null);
   };
 
-  const handleConfigured = (cmdOrCmds) => {
+  const handleConfigured = (cmdOrCmds, steps) => {
     setLastCommand(Array.isArray(cmdOrCmds) ? cmdOrCmds.join('\n') : cmdOrCmds);
     setConfigured(true);
     setSessionStatus('idle');
+    if (steps) setSessionSteps(steps);
   };
 
   const handleStatusChange = (newStatus) => {
@@ -44,7 +46,10 @@ const NurseIVRegulator = () => {
     } else if (statusObj && typeof statusObj === 'object') {
       const status = statusObj.sessionStatus || 'idle';
       setSessionStatus(status);
-      if (statusObj.config) setConfigured(true);
+      if (statusObj.config) {
+        setConfigured(true);
+        if (statusObj.config.steps) setSessionSteps(statusObj.config.steps);
+      }
       // Restore mode so ControlButtons re-appear after navigation without reload
       if (statusObj.mode && (status === 'running' || status === 'paused')) {
         setSelectedMode(statusObj.mode);
@@ -118,6 +123,7 @@ const NurseIVRegulator = () => {
                   mode={selectedMode}
                   configured={configured}
                   patientId={patientId}
+                  steps={sessionSteps}
                   onStatusChange={handleStatusChange}
                   onNewSession={() => {
                     setSelectedMode(null);
@@ -125,6 +131,7 @@ const NurseIVRegulator = () => {
                     setLastCommand(null);
                     setSessionStatus('idle');
                     setActivePatientId(null);
+                    setSessionSteps([]);
                   }}
                 />
               </>

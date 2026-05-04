@@ -1155,7 +1155,92 @@ body {
   color: var(--text-muted);
 }
 
-/* Responsive */
+/* ============================================================
+   MOBILE TOP BAR & HAMBURGER
+   ============================================================ */
+
+.mobile-topbar {
+  display: none;
+}
+
+.hamburger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.hamburger-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.mobile-topbar-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: white;
+}
+
+/* Sidebar close button — hidden on desktop */
+.sidebar-close-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: white;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.sidebar-close-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ============================================================
+   SIDEBAR OVERLAY (backdrop on mobile)
+   ============================================================ */
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 99;
+  backdrop-filter: blur(2px);
+}
+
+.sidebar-overlay.visible {
+  display: block;
+}
+
+/* ============================================================
+   RESPONSIVE TABLES
+   ============================================================ */
+
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-md);
+}
+
+/* ============================================================
+   BREAKPOINT — 1200px (tablet landscape)
+   ============================================================ */
+
 @media (max-width: 1200px) {
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -1164,32 +1249,227 @@ body {
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
+
+  .colored-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
+/* ============================================================
+   BREAKPOINT — 768px (tablet portrait / large phone)
+   ============================================================ */
+
 @media (max-width: 768px) {
+  /* ── Mobile top bar ── */
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--primary-blue);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    /* Extend to fill the full width despite main-content padding */
+    margin: -1rem -1rem 1.25rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  }
+
+  /* ── Sidebar: off-canvas by default ── */
   .sidebar {
     transform: translateX(-100%);
-    transition: transform 0.3s ease;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 200;
   }
 
   .sidebar.open {
     transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
   }
 
+  .sidebar-close-btn {
+    display: flex;
+  }
+
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+  }
+
+  /* ── Main content: full width, no left margin ── */
   .main-content {
     margin-left: 0;
     padding: 1rem;
   }
 
+  /* ── Grids → single column ── */
   .stats-grid {
     grid-template-columns: 1fr;
+    gap: 0.875rem;
   }
 
   .colored-stats {
     grid-template-columns: 1fr;
+    gap: 0.875rem;
   }
 
   .status-grid {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* ── Page header ── */
+  .page-header h1 {
+    font-size: 1.35rem;
+  }
+
+  /* ── Cards ── */
+  .card-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.875rem 1rem;
+  }
+
+  .card-body {
+    padding: 0.875rem 1rem;
+  }
+
+  /* ── Alert cards ── */
+  .alert-card {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .alert-card .respond-btn {
+    align-self: flex-start;
+    margin-top: 0.25rem;
+  }
+
+  /* ── Appointment items ── */
+  .appointment-item {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* ── Stat values ── */
+  .stat-value {
+    font-size: 1.65rem;
+  }
+
+  /* ── Tables: allow horizontal scroll ── */
+  .card .table-responsive,
+  .card-body .table-responsive {
+    margin: 0 -1rem;
+    padding: 0 1rem;
+  }
+
+  table {
+    min-width: 480px;
+  }
+
+  /* ── Login page ── */
+  .login-container {
+    padding: 1.75rem 1.25rem;
+  }
+
+  /* ── Quick actions ── */
+  .quick-actions {
+    gap: 0.5rem;
+  }
+
+  /* ── Search section ── */
+  .search-tabs {
+    flex-wrap: wrap;
+  }
+
+  /* ── Colored stat values ── */
+  .colored-stat-content strong {
+    font-size: 1.6rem;
+  }
+}
+
+/* ============================================================
+   BREAKPOINT — 480px (small phones)
+   ============================================================ */
+
+@media (max-width: 480px) {
+  .main-content {
+    padding: 0.75rem;
+  }
+
+  .mobile-topbar {
+    margin: -0.75rem -0.75rem 1rem;
+    padding: 0.7rem 0.75rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.1rem;
+  }
+
+  .page-header p {
+    font-size: 0.82rem;
+  }
+
+  .stat-card {
+    padding: 0.875rem;
+  }
+
+  .stat-value {
+    font-size: 1.4rem;
+  }
+
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+
+  .stats-grid {
+    gap: 0.625rem;
+  }
+
+  .card-header,
+  .card-body {
+    padding: 0.75rem;
+  }
+
+  .card-header h2 {
+    font-size: 0.9rem;
+  }
+
+  .login-container {
+    padding: 1.25rem 1rem;
+    border-radius: var(--radius-md);
+  }
+
+  .login-header p {
+    font-size: 0.82rem;
+  }
+
+  .colored-stat {
+    padding: 1rem;
+  }
+
+  .colored-stat-content strong {
+    font-size: 1.35rem;
+  }
+
+  .action-btn {
+    padding: 0.75rem;
+  }
+
+  .notification-panel {
+    border-radius: var(--radius-md);
+  }
+
+  /* Nav items in sidebar slightly tighter on tiny screens */
+  .nav-item {
+    padding: 0.65rem 1.25rem;
+    font-size: 0.82rem;
   }
 }

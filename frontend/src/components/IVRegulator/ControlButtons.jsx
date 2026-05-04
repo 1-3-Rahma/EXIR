@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 /**
  * ControlButtons — mode-aware control panel.
@@ -6,10 +6,87 @@ import React, { useState } from 'react';
  * PARALLEL mode: Start / Stop
  * SEQUENTIAL mode: Start / Pause / Resume / Stop
  * (PRIME is sent automatically by the backend when steps are configured)
+ *
+ * Sequential mode also runs a client-side countdown timer (derived from
+ * volumeMl / flowRateMlMin + delaySeconds per step). When it fires it calls
+ * POST /api/iv/finish to release the hardware lock and marks the session
+ * completed — no manual Stop needed.
  */
-const ControlButtons = ({ sessionStatus, mode, configured, onStatusChange, onNewSession, patientId }) => {
+const ControlButtons = ({ sessionStatus, mode, configured, onStatusChange, onNewSession, patientId, steps }) => {
   const [loading, setLoading] = useState(null);
   const [error, setError]     = useState(null);
+
+  const timerRef     = useRef(null);
+  const remainingRef = useRef(0);
+  const startedAtRef = useRef(null);
+
+  // Clear timer on unmount
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
+
+  // If an external event (ESP32 SEQ_COMPLETE via polling) completes the session
+  // before our timer fires, cancel the timer to avoid a redundant finish call.
+  useEffect(() => {
+    if (sessionStatus === 'completed') {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current  = null;
+      remainingRef.current = 0;
+      startedAtRef.current = null;
+    }
+  }, [sessionStatus]);
+
+  function calcTotalMs(stepsArr) {
+    if (!stepsArr || !stepsArr.length) return 0;
+    return stepsArr.reduce((total, s) => {
+      const infusionMs = (Number(s.volumeMl) / Number(s.flowRateMlMin)) * 60 * 1000;
+      const delayMs    = Number(s.delaySeconds) > 0 ? Number(s.delaySeconds) * 1000 : 0;
+      return total + infusionMs + delayMs;
+    }, 0);
+  }
+
+  async function handleAutoComplete() {
+    timerRef.current     = null;
+    remainingRef.current = 0;
+    startedAtRef.current = null;
+    try {
+      await fetch('http://localhost:5000/api/iv/finish', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ patientId: patientId || null }),
+      });
+    } catch (_) {}
+    if (onStatusChange) onStatusChange('completed');
+  }
+
+  function startTimer(ms) {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    remainingRef.current = ms;
+    startedAtRef.current = Date.now();
+    timerRef.current     = setTimeout(handleAutoComplete, ms);
+  }
+
+  function pauseTimer() {
+    if (!timerRef.current) return;
+    clearTimeout(timerRef.current);
+    timerRef.current = null;
+    const elapsed = Date.now() - (startedAtRef.current || Date.now());
+    remainingRef.current = Math.max(0, remainingRef.current - elapsed);
+    startedAtRef.current = null;
+  }
+
+  function resumeTimer() {
+    if (timerRef.current || remainingRef.current <= 0) return;
+    startedAtRef.current = Date.now();
+    timerRef.current     = setTimeout(handleAutoComplete, remainingRef.current);
+  }
+
+  function clearTimer() {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current     = null;
+    remainingRef.current = 0;
+    startedAtRef.current = null;
+  }
 
   const callApi = async (action) => {
     setLoading(action);
@@ -32,6 +109,20 @@ const ControlButtons = ({ sessionStatus, mode, configured, onStatusChange, onNew
         action === 'resume' ? 'running'   :
         action === 'stop'   ? 'completed' : sessionStatus;
       if (onStatusChange) onStatusChange(nextStatus);
+
+      // Timer management for sequential auto-complete
+      if (mode === 'sequential') {
+        if (action === 'start') {
+          const totalMs = calcTotalMs(steps);
+          if (totalMs > 0) startTimer(totalMs);
+        } else if (action === 'pause') {
+          pauseTimer();
+        } else if (action === 'resume') {
+          resumeTimer();
+        } else if (action === 'stop') {
+          clearTimer();
+        }
+      }
     } catch (err) {
       setError(err.message);
     } finally {

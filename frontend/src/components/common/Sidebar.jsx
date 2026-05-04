@@ -5,10 +5,10 @@ import { notificationAPI } from '../../services/api';
 import {
   FiGrid, FiUsers, FiActivity, FiAlertTriangle, FiMessageSquare,
   FiUser, FiLogOut, FiFileText, FiDollarSign,
-  FiCalendar, FiClipboard, FiHeart, FiFolder, FiClock, FiPackage
+  FiCalendar, FiClipboard, FiHeart, FiFolder, FiClock, FiPackage, FiX
 } from 'react-icons/fi';
 
-const Sidebar = ({ appName, role }) => {
+const Sidebar = ({ appName, role, isOpen, onClose }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
@@ -37,6 +37,11 @@ const Sidebar = ({ appName, role }) => {
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  // Close sidebar on mobile after navigating
+  const handleNavClick = () => {
+    if (onClose) onClose();
   };
 
   const getNavItems = () => {
@@ -96,7 +101,7 @@ const Sidebar = ({ appName, role }) => {
   };
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${isOpen ? ' open' : ''}`}>
       <div className="sidebar-header">
         <div className="sidebar-logo">
           <span className="logo-icon">{appName.charAt(0)}</span>
@@ -105,6 +110,10 @@ const Sidebar = ({ appName, role }) => {
             <span>Healthcare Management</span>
           </div>
         </div>
+        {/* Close button — only visible on mobile */}
+        <button className="sidebar-close-btn" onClick={onClose} aria-label="Close menu">
+          <FiX size={20} />
+        </button>
       </div>
 
       <div className="sidebar-user">
@@ -127,6 +136,7 @@ const Sidebar = ({ appName, role }) => {
             to={item.path}
             end={item.exact}
             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            onClick={handleNavClick}
           >
             <item.icon className="nav-icon" />
             <span>{item.label}</span>
@@ -136,7 +146,11 @@ const Sidebar = ({ appName, role }) => {
 
       <div className="sidebar-footer">
         {(role === 'nurse' || role === 'doctor' || role === 'receptionist' || role === 'patient') && (
-          <NavLink to={`/${role}/profile`} className="nav-item">
+          <NavLink
+            to={`/${role}/profile`}
+            className="nav-item"
+            onClick={handleNavClick}
+          >
             <FiUser className="nav-icon" />
             <span>Profile</span>
           </NavLink>

@@ -5,9 +5,14 @@
  * Only one patient can own the ESP32 hardware at a time (hardwareOwnerKey).
  *
  * Parallel:    PARALLEL <f1> <f2> <f3>   — sent on /start
- * Sequential:  MODE SEQUENTIAL + SEQSET×3 + PRIME + START  — all sent on /start
+ * Sequential:  SEQSET×3 + PRIME + START  — all sent on /start
  * Stop:        STOPPARALLEL / STOPSEQ
  * Pause/Resume: PAUSE / RESUME  (sequential only)
+ *
+ * Auto-complete (sequential):
+ *   1. Server-side timer set on /start — fires after sum(vol/flow) + delays
+ *   2. ESP32 SEQ_COMPLETE message — also triggers auto-complete
+ *   Both paths call autoCompleteSeqSession(), which is idempotent.
  */
 
 const express = require('express');
@@ -19,17 +24,111 @@ const InfusionLog     = require('../models/InfusionLog');
 // ---------------------------------------------------------------------------
 // Per-patient session map
 // key  : patientId string, or 'anonymous' when no patientId is provided
-// value: { sessionId, patientId, mode, config, status, startedAt }
+// value: { sessionId, patientId, mode, config, status, startedAt,
+//          seqTimer, seqTimerRemainingMs, seqTimerStartedAt }
 // ---------------------------------------------------------------------------
 const patientSessions = new Map();
 
-// Parallel and sequential use entirely different hardware (different pumps/valves),
-// so they can run concurrently. Each mode has its own ownership lock.
-let parallelOwnerKey   = null; // patient key currently running PARALLEL (pumps 1-3, valves 2-4)
-let sequentialOwnerKey = null; // patient key currently running SEQUENTIAL (pump 4, valves 5-7)
+let parallelOwnerKey   = null;
+let sequentialOwnerKey = null;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function patientKey(patientId) {
   return patientId || 'anonymous';
+}
+
+/** Total infusion duration in milliseconds for a sequential session. */
+function calcSeqDurationMs(steps) {
+  if (!Array.isArray(steps) || !steps.length) return 0;
+  return steps.reduce((total, s) => {
+    const infusionMs = (Number(s.volumeMl) / Number(s.flowRateMlMin)) * 60 * 1000;
+    const delayMs    = Number(s.delaySeconds) > 0 ? Number(s.delaySeconds) * 1000 : 0;
+    return total + infusionMs + delayMs;
+  }, 0);
+}
+
+/** Marks a sequential session as completed and releases the hardware lock. Idempotent. */
+async function autoCompleteSeqSession(pKey, reason) {
+  const session = patientSessions.get(pKey);
+  if (!session || session.status === 'completed' || session.status === 'error') return;
+
+  // Cancel any pending server-side timer
+  if (session.seqTimer) {
+    clearTimeout(session.seqTimer);
+    session.seqTimer = null;
+  }
+
+  const now      = new Date();
+  session.status = 'completed';
+  session.seqTimerRemainingMs = 0;
+  session.seqTimerStartedAt   = null;
+  if (sequentialOwnerKey === pKey) sequentialOwnerKey = null;
+
+  try {
+    await InfusionSession.findOneAndUpdate(
+      { sessionId: session.sessionId },
+      { status: 'completed', stoppedAt: now }
+    );
+    await InfusionLog.create({
+      sessionId: session.sessionId,
+      timestamp: now,
+      event:     'AUTO_COMPLETE',
+      command:   null,
+      response:  reason || 'AUTO',
+    });
+    console.log(`[IV] Sequential session auto-completed (${reason}) for patient ${pKey}`);
+  } catch (err) {
+    console.error('[IV] Auto-complete DB error:', err.message);
+  }
+}
+
+/** Start (or restart) the server-side auto-complete timer for a sequential session. */
+function startSeqTimer(pKey, ms) {
+  const session = patientSessions.get(pKey);
+  if (!session) return;
+  if (session.seqTimer) clearTimeout(session.seqTimer);
+  session.seqTimerRemainingMs = ms;
+  session.seqTimerStartedAt   = Date.now();
+  session.seqTimer = setTimeout(() => {
+    session.seqTimer = null;
+    autoCompleteSeqSession(pKey, 'TIME_ELAPSED');
+  }, ms);
+  console.log(`[IV] Server-side auto-complete timer set: ${Math.round(ms / 1000)}s for patient ${pKey}`);
+}
+
+/** Pause the server-side timer, saving remaining time. */
+function pauseSeqTimer(pKey) {
+  const session = patientSessions.get(pKey);
+  if (!session || !session.seqTimer) return;
+  clearTimeout(session.seqTimer);
+  session.seqTimer = null;
+  const elapsed = Date.now() - (session.seqTimerStartedAt || Date.now());
+  session.seqTimerRemainingMs = Math.max(0, session.seqTimerRemainingMs - elapsed);
+  session.seqTimerStartedAt   = null;
+  console.log(`[IV] Server-side timer paused, ${Math.round(session.seqTimerRemainingMs / 1000)}s remaining for patient ${pKey}`);
+}
+
+/** Resume the server-side timer from where it was paused. */
+function resumeSeqTimer(pKey) {
+  const session = patientSessions.get(pKey);
+  if (!session || session.seqTimer || session.seqTimerRemainingMs <= 0) return;
+  startSeqTimer(pKey, session.seqTimerRemainingMs);
+  console.log(`[IV] Server-side timer resumed for patient ${pKey}`);
+}
+
+/** Cancel the server-side timer (used on manual stop). */
+function cancelSeqTimer(pKey) {
+  const session = patientSessions.get(pKey);
+  if (!session) return;
+  if (session.seqTimer) {
+    clearTimeout(session.seqTimer);
+    session.seqTimer = null;
+  }
+  session.seqTimerRemainingMs = 0;
+  session.seqTimerStartedAt   = null;
 }
 
 async function getOrCreateSession(pKey, patientId, mode) {
@@ -46,14 +145,14 @@ async function getOrCreateSession(pKey, patientId, mode) {
     config:    null,
     status:    'idle',
     startedAt: null,
+    // Server-side sequential timer tracking
+    seqTimer:             null,
+    seqTimerRemainingMs:  0,
+    seqTimerStartedAt:    null,
   };
   patientSessions.set(pKey, session);
   return session;
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 async function tryCommand(res, command) {
   try {
@@ -78,6 +177,15 @@ async function appendLog(sessionId, event, command) {
 }
 
 // ---------------------------------------------------------------------------
+// Auto-complete when ESP32 sends SEQ_COMPLETE over WebSocket
+// ---------------------------------------------------------------------------
+esp32Service.emitter.on('message', async (msg) => {
+  if (msg !== 'SEQ_COMPLETE') return;
+  if (!sequentialOwnerKey) return;
+  await autoCompleteSeqSession(sequentialOwnerKey, 'SEQ_COMPLETE');
+});
+
+// ---------------------------------------------------------------------------
 // GET /api/iv/ports
 // ---------------------------------------------------------------------------
 router.get('/ports', async (req, res) => {
@@ -90,7 +198,7 @@ router.get('/ports', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/iv/connect  — Body: { portPath, baudRate }
+// POST /api/iv/connect
 // ---------------------------------------------------------------------------
 router.post('/connect', async (req, res) => {
   try {
@@ -116,8 +224,7 @@ router.post('/disconnect', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/iv/parallel  — Body: { patientId, pumps: [{pump, flowRateMlMin}] }
-// Stores config per patient. No ESP32 command yet — sent on /start.
+// POST /api/iv/parallel
 // ---------------------------------------------------------------------------
 router.post('/parallel', async (req, res) => {
   try {
@@ -169,8 +276,7 @@ router.post('/parallel', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/iv/sequential  — Body: { patientId, steps: [{valve,flowRateMlMin,volumeMl,delaySeconds?}] }
-// Stores config per patient. No ESP32 command yet — all sent on /start.
+// POST /api/iv/sequential
 // ---------------------------------------------------------------------------
 router.post('/sequential', async (req, res) => {
   try {
@@ -196,7 +302,6 @@ router.post('/sequential', async (req, res) => {
     const session = await getOrCreateSession(pKey, patientId, 'sequential');
     session.config = { mode: 'sequential', steps };
 
-    // Build command previews (for display only — sent to ESP32 on /start)
     const commandPreviews = steps.map((s) => {
       const delaySec = Number(s.delaySeconds) > 0 ? Math.round(Number(s.delaySeconds)) : null;
       return delaySec
@@ -218,12 +323,7 @@ router.post('/sequential', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/iv/start  — Body: { patientId }
-//
-// Parallel:   sends PARALLEL <f1> <f2> <f3>
-// Sequential: sends MODE SEQUENTIAL + SEQSET×N + PRIME + START
-//
-// Rejects 409 if another patient currently owns the hardware.
+// POST /api/iv/start
 // ---------------------------------------------------------------------------
 router.post('/start', async (req, res) => {
   try {
@@ -241,7 +341,6 @@ router.post('/start', async (req, res) => {
     let command;
 
     if (session.mode === 'parallel') {
-      // Parallel lock: only one parallel session at a time
       if (parallelOwnerKey !== null && parallelOwnerKey !== pKey) {
         return res.status(409).json({
           success: false,
@@ -260,15 +359,12 @@ router.post('/start', async (req, res) => {
       parallelOwnerKey = pKey;
 
     } else {
-      // Sequential lock: only one sequential session at a time
       if (sequentialOwnerKey !== null && sequentialOwnerKey !== pKey) {
         return res.status(409).json({
           success: false,
           error: 'Another patient\'s sequential session is already running. Stop it first.',
         });
       }
-      // Send SEQSET×N + PRIME + START without MODE SEQUENTIAL
-      // (avoids resetting firmware state while a parallel session may be running)
       for (const s of session.config.steps) {
         const delaySec = Number(s.delaySeconds) > 0 ? Math.round(Number(s.delaySeconds)) : null;
         const cmd = delaySec
@@ -280,6 +376,12 @@ router.post('/start', async (req, res) => {
       if (!await tryCommand(res, 'START')) return;
       command = 'START';
       sequentialOwnerKey = pKey;
+
+      // Start server-side auto-complete timer
+      const durationMs = calcSeqDurationMs(session.config.steps);
+      if (durationMs > 0) {
+        startSeqTimer(pKey, durationMs);
+      }
     }
 
     const now         = new Date();
@@ -300,7 +402,7 @@ router.post('/start', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/iv/pause  — Body: { patientId }  (sequential only)
+// POST /api/iv/pause  (sequential only)
 // ---------------------------------------------------------------------------
 router.post('/pause', async (req, res) => {
   try {
@@ -320,6 +422,8 @@ router.post('/pause', async (req, res) => {
 
     if (!await tryCommand(res, 'PAUSE')) return;
 
+    pauseSeqTimer(pKey);
+
     session.status = 'paused';
     await InfusionSession.findOneAndUpdate({ sessionId: session.sessionId }, { status: 'paused' });
     await appendLog(session.sessionId, 'PAUSE', 'PAUSE');
@@ -332,7 +436,7 @@ router.post('/pause', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/iv/resume  — Body: { patientId }  (sequential only)
+// POST /api/iv/resume  (sequential only)
 // ---------------------------------------------------------------------------
 router.post('/resume', async (req, res) => {
   try {
@@ -352,6 +456,8 @@ router.post('/resume', async (req, res) => {
 
     if (!await tryCommand(res, 'RESUME')) return;
 
+    resumeSeqTimer(pKey);
+
     session.status = 'running';
     await InfusionSession.findOneAndUpdate({ sessionId: session.sessionId }, { status: 'running' });
     await appendLog(session.sessionId, 'RESUME', 'RESUME');
@@ -364,7 +470,7 @@ router.post('/resume', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/iv/stop  — Body: { patientId }
+// POST /api/iv/stop
 // ---------------------------------------------------------------------------
 router.post('/stop', async (req, res) => {
   try {
@@ -376,14 +482,16 @@ router.post('/stop', async (req, res) => {
       return res.status(400).json({ success: false, error: 'No session found.' });
     }
 
-    const isParallel   = session.mode === 'parallel';
-    const ownerKey     = isParallel ? parallelOwnerKey : sequentialOwnerKey;
+    const isParallel = session.mode === 'parallel';
+    const ownerKey   = isParallel ? parallelOwnerKey : sequentialOwnerKey;
     if (ownerKey !== pKey) {
       return res.status(409).json({ success: false, error: 'This patient does not own the hardware slot for this mode.' });
     }
 
     const command = isParallel ? 'STOPPARALLEL' : 'STOPSEQ';
     if (!await tryCommand(res, command)) return;
+
+    if (!isParallel) cancelSeqTimer(pKey);
 
     const now      = new Date();
     session.status = 'completed';
@@ -404,8 +512,36 @@ router.post('/stop', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// POST /api/iv/finish  — client-side time-elapsed call (idempotent)
+// Used by the frontend timer as a belt-and-suspenders complement to the
+// server-side timer above.
+// ---------------------------------------------------------------------------
+router.post('/finish', async (req, res) => {
+  try {
+    const { patientId } = req.body;
+    const pKey    = patientKey(patientId);
+    const session = patientSessions.get(pKey);
+
+    if (!session) {
+      return res.status(400).json({ success: false, error: 'No session found.' });
+    }
+    if (session.mode !== 'sequential') {
+      return res.status(400).json({ success: false, error: 'Finish is only for sequential sessions.' });
+    }
+    if (session.status === 'completed') {
+      return res.json({ success: true, alreadyDone: true });
+    }
+
+    await autoCompleteSeqSession(pKey, 'TIME_ELAPSED');
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[IV /finish]', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // GET /api/iv/status?patientId=xxx
-// Returns the session for the specific patient + hardware state.
 // ---------------------------------------------------------------------------
 router.get('/status', async (req, res) => {
   try {
@@ -423,21 +559,21 @@ router.get('/status', async (req, res) => {
     }
 
     res.json({
-      success:        true,
-      sessionStatus:  session?.status    || 'idle',
-      mode:           session?.mode      || null,
-      config:         session?.config    || null,
-      patientId:           session?.patientId || null,
-      startedAt:           session?.startedAt || null,
-      parallelOwner:       parallelOwnerKey,
-      sequentialOwner:     sequentialOwnerKey,
-      esp32Connected: hw.connected,
-      esp32State:     hw.state,
-      esp32PortPath:  hw.portPath,
-      esp32BaudRate:  hw.baudRate,
-      lastResponse:   hw.lastResponse,
-      lastError:      hw.lastError,
-      session:        sessionDoc,
+      success:         true,
+      sessionStatus:   session?.status    || 'idle',
+      mode:            session?.mode      || null,
+      config:          session?.config    || null,
+      patientId:       session?.patientId || null,
+      startedAt:       session?.startedAt || null,
+      parallelOwner:   parallelOwnerKey,
+      sequentialOwner: sequentialOwnerKey,
+      esp32Connected:  hw.connected,
+      esp32State:      hw.state,
+      esp32PortPath:   hw.portPath,
+      esp32BaudRate:   hw.baudRate,
+      lastResponse:    hw.lastResponse,
+      lastError:       hw.lastError,
+      session:         sessionDoc,
     });
   } catch (err) {
     console.error('[IV /status]', err);

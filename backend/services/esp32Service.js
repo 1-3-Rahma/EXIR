@@ -10,7 +10,10 @@
  *   Control:    PAUSE | RESUME | STOPPARALLEL | STOPSEQ
  */
 
-const WebSocket = require('ws');
+const WebSocket      = require('ws');
+const EventEmitter   = require('events');
+
+const emitter = new EventEmitter();  // iv.js listens here for ESP32 messages
 
 let wss           = null;
 let espSocket     = null;   // the currently-connected ESP32 WebSocket
@@ -69,6 +72,7 @@ function init(httpServer) {
     ws.on('message', (data) => {
       lastResponse = data.toString().trim();
       console.log(`[ESP32 ←] ${lastResponse}`);
+      emitter.emit('message', lastResponse);
     });
 
     ws.on('close', () => markDisconnected(ws));
@@ -143,4 +147,4 @@ function getStatus() {
   };
 }
 
-module.exports = { init, connect, disconnect, listPorts, sendCommand, getStatus };
+module.exports = { init, connect, disconnect, listPorts, sendCommand, getStatus, emitter };

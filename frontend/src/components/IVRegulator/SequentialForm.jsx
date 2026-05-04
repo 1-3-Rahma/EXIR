@@ -77,7 +77,7 @@ const SequentialForm = ({ onConfigured, patientId }) => {
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Configuration failed');
-      if (onConfigured) onConfigured(data.commands || []);
+      if (onConfigured) onConfigured(data.commands || [], payload.steps);
     } catch (err) {
       setApiError(err.message);
     } finally {
