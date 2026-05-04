@@ -419,6 +419,14 @@ const getFormattedVitalsOverview = async (req, res) => {
 
     const assignments = await Assignment.find({ nurseId, isActive: true })
       .populate('patientId', 'fullName nationalID room');
+    const assignedPatientIds = assignments.map(a => a.patientId._id);
+    const openCases = await Case.find({
+      patientId: { $in: assignedPatientIds },
+      status: 'open'
+    }).select('patientId patientStatus');
+    const statusByPatientId = new Map(
+      openCases.map(c => [c.patientId.toString(), c.patientStatus || 'stable'])
+    );
 
     const overview = await Promise.all(
       assignments.map(async (assignment) => {
@@ -428,6 +436,9 @@ const getFormattedVitalsOverview = async (req, res) => {
         if (!latestVital) {
           return null;
         }
+
+        const patientStatus = statusByPatientId.get(assignment.patientId._id.toString()) || 'stable';
+        const status = latestVital.riskLevel || patientStatus;
 
         const sys = latestVital.bloodPressure?.systolic;
         const dia = latestVital.bloodPressure?.diastolic;
@@ -479,10 +490,16 @@ const getFormattedVitalsOverview = async (req, res) => {
           _id: assignment.patientId._id,
           name: assignment.patientId.fullName,
           room: assignment.patientId.room || 'N/A',
+          patientStatus,
+          status,
           updatedAt: latestVital.createdAt,
           latestVitals: {
+            heartRate: latestVital.heartRate,
+            spo2: latestVital.spo2,
+            temperature: latestVital.temperature,
             riskLevel: latestVital.riskLevel,
             confidenceScore: latestVital.confidenceScore,
+            aiAlert: latestVital.aiAlert,
             isCritical: latestVital.isCritical,
             isAbnormal: latestVital.isAbnormal
           },

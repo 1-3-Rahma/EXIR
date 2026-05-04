@@ -154,7 +154,7 @@ const createAiNotifications = async ({ patient, vital, notificationType, alertMe
 // @access  Public (from sensors)
 const receiveVitals = async (req, res) => {
   try {
-    const { patientId, heartRate, spo2, temperature, source = 'sensor' } = req.body;
+    const { patientId, heartRate, spo2, temperature, source = 'sensor', deviceId } = req.body;
 
     if (!patientId || heartRate === undefined || spo2 === undefined || temperature === undefined) {
       return res.status(400).json({
@@ -183,6 +183,7 @@ const receiveVitals = async (req, res) => {
       spo2,
       temperature,
       source,
+      deviceId,
       ...normalizedAiResult,
       aiRawResponse: aiResult
     });

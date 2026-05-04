@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Layout from '../../components/common/Layout';
 import { useAuth } from '../../context/AuthContext';
-import { notificationAPI, tasksAPI, nurseAPI } from '../../services/api';
+import { notificationAPI, tasksAPI, nurseAPI, vitalsAPI } from '../../services/api';
 import {
   FiUsers, FiAlertTriangle, FiClipboard,
   FiClock, FiArrowRight, FiBell, FiCheckCircle, FiInfo,
@@ -10,6 +10,11 @@ import {
 import { Link } from 'react-router-dom';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+const BRACELET_DEVICE_NAME = 'EXIR_BRACELET_001';
+const BRACELET_NAME_PREFIX = 'EXIR_BRACELET';
+const BRACELET_SERVICE_UUID = '7b2d0001-6b0d-4b7a-9f9b-7e6a00000001';
+const VITALS_CHARACTERISTIC_UUID = '7b2d0002-6b0d-4b7a-9f9b-7e6a00000002';
+const CONFIG_CHARACTERISTIC_UUID = '7b2d0003-6b0d-4b7a-9f9b-7e6a00000003';
 
 const NurseDashboard = () => {
   const { user } = useAuth();
@@ -25,6 +30,17 @@ const NurseDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [liveAlert, setLiveAlert] = useState(null);
   const [showNotifModal, setShowNotifModal] = useState(false);
+  const [assignedPatients, setAssignedPatients] = useState([]);
+  const [selectedPatientId, setSelectedPatientId] = useState('');
+  const [readingIntervalSeconds, setReadingIntervalSeconds] = useState(600);
+  const [configCharacteristic, setConfigCharacteristic] = useState(null);
+  const [braceletConnected, setBraceletConnected] = useState(false);
+  const [braceletError, setBraceletError] = useState('');
+  const [braceletWarning, setBraceletWarning] = useState('');
+  const [braceletStatus, setBraceletStatus] = useState('');
+  const [liveBleVitals, setLiveBleVitals] = useState(null);
+  const [latestVitals, setLatestVitals] = useState(null);
+  const selectedPatientIdRef = useRef('');
 
   useEffect(() => {
     fetchDashboardData();
@@ -60,6 +76,10 @@ const NurseDashboard = () => {
     return () => window.removeEventListener('newNotification', handler);
   }, []);
 
+  useEffect(() => {
+    selectedPatientIdRef.current = selectedPatientId;
+  }, [selectedPatientId]);
+
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
     return {
@@ -71,11 +91,12 @@ const NurseDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       // One source of truth: urgent-cases = doctor-marked critical + vital alerts (e.g. Dr. Ahmed Hassan → Nurse Fatima)
-      const [dashboardRes, urgentRes, tasksTodayRes, notifRes] = await Promise.all([
+      const [dashboardRes, urgentRes, tasksTodayRes, notifRes, assignedPatientsRes] = await Promise.all([
         fetch(`${API_URL}/nurse/dashboard`, { headers: getAuthHeaders() }),
         nurseAPI.getUrgentCases(),
         tasksAPI.getTodayTasks(),
-        notificationAPI.getNotifications()
+        notificationAPI.getNotifications(),
+        nurseAPI.getAssignedPatients()
       ]);
 
       const dashboardData = dashboardRes.ok ? await dashboardRes.json() : null;
@@ -111,12 +132,14 @@ const NurseDashboard = () => {
       setTasks(tasksTodayList.slice(0, 6));
       setAllNotifications(notifList);
       setNotifications(notifList.slice(0, 4));
+      setAssignedPatients(Array.isArray(assignedPatientsRes?.data) ? assignedPatientsRes.data : []);
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
       setStats({ totalPatients: 0, urgentCases: 0, tasksToday: 0 });
       setUrgentCases([]);
       setTasks([]);
       setNotifications([]);
+      setAssignedPatients([]);
     } finally {
       setLoading(false);
     }
@@ -167,6 +190,139 @@ const NurseDashboard = () => {
       case 'high': return '#f97316';
       case 'medium': return '#eab308';
       default: return '#3b82f6';
+    }
+  };
+
+  const selectedPatient = assignedPatients.find(patient => patient._id === selectedPatientId);
+  const selectedPatientName = selectedPatient?.fullName || '';
+
+  const formatConfidence = (score) => {
+    if (score === undefined || score === null || Number.isNaN(Number(score))) return 'N/A';
+    const numericScore = Number(score);
+    return numericScore <= 1 ? `${Math.round(numericScore * 100)}%` : `${Math.round(numericScore)}%`;
+  };
+
+  const writeBraceletConfig = async (characteristic = configCharacteristic, patientId = selectedPatientId) => {
+    if (!characteristic || !patientId) return;
+
+    const config = {
+      readingIntervalSeconds: Number(readingIntervalSeconds) || 600,
+      patientId
+    };
+
+    await characteristic.writeValue(new TextEncoder().encode(JSON.stringify(config)));
+    setBraceletStatus(`Connected to Bracelet for: ${assignedPatients.find(p => p._id === patientId)?.fullName || 'Selected patient'}`);
+  };
+
+  const handleVitalsNotification = async (event) => {
+    const patientId = selectedPatientIdRef.current;
+
+    if (!patientId) {
+      setBraceletWarning('No patient selected. Incoming bracelet data was ignored.');
+      return;
+    }
+
+    try {
+      const raw = new TextDecoder().decode(event.target.value);
+      const vitals = JSON.parse(raw);
+
+      setBraceletWarning('');
+      setLiveBleVitals(vitals);
+
+      const response = await vitalsAPI.receiveVitals({
+        patientId,
+        heartRate: vitals.heartRate,
+        spo2: vitals.spo2,
+        temperature: vitals.temperature,
+        source: 'bracelet-bluetooth',
+        deviceId: vitals.deviceId || BRACELET_DEVICE_NAME
+      });
+
+      setLatestVitals(response?.data?.vital || null);
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Failed to process bracelet vitals:', error);
+      setBraceletError('Failed to process bracelet vitals');
+    }
+  };
+
+  const connectBracelet = async () => {
+    setBraceletError('');
+    setBraceletWarning('');
+
+    if (!selectedPatientId) {
+      setBraceletError('Please select a patient first');
+      return;
+    }
+
+    if (!navigator.bluetooth) {
+      setBraceletError('Web Bluetooth is available in Chrome or Edge on localhost or HTTPS.');
+      return;
+    }
+
+    try {
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ namePrefix: BRACELET_NAME_PREFIX }],
+        optionalServices: [BRACELET_SERVICE_UUID]
+      });
+
+      device.addEventListener('gattserverdisconnected', () => {
+        setBraceletConnected(false);
+        setBraceletStatus('Bracelet disconnected');
+      });
+
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService(BRACELET_SERVICE_UUID);
+      const vitalsCharacteristic = await service.getCharacteristic(VITALS_CHARACTERISTIC_UUID);
+      const nextConfigCharacteristic = await service.getCharacteristic(CONFIG_CHARACTERISTIC_UUID);
+
+      setConfigCharacteristic(nextConfigCharacteristic);
+      await writeBraceletConfig(nextConfigCharacteristic, selectedPatientId);
+
+      vitalsCharacteristic.addEventListener('characteristicvaluechanged', handleVitalsNotification);
+      await vitalsCharacteristic.startNotifications();
+
+      setBraceletConnected(true);
+      setBraceletStatus(`Connected to Bracelet for: ${selectedPatientName || 'Selected patient'}`);
+    } catch (error) {
+      console.error('Failed to connect bracelet:', error);
+      setBraceletConnected(false);
+      setBraceletError(error?.message || 'Failed to connect bracelet');
+    }
+  };
+
+  const handlePatientChange = async (event) => {
+    const patientId = event.target.value;
+    setSelectedPatientId(patientId);
+    selectedPatientIdRef.current = patientId;
+    setLatestVitals(null);
+
+    if (configCharacteristic && patientId) {
+      try {
+        await writeBraceletConfig(configCharacteristic, patientId);
+        setBraceletWarning('');
+      } catch (error) {
+        console.error('Failed to update bracelet patient link:', error);
+        setBraceletError('Failed to send updated patient link to bracelet');
+      }
+    }
+  };
+
+  const handleIntervalChange = async (event) => {
+    const nextInterval = Number(event.target.value);
+    setReadingIntervalSeconds(nextInterval);
+
+    if (configCharacteristic && selectedPatientId) {
+      try {
+        const config = {
+          readingIntervalSeconds: nextInterval,
+          patientId: selectedPatientId
+        };
+        await configCharacteristic.writeValue(new TextEncoder().encode(JSON.stringify(config)));
+      } catch (error) {
+        console.error('Failed to update bracelet interval:', error);
+        setBraceletError('Failed to send updated interval to bracelet');
+      }
     }
   };
 
@@ -231,6 +387,56 @@ const NurseDashboard = () => {
             <span className="stat-label">Tasks Today</span>
           </div>
         </div>
+      </div>
+
+      <div className="bracelet-panel">
+        <div className="bracelet-header">
+          <div>
+            <h2>BLE Bracelet Link</h2>
+            <p>{braceletStatus || 'Select a patient, connect the bracelet, and the browser will bridge vitals to EXIR.'}</p>
+          </div>
+          <span className={`bracelet-state ${braceletConnected ? 'connected' : ''}`}>
+            {braceletConnected ? 'Connected' : 'Not connected'}
+          </span>
+        </div>
+
+        <div className="bracelet-controls">
+          <label className="bracelet-field">
+            <span>Select Patient</span>
+            <select value={selectedPatientId} onChange={handlePatientChange}>
+              <option value="">Select Patient</option>
+              {assignedPatients.map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.fullName}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="bracelet-field interval-field">
+            <span>Interval</span>
+            <select
+              value={readingIntervalSeconds}
+              onChange={handleIntervalChange}
+            >
+              <option value={60}>1 min</option>
+              <option value={300}>5 min</option>
+              <option value={600}>10 min</option>
+              <option value={900}>15 min</option>
+            </select>
+          </label>
+
+          <button type="button" className="connect-bracelet-btn" onClick={connectBracelet}>
+            Connect Bracelet
+          </button>
+        </div>
+
+        {selectedPatientName && braceletConnected && (
+          <p className="bracelet-linked">Connected to Bracelet for: {selectedPatientName}</p>
+        )}
+        {braceletError && <p className="bracelet-error">{braceletError}</p>}
+        {braceletWarning && <p className="bracelet-warning">{braceletWarning}</p>}
+
       </div>
 
       <div className="dashboard-content">
@@ -371,6 +577,133 @@ const NurseDashboard = () => {
           display: flex;
           flex-direction: column;
           gap: 1.5rem;
+        }
+
+        .bracelet-panel {
+          background: white;
+          border-radius: 12px;
+          padding: 1.25rem;
+          margin-bottom: 1.5rem;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          border: 1px solid #e2e8f0;
+        }
+
+        .bracelet-header {
+          display: flex;
+          justify-content: space-between;
+          gap: 1rem;
+          align-items: flex-start;
+          margin-bottom: 1rem;
+        }
+
+        .bracelet-header h2 {
+          margin: 0 0 0.25rem;
+          font-size: 1rem;
+          color: #1e293b;
+        }
+
+        .bracelet-header p {
+          margin: 0;
+          font-size: 0.85rem;
+          color: #64748b;
+        }
+
+        .bracelet-state {
+          flex-shrink: 0;
+          border-radius: 999px;
+          padding: 0.35rem 0.75rem;
+          background: #f1f5f9;
+          color: #64748b;
+          font-size: 0.8rem;
+          font-weight: 600;
+        }
+
+        .bracelet-state.connected {
+          background: #dcfce7;
+          color: #166534;
+        }
+
+        .bracelet-controls {
+          display: grid;
+          grid-template-columns: minmax(220px, 1fr) 140px auto;
+          gap: 0.75rem;
+          align-items: end;
+          margin-bottom: 1rem;
+        }
+
+        .bracelet-field {
+          display: flex;
+          flex-direction: column;
+          gap: 0.35rem;
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: #475569;
+        }
+
+        .bracelet-field select {
+          height: 40px;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          padding: 0 0.75rem;
+          color: #1e293b;
+          background: white;
+        }
+
+        .connect-bracelet-btn {
+          height: 40px;
+          border: none;
+          border-radius: 8px;
+          background: #2563eb;
+          color: white;
+          padding: 0 1rem;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .connect-bracelet-btn:hover { background: #1d4ed8; }
+
+        .bracelet-linked,
+        .bracelet-error,
+        .bracelet-warning {
+          margin: 0 0 0.75rem;
+          font-size: 0.85rem;
+          font-weight: 600;
+        }
+
+        .bracelet-linked { color: #166534; }
+        .bracelet-error { color: #dc2626; }
+        .bracelet-warning { color: #b45309; }
+
+        .bracelet-vitals-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 0.75rem;
+        }
+
+        .bracelet-vital {
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          padding: 0.75rem;
+          min-height: 70px;
+          display: flex;
+          flex-direction: column;
+          gap: 0.35rem;
+        }
+
+        .bracelet-vital.wide {
+          grid-column: span 2;
+        }
+
+        .bracelet-vital span {
+          color: #64748b;
+          font-size: 0.75rem;
+          overflow-wrap: anywhere;
+        }
+
+        .bracelet-vital strong {
+          color: #0f172a;
+          font-size: 1rem;
+          overflow-wrap: anywhere;
         }
 
         .dashboard-row {
@@ -662,6 +995,9 @@ const NurseDashboard = () => {
 
         @media (max-width: 768px) {
           .stats-grid-3 { grid-template-columns: 1fr; }
+          .bracelet-controls { grid-template-columns: 1fr; }
+          .bracelet-vitals-grid { grid-template-columns: 1fr 1fr; }
+          .bracelet-vital.wide { grid-column: span 2; }
         }
 
         /* Notifications Modal */

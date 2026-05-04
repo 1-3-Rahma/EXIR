@@ -48,19 +48,31 @@ const NurseVitals = () => {
     return `Updated ${minutes} min ago`;
   };
 
+  const normalizeStatus = (status) => String(status || '').toLowerCase();
+
+  const formatConfidence = (score) => {
+    if (score === undefined || score === null || Number.isNaN(Number(score))) return 'N/A';
+    const numericScore = Number(score);
+    return numericScore <= 1 ? `${Math.round(numericScore * 100)}%` : `${Math.round(numericScore)}%`;
+  };
+
   const getStatusColor = (status) => {
-    switch (status) {
+    switch (normalizeStatus(status)) {
       case 'critical': return '#ef4444';
       case 'warning': return '#f59e0b';
+      case 'abnormal': return '#f59e0b';
+      case 'stable': return '#22c55e';
       case 'normal': return '#22c55e';
       default: return '#64748b';
     }
   };
 
   const getStatusBg = (status) => {
-    switch (status) {
+    switch (normalizeStatus(status)) {
       case 'critical': return '#fef2f2';
       case 'warning': return '#fffbeb';
+      case 'abnormal': return '#fffbeb';
+      case 'stable': return '#f0fdf4';
       case 'normal': return '#f0fdf4';
       default: return '#f8fafc';
     }
@@ -91,6 +103,8 @@ const NurseVitals = () => {
     { name: 'O₂ Saturation', range: '95-100 %', color: '#06b6d4', icon: 'o2' },
     { name: 'Respiratory Rate', range: '12-20 /min', color: '#8b5cf6', icon: 'resp' }
   ];
+
+  const criticalCount = patients.filter(patient => patient.latestVitals?.isCritical === true).length;
 
   // Check if vital is out of range
   const isOutOfRange = (type, value, value2 = null) => {
@@ -147,6 +161,7 @@ const NurseVitals = () => {
       <div className="page-header">
         <h1>Live Vitals Dashboard</h1>
         <p>Real-time patient vital signs monitoring</p>
+        <span className="critical-count">Critical: {criticalCount}</span>
       </div>
 
       {loading ? (
@@ -219,6 +234,15 @@ const NurseVitals = () => {
                     <h3>{patient.name}</h3>
                     <span className="room">Room {patient.room}</span>
                   </div>
+                  <span
+                    className="ai-status-badge"
+                    style={{
+                      color: getStatusColor(patient.status),
+                      background: getStatusBg(patient.status)
+                    }}
+                  >
+                    {patient.latestVitals?.riskLevel || patient.patientStatus || 'stable'}
+                  </span>
                   <span className="update-time">
                     <FiClock /> {formatTime(patient.updatedAt)}
                   </span>
@@ -407,6 +431,7 @@ const NurseVitals = () => {
           justify-content: space-between;
           align-items: flex-start;
           margin-bottom: 1.25rem;
+          gap: 1rem;
         }
 
         .patient-info h3 {
@@ -427,6 +452,59 @@ const NurseVitals = () => {
           gap: 0.375rem;
           font-size: 0.8rem;
           color: #94a3b8;
+          flex-shrink: 0;
+        }
+
+        .critical-count {
+          display: inline-flex;
+          margin-top: 0.5rem;
+          padding: 0.35rem 0.75rem;
+          border-radius: 999px;
+          background: #fef2f2;
+          color: #dc2626;
+          font-weight: 700;
+          font-size: 0.85rem;
+        }
+
+        .ai-status-badge {
+          border-radius: 999px;
+          padding: 0.35rem 0.75rem;
+          font-weight: 700;
+          font-size: 0.8rem;
+          flex-shrink: 0;
+        }
+
+        .ai-vitals-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 0.75rem;
+          margin-bottom: 1rem;
+        }
+
+        .ai-vital {
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          padding: 0.75rem;
+          min-height: 70px;
+          display: flex;
+          flex-direction: column;
+          gap: 0.35rem;
+        }
+
+        .ai-vital.wide {
+          grid-column: span 2;
+        }
+
+        .ai-vital span {
+          color: #64748b;
+          font-size: 0.75rem;
+          overflow-wrap: anywhere;
+        }
+
+        .ai-vital strong {
+          color: #0f172a;
+          font-size: 0.95rem;
+          overflow-wrap: anywhere;
         }
 
         .vitals-grid {
@@ -777,6 +855,12 @@ const NurseVitals = () => {
         @media (max-width: 768px) {
           .vitals-grid {
             grid-template-columns: repeat(2, 1fr);
+          }
+          .ai-vitals-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+          .ai-vital.wide {
+            grid-column: span 2;
           }
           .ranges-grid {
             grid-template-columns: repeat(2, 1fr);
