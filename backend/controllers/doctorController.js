@@ -5,6 +5,8 @@ const Case = require('../models/Case');
 const Notification = require('../models/Notification');
 const Appointment = require('../models/Appointment');
 const Visit = require('../models/Visit');
+const Vital = require('../models/Vital');
+const PatientComment = require('../models/PatientComment');
 
 // @desc    Get nursing staff with assigned patients (for doctor UI)
 // @route   GET /api/v1/doctor/nursing-staff
@@ -448,6 +450,19 @@ const getPatients = async (req, res) => {
 
     let patients = Array.from(patientMap.values());
 
+    // Attach latest AI vital to each patient for accurate status display
+    const latestVitalResults = await Promise.all(
+      patients.map(p =>
+        Vital.findOne({ patientId: p._id })
+          .sort({ createdAt: -1 })
+          .select('riskLevel confidenceScore isCritical isAbnormal heartRate spo2 temperature bloodPressure createdAt')
+      )
+    );
+    patients = patients.map((p, i) => ({
+      ...p,
+      latestVital: latestVitalResults[i] || null
+    }));
+
     if (search) {
       const re = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
       patients = patients.filter(
@@ -766,6 +781,22 @@ const addIvOrder = async (req, res) => {
   }
 };
 
+// @desc    Get patient comments (read-only for doctor)
+// @route   GET /api/v1/doctor/patient/:patientId/comments
+// @access  Private (Doctor)
+const getPatientComments = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const comments = await PatientComment.find({ patientId })
+      .populate('authorId', 'fullName role')
+      .sort({ createdAt: -1 });
+    res.json({ success: true, data: comments });
+  } catch (error) {
+    console.error('Get patient comments (doctor) error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   getNursingStaff,
   getNursesOnShift,
@@ -776,5 +807,6 @@ module.exports = {
   setPatientStatus,
   getCriticalCases,
   addPrescription,
-  addIvOrder
+  addIvOrder,
+  getPatientComments
 };

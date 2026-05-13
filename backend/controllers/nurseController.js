@@ -5,6 +5,8 @@ const Vital = require('../models/Vital');
 const Patient = require('../models/Patient');
 const Task = require('../models/Task');
 const MedicalRecord = require('../models/MedicalRecord');
+const PatientComment = require('../models/PatientComment');
+const { appendVitalToDataset } = require('../utils/datasetLogger');
 
 // Normal vital ranges for reference
 const NORMAL_VITAL_RANGES = {
@@ -690,6 +692,119 @@ const updatePatientRoom = async (req, res) => {
   }
 };
 
+const BP_REGEX = /^\d{2,3}\/\d{2,3}$/;
+
+// @desc    Manually update blood pressure for a patient (updates latest vital or creates one)
+// @route   PUT /api/v1/nurse/patient/:patientId/blood-pressure
+// @access  Private (Nurse)
+const updatePatientBloodPressure = async (req, res) => {
+  try {
+    const nurseId = req.user._id;
+    const { patientId } = req.params;
+    const { bloodPressure } = req.body;
+
+    const assignment = await Assignment.findOne({ nurseId, patientId, isActive: true });
+    if (!assignment) {
+      return res.status(403).json({ message: 'You are not assigned to this patient' });
+    }
+
+    if (!bloodPressure || !BP_REGEX.test(bloodPressure)) {
+      return res.status(400).json({ message: 'Please enter blood pressure in this format: 120/80' });
+    }
+
+    const [systolic, diastolic] = bloodPressure.split('/').map(Number);
+
+    if (systolic < 50 || systolic > 250 || diastolic < 30 || diastolic > 150 || systolic <= diastolic) {
+      return res.status(400).json({ message: 'Please enter blood pressure in this format: 120/80' });
+    }
+
+    let vital = await Vital.findOne({ patientId }).sort({ createdAt: -1 });
+
+    if (vital) {
+      vital.bloodPressure = { systolic, diastolic };
+      await vital.save();
+    } else {
+      vital = await Vital.create({
+        patientId,
+        bloodPressure: { systolic, diastolic },
+        source: 'manual',
+        recordedBy: nurseId
+      });
+    }
+
+    try {
+      await appendVitalToDataset(vital);
+    } catch (csvErr) {
+      console.error('CSV log error after BP update:', csvErr);
+    }
+
+    res.json({
+      success: true,
+      data: { bloodPressure: `${systolic}/${diastolic}` }
+    });
+  } catch (error) {
+    console.error('Update blood pressure error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Add a comment for a patient
+// @route   POST /api/v1/nurse/patient/:patientId/comments
+// @access  Private (Nurse)
+const addPatientComment = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const { commentText } = req.body;
+
+    if (!commentText || !commentText.trim()) {
+      return res.status(400).json({ message: 'Comment text is required' });
+    }
+
+    const assignment = await Assignment.findOne({ nurseId: req.user._id, patientId, isActive: true });
+    if (!assignment) {
+      return res.status(403).json({ message: 'You are not assigned to this patient' });
+    }
+
+    const comment = await PatientComment.create({
+      patientId,
+      authorId: req.user._id,
+      authorRole: req.user.role,
+      commentText: commentText.trim()
+    });
+
+    const populated = await PatientComment.findById(comment._id)
+      .populate('authorId', 'fullName role');
+
+    res.status(201).json({ success: true, data: populated });
+  } catch (error) {
+    console.error('Add patient comment error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get comments for a patient
+// @route   GET /api/v1/nurse/patient/:patientId/comments
+// @access  Private (Nurse)
+const getPatientComments = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+
+    const assignment = await Assignment.findOne({ nurseId: req.user._id, patientId, isActive: true });
+    if (!assignment) {
+      return res.status(403).json({ message: 'You are not assigned to this patient' });
+    }
+
+    const comments = await PatientComment.find({ patientId })
+      .populate('authorId', 'fullName role')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, data: comments });
+  } catch (error) {
+    console.error('Get patient comments error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   getAssignedPatients,
   getCriticalEvents,
@@ -702,5 +817,8 @@ module.exports = {
   recordVitals,
   getVitalRanges,
   markMedicationAsGiven,
-  updatePatientRoom
+  updatePatientRoom,
+  updatePatientBloodPressure,
+  addPatientComment,
+  getPatientComments
 };

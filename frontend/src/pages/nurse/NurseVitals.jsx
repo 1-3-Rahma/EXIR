@@ -91,8 +91,7 @@ const NurseVitals = () => {
     bp: { systolicMin: 90, systolicMax: 120, diastolicMin: 60, diastolicMax: 80 },
     hr: { min: 60, max: 100 },
     temp: { min: 36.1, max: 37.2 },
-    o2: { min: 95, max: 100 },
-    resp: { min: 12, max: 20 }
+    o2: { min: 95, max: 100 }
   };
 
   // Reference display data
@@ -100,8 +99,7 @@ const NurseVitals = () => {
     { name: 'Blood Pressure', range: '90-120 / 60-80 mmHg', color: '#3b82f6', icon: 'bp' },
     { name: 'Heart Rate', range: '60-100 bpm', color: '#ef4444', icon: 'hr' },
     { name: 'Temperature', range: '36.1-37.2 °C', color: '#f59e0b', icon: 'temp' },
-    { name: 'O₂ Saturation', range: '95-100 %', color: '#06b6d4', icon: 'o2' },
-    { name: 'Respiratory Rate', range: '12-20 /min', color: '#8b5cf6', icon: 'resp' }
+    { name: 'O₂ Saturation', range: '95-100 %', color: '#06b6d4', icon: 'o2' }
   ];
 
   const criticalCount = patients.filter(patient => patient.latestVitals?.isCritical === true).length;
@@ -120,8 +118,6 @@ const NurseVitals = () => {
         return value < normalRanges.temp.min || value > normalRanges.temp.max;
       case 'o2':
         return value < normalRanges.o2.min || value > normalRanges.o2.max;
-      case 'resp':
-        return value < normalRanges.resp.min || value > normalRanges.resp.max;
       default:
         return false;
     }
@@ -135,7 +131,6 @@ const NurseVitals = () => {
       case 'bp': {
         const systolic = value;
         const diastolic = value2;
-        // Critical if very far from range
         if (systolic < 80 || systolic > 140 || diastolic < 50 || diastolic > 100) return 'critical';
         return 'warning';
       }
@@ -147,9 +142,6 @@ const NurseVitals = () => {
         return 'warning';
       case 'o2':
         if (value < 90) return 'critical';
-        return 'warning';
-      case 'resp':
-        if (value < 8 || value > 25) return 'critical';
         return 'warning';
       default:
         return 'warning';
@@ -182,7 +174,6 @@ const NurseVitals = () => {
                     {item.icon === 'hr' && <FiActivity />}
                     {item.icon === 'temp' && <FiThermometer />}
                     {item.icon === 'o2' && <FiWind />}
-                    {item.icon === 'resp' && <FiActivity />}
                   </div>
                   <div className="range-info">
                     <span className="range-name">{item.name}</span>
@@ -214,7 +205,6 @@ const NurseVitals = () => {
                     {item.icon === 'hr' && <FiActivity />}
                     {item.icon === 'temp' && <FiThermometer />}
                     {item.icon === 'o2' && <FiWind />}
-                    {item.icon === 'resp' && <FiActivity />}
                   </div>
                   <div className="range-info">
                     <span className="range-name">{item.name}</span>
@@ -297,7 +287,7 @@ const NurseVitals = () => {
                       {patient.vitals.temp.value}
                     </span>
                     <span className="vital-unit">°C</span>
-                    <span className="normal-range">Normal: 97.8-99.1</span>
+                    <span className="normal-range">Normal: 36.1°C - 37.2°C</span>
                   </div>
 
                   {/* O2 Saturation */}
@@ -317,22 +307,6 @@ const NurseVitals = () => {
                     <span className="normal-range">Normal: 95-100</span>
                   </div>
 
-                  {/* Respiratory Rate */}
-                  <div className={`vital-card ${getWarningSeverity('resp', patient.vitals.resp.value)}`} style={{ background: getStatusBg(patient.vitals.resp.status) }}>
-                    <div className="vital-header">
-                      <FiActivity style={{ color: getStatusColor(patient.vitals.resp.status) }} />
-                      {isOutOfRange('resp', patient.vitals.resp.value) && (
-                        <FiAlertTriangle className="warning-icon" />
-                      )}
-                      {getTrendIcon(patient.vitals.resp.trend)}
-                    </div>
-                    <span className="vital-label">Resp. Rate</span>
-                    <span className="vital-value" style={{ color: getStatusColor(patient.vitals.resp.status) }}>
-                      {patient.vitals.resp.value}
-                    </span>
-                    <span className="vital-unit">/min</span>
-                    <span className="normal-range">Normal: 12-20</span>
-                  </div>
                 </div>
 
                 {/* Alert Banner */}
@@ -509,7 +483,7 @@ const NurseVitals = () => {
 
         .vitals-grid {
           display: grid;
-          grid-template-columns: repeat(5, 1fr);
+          grid-template-columns: repeat(4, 1fr);
           gap: 1rem;
           margin-bottom: 1rem;
         }
@@ -707,7 +681,7 @@ const NurseVitals = () => {
 
         .ranges-grid {
           display: grid;
-          grid-template-columns: repeat(5, 1fr);
+          grid-template-columns: repeat(4, 1fr);
           gap: 1rem;
         }
 
@@ -839,10 +813,10 @@ const NurseVitals = () => {
 
         @media (max-width: 1200px) {
           .vitals-grid {
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(2, 1fr);
           }
           .ranges-grid {
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(2, 1fr);
           }
         }
 

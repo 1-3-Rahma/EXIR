@@ -2,7 +2,20 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../../components/common/Layout';
 import { useAuth } from '../../context/AuthContext';
 import { doctorAPI } from '../../services/api';
-import { FiUser, FiActivity, FiHeart, FiThermometer, FiWind, FiCheckCircle, FiAlertCircle, FiSearch, FiClock } from 'react-icons/fi';
+import { FiUser, FiActivity, FiHeart, FiThermometer, FiWind, FiCheckCircle, FiAlertCircle, FiSearch, FiClock, FiMessageSquare } from 'react-icons/fi';
+
+const getPatientCase = (patient) => {
+  const rl = patient.latestVital?.riskLevel;
+  if (rl) return rl;
+  return patient.patientStatus === 'critical' ? 'Critical' : 'Normal';
+};
+
+const getCaseClass = (caseLevel) => {
+  const l = String(caseLevel || '').toLowerCase();
+  if (l === 'critical') return 'critical';
+  if (l === 'abnormal') return 'abnormal';
+  return 'stable';
+};
 
 const DoctorPatients = () => {
   const { user } = useAuth();
@@ -14,6 +27,8 @@ const DoctorPatients = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [vitals, setVitals] = useState([]);
   const [vitalsLoading, setVitalsLoading] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [loadingComments, setLoadingComments] = useState(false);
 
   const fetchPatients = useCallback(async (search) => {
     try {
@@ -85,16 +100,23 @@ const DoctorPatients = () => {
     setSelectedPatient(patient);
     setShowDetailsModal(true);
     setVitalsLoading(true);
+    setLoadingComments(true);
     setVitals([]);
+    setComments([]);
     try {
-      const res = await doctorAPI.getPatientVitals(patient._id);
-      const list = Array.isArray(res.data) ? res.data : [];
-      setVitals(list);
+      const [vitalsRes, commentsRes] = await Promise.all([
+        doctorAPI.getPatientVitals(patient._id),
+        doctorAPI.getPatientComments(patient._id)
+      ]);
+      setVitals(Array.isArray(vitalsRes.data) ? vitalsRes.data : []);
+      setComments(Array.isArray(commentsRes.data) ? commentsRes.data : []);
     } catch (err) {
-      console.error('Failed to fetch vitals:', err);
+      console.error('Failed to fetch patient details:', err);
       setVitals([]);
+      setComments([]);
     } finally {
       setVitalsLoading(false);
+      setLoadingComments(false);
     }
   };
 
@@ -120,6 +142,13 @@ const DoctorPatients = () => {
         </div>
       </div>
 
+      <div className="case-legend-bar">
+        <span className="case-legend-label">Patient Case:</span>
+        <span className="case-legend-item"><span className="case-dot case-dot-stable" />Normal / Stable</span>
+        <span className="case-legend-item"><span className="case-dot case-dot-abnormal" />Abnormal / Warning</span>
+        <span className="case-legend-item"><span className="case-dot case-dot-critical" />Critical</span>
+      </div>
+
       <div className="card">
         <div className="card-body">
           {loading ? (
@@ -135,7 +164,7 @@ const DoctorPatients = () => {
                     <th>National ID</th>
                     {/* <th>Doctor (Appointment)</th> */}
                     <th>Appointment</th>
-                    <th>Status</th>
+                    <th>Patient Case</th>
                     <th>Assigned Nurse</th>
                     <th>Actions</th>
                   </tr>
@@ -143,6 +172,8 @@ const DoctorPatients = () => {
                 <tbody>
                   {patients.map((patient) => {
                     const ready = isAppointmentReady(patient);
+                    const patientCase = getPatientCase(patient);
+                    const caseClass = getCaseClass(patientCase);
                     return (
                     <tr key={patient._id} className={!ready ? 'row-inactive' : ''}>
                       <td>
@@ -159,13 +190,6 @@ const DoctorPatients = () => {
                         {!ready && <span className="waiting-badge"><FiClock /> Waiting</span>}
                       </td>
                       <td>
-                        <span className={`status-pill ${patient.patientStatus === 'critical' ? 'critical' : 'stable'}`}>
-                          {patient.patientStatus === 'critical' ? (
-                            <><FiAlertCircle /> Critical</>
-                          ) : (
-                            <><FiCheckCircle /> Stable</>
-                          )}
-                        </span>
                         <div className="status-actions">
                           <button
                             type="button"
@@ -188,7 +212,7 @@ const DoctorPatients = () => {
                       <td>{patient.assignedNurse || 'Unassigned'}</td>
                       <td>
                         <button
-                          className="action-btn-view"
+                          className={`action-btn-view action-btn-view-${caseClass}`}
                           onClick={() => openViewDetails(patient)}
                           title={ready ? "View patient vitals and details" : "Appointment time has not arrived yet"}
                           disabled={!ready}
@@ -255,7 +279,11 @@ const DoctorPatients = () => {
           background: rgba(34, 197, 94, 0.1);
           color: var(--accent-green);
         }
-        .status-pill.critical, .status-pill:has(.FiAlertCircle) {
+        .status-pill.abnormal {
+          background: rgba(245, 158, 11, 0.1);
+          color: #f59e0b;
+        }
+        .status-pill.critical {
           background: rgba(239, 68, 68, 0.1);
           color: var(--accent-red);
         }
@@ -320,22 +348,31 @@ const DoctorPatients = () => {
           align-items: center;
           gap: 0.4rem;
           padding: 0.4rem 0.75rem;
-          background: rgba(99, 102, 241, 0.1);
-          color: #6366f1;
-          border: 1px solid rgba(99, 102, 241, 0.3);
           border-radius: 8px;
           font-size: 0.85rem;
           cursor: pointer;
           transition: all 0.2s;
+          border: 1px solid transparent;
         }
-        .action-btn-view:hover:not(:disabled) {
-          background: #6366f1;
-          color: white;
+        .action-btn-view:disabled { opacity: 0.4; cursor: not-allowed; }
+        .action-btn-view-stable {
+          background: rgba(34, 197, 94, 0.1);
+          color: #16a34a;
+          border-color: rgba(34, 197, 94, 0.3);
         }
-        .action-btn-view:disabled {
-          opacity: 0.4;
-          cursor: not-allowed;
+        .action-btn-view-stable:hover:not(:disabled) { background: #22c55e; color: white; }
+        .action-btn-view-abnormal {
+          background: rgba(245, 158, 11, 0.1);
+          color: #d97706;
+          border-color: rgba(245, 158, 11, 0.3);
         }
+        .action-btn-view-abnormal:hover:not(:disabled) { background: #f59e0b; color: white; }
+        .action-btn-view-critical {
+          background: rgba(239, 68, 68, 0.1);
+          color: #dc2626;
+          border-color: rgba(239, 68, 68, 0.3);
+        }
+        .action-btn-view-critical:hover:not(:disabled) { background: #ef4444; color: white; }
         .row-inactive {
           opacity: 0.5;
           pointer-events: none;
@@ -361,6 +398,23 @@ const DoctorPatients = () => {
           font-size: 0.7rem;
           font-weight: 600;
         }
+        .case-legend-bar {
+          display: flex;
+          align-items: center;
+          gap: 1.25rem;
+          padding: 0.6rem 1rem;
+          background: var(--bg-white, #fff);
+          border: 1px solid var(--border-color, #e2e8f0);
+          border-radius: var(--radius-md, 8px);
+          margin-bottom: 1rem;
+          flex-wrap: wrap;
+        }
+        .case-legend-label { font-size: 0.8rem; font-weight: 600; color: #475569; margin-right: 0.25rem; }
+        .case-legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: #475569; }
+        .case-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .case-dot-stable { background: #22c55e; }
+        .case-dot-abnormal { background: #f59e0b; }
+        .case-dot-critical { background: #ef4444; }
       `}</style>
 
       {showDetailsModal && selectedPatient && (
@@ -410,6 +464,31 @@ const DoctorPatients = () => {
               </div>
             )}
             <p className="vital-time">Last updated: {formatVitalTime(latestVital?.createdAt)}</p>
+
+            <div className="comments-section">
+              <div className="comments-heading">
+                <FiMessageSquare size={15} />
+                <span>Nurse Comments</span>
+              </div>
+              {loadingComments ? (
+                <p className="vitals-loading">Loading comments...</p>
+              ) : comments.length === 0 ? (
+                <p className="no-comments">No comments recorded for this patient.</p>
+              ) : (
+                <div className="comments-list">
+                  {comments.map((c) => (
+                    <div key={c._id} className="comment-item">
+                      <div className="comment-meta">
+                        <span className="comment-author">{c.authorId?.fullName || 'Nurse'}</span>
+                        <span className="comment-time">{new Date(c.createdAt).toLocaleString()}</span>
+                      </div>
+                      <p className="comment-text">{c.commentText}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="modal-actions">
               <button type="button" onClick={() => setShowDetailsModal(false)}>Close</button>
             </div>
@@ -430,6 +509,15 @@ const DoctorPatients = () => {
         .vital-time { font-size: 0.8rem; color: #94a3b8; margin: 0 0 1rem 0; }
         .modal-actions { display: flex; justify-content: flex-end; }
         .modal-actions button { padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; background: #6366f1; color: white; border: none; }
+        .comments-section { margin-top: 1.25rem; border-top: 1px solid #e2e8f0; padding-top: 1rem; }
+        .comments-heading { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 0.75rem; }
+        .no-comments { font-size: 0.82rem; color: #94a3b8; padding: 0.5rem 0; }
+        .comments-list { display: flex; flex-direction: column; gap: 0.6rem; max-height: 200px; overflow-y: auto; }
+        .comment-item { background: #f8fafc; border-radius: 8px; padding: 0.6rem 0.85rem; }
+        .comment-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; }
+        .comment-author { font-size: 0.78rem; font-weight: 600; color: #6366f1; }
+        .comment-time { font-size: 0.72rem; color: #94a3b8; }
+        .comment-text { font-size: 0.85rem; color: #334155; margin: 0; }
       `}</style>
     </Layout>
   );

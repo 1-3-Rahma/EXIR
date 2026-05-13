@@ -40,7 +40,10 @@ export const nurseAPI = {
   getVitalsOverview: () => api.get('/nurse/vitals-overview'),
   updateVitals: (patientId, data) => api.put(`/nurse/patient/${patientId}/vitals`, data),
   markMedicationAsGiven: (medicationId, type) => api.put(`/nurse/medication/${medicationId}/given`, { type }),
-  updatePatientRoom: (patientId, room) => api.put(`/nurse/patient/${patientId}/room`, { room })
+  updatePatientRoom: (patientId, room) => api.put(`/nurse/patient/${patientId}/room`, { room }),
+  updatePatientBloodPressure: (patientId, bloodPressure) => api.put(`/nurse/patient/${patientId}/blood-pressure`, { bloodPressure }),
+  addPatientComment: (patientId, commentText) => api.post(`/nurse/patient/${patientId}/comments`, { commentText }),
+  getPatientComments: (patientId) => api.get(`/nurse/patient/${patientId}/comments`)
 };
 
 export const doctorAPI = {
@@ -54,7 +57,8 @@ export const doctorAPI = {
   setPatientStatus: (data) => api.put('/doctor/patient-status', data),
   addPrescription: (data) => api.post('/doctor/prescription', data),
   addIvOrder: (data) => api.post('/doctor/iv-order', data),
-  getPatientVitals: (patientId) => api.get(`/vitals/patient/${patientId}`)
+  getPatientVitals: (patientId) => api.get(`/vitals/patient/${patientId}`),
+  getPatientComments: (patientId) => api.get(`/doctor/patient/${patientId}/comments`)
 };
 
 export const tasksAPI = {

@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
 import {
-  FiSearch, FiFilter, FiUser, FiFileText, FiActivity,
-  FiMessageSquare, FiChevronDown, FiEdit2, FiX, FiDroplet
+  FiSearch, FiUser, FiActivity,
+  FiMessageSquare, FiEdit2, FiX, FiDroplet, FiSend
 } from 'react-icons/fi';
 import { nurseAPI } from '../../services/api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+
+const BP_REGEX = /^\d{2,3}\/\d{2,3}$/;
 
 const NursePatients = () => {
   const navigate = useNavigate();
@@ -15,30 +17,43 @@ const NursePatients = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [showFilters, setShowFilters] = useState(false);
+
+  // Room modal
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [roomInput, setRoomInput] = useState('');
   const [savingRoom, setSavingRoom] = useState(false);
 
+  // BP modal
+  const [showBPModal, setShowBPModal] = useState(false);
+  const [bpPatient, setBpPatient] = useState(null);
+  const [bpInput, setBpInput] = useState('');
+  const [bpError, setBpError] = useState('');
+  const [savingBP, setSavingBP] = useState(false);
+
+  // Comment modal
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [commentPatient, setCommentPatient] = useState(null);
+  const [commentText, setCommentText] = useState('');
+  const [comments, setComments] = useState([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [savingComment, setSavingComment] = useState(false);
+
   useEffect(() => {
     fetchPatients();
   }, []);
 
-  // Refetch when tab gets focus so newly assigned patients and doctor status changes appear
   useEffect(() => {
     const onFocus = () => fetchPatients();
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, []);
 
-  // Periodic refetch so when doctor (e.g. Ahmed) re-converts patient (e.g. Reham) to stable, nurse (e.g. Fatima) sees it
   useEffect(() => {
     const interval = setInterval(fetchPatients, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Real-time: when doctor changes patient status, refetch immediately (no refresh)
   useEffect(() => {
     const onStatusChange = () => fetchPatients();
     window.addEventListener('patientStatusChanged', onStatusChange);
@@ -59,17 +74,13 @@ const NursePatients = () => {
     patient.latestVitals?.riskLevel === 'Critical' || patient.latestVitals?.isCritical === true;
 
   const formatConfidence = (score) => {
-    if (score === undefined || score === null || Number.isNaN(Number(score))) {
-      return 'N/A';
-    }
-
+    if (score === undefined || score === null || Number.isNaN(Number(score))) return 'N/A';
     const numericScore = Number(score);
     return numericScore <= 1 ? `${Math.round(numericScore * 100)}%` : `${Math.round(numericScore)}%`;
   };
 
   const fetchPatients = async () => {
     try {
-      // Fetch both patients and their vitals
       const [patientsRes, vitalsRes] = await Promise.all([
         fetch(`${API_URL}/nurse/assigned-patients`, { headers: getAuthHeaders() }),
         fetch(`${API_URL}/nurse/vitals-formatted`, { headers: getAuthHeaders() })
@@ -78,7 +89,6 @@ const NursePatients = () => {
       const patientsData = patientsRes.ok ? await patientsRes.json() : [];
       const vitalsData = vitalsRes.ok ? await vitalsRes.json() : { data: [] };
 
-      // Combine patient data with vitals
       const patientsList = Array.isArray(patientsData) ? patientsData : (patientsData.data || []);
       const vitalsList = vitalsData.data || [];
 
@@ -89,7 +99,6 @@ const NursePatients = () => {
 
         const status = latestVitals?.riskLevel || patient.patientStatus || 'stable';
 
-        // Calculate age from date of birth
         const age = patient.dateOfBirth
           ? Math.floor((new Date() - new Date(patient.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000))
           : 'N/A';
@@ -97,11 +106,11 @@ const NursePatients = () => {
         return {
           _id: patient._id,
           fullName: patient.fullName,
-          age: age,
+          age,
           gender: patient.gender || 'N/A',
           room: patient.room || vitalData?.room || 'N/A',
           condition: patient.condition || patient.diagnosis || 'Under Observation',
-          status: status,
+          status,
           latestVitals,
           assignedDoctor: patient.assignedDoctor,
           vitals: vitals ? {
@@ -140,6 +149,7 @@ const NursePatients = () => {
     return matchesSearch && matchesStatus;
   });
 
+  // ── Room modal ──────────────────────────────────────────────────────────────
   const openRoomModal = (patient) => {
     setSelectedPatient(patient);
     setRoomInput(patient.room || '');
@@ -164,6 +174,79 @@ const NursePatients = () => {
     }
   };
 
+  // ── BP modal ────────────────────────────────────────────────────────────────
+  const openBPModal = (patient) => {
+    setBpPatient(patient);
+    setBpInput(patient.vitals?.bp !== 'N/A' ? patient.vitals?.bp || '' : '');
+    setBpError('');
+    setShowBPModal(true);
+  };
+
+  const validateBP = (value) => {
+    if (!value.trim()) return 'Please enter blood pressure in this format: 120/80';
+    if (!BP_REGEX.test(value.trim())) return 'Please enter blood pressure in this format: 120/80';
+    const [sys, dia] = value.trim().split('/').map(Number);
+    if (sys < 50 || sys > 250) return 'Please enter blood pressure in this format: 120/80';
+    if (dia < 30 || dia > 150) return 'Please enter blood pressure in this format: 120/80';
+    if (sys <= dia) return 'Please enter blood pressure in this format: 120/80';
+    return '';
+  };
+
+  const handleSaveBP = async () => {
+    const error = validateBP(bpInput);
+    if (error) { setBpError(error); return; }
+    try {
+      setSavingBP(true);
+      await nurseAPI.updatePatientBloodPressure(bpPatient._id, bpInput.trim());
+      setPatients(patients.map(p =>
+        p._id === bpPatient._id
+          ? { ...p, vitals: { ...(p.vitals || {}), bp: bpInput.trim() } }
+          : p
+      ));
+      setShowBPModal(false);
+      setBpPatient(null);
+    } catch (err) {
+      setBpError(err.response?.data?.message || 'Please enter blood pressure in this format: 120/80');
+    } finally {
+      setSavingBP(false);
+    }
+  };
+
+  // ── Comment modal ───────────────────────────────────────────────────────────
+  const openCommentModal = async (patient) => {
+    setCommentPatient(patient);
+    setCommentText('');
+    setShowCommentModal(true);
+    setLoadingComments(true);
+    try {
+      const res = await nurseAPI.getPatientComments(patient._id);
+      setComments(res.data?.data || []);
+    } catch (e) {
+      setComments([]);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  const handleSaveComment = async () => {
+    if (!commentText.trim()) return;
+    try {
+      setSavingComment(true);
+      const res = await nurseAPI.addPatientComment(commentPatient._id, commentText.trim());
+      setComments([res.data?.data, ...comments].filter(Boolean));
+      setCommentText('');
+    } catch (e) {
+      console.error('Failed to save comment:', e);
+    } finally {
+      setSavingComment(false);
+    }
+  };
+
+  const formatCommentDate = (dateStr) => {
+    const d = new Date(dateStr);
+    return d.toLocaleString();
+  };
+
   return (
     <Layout appName="NurseHub" role="nurse">
       <div className="page-header">
@@ -171,7 +254,7 @@ const NursePatients = () => {
         <p>View and manage your assigned patients</p>
       </div>
 
-      {/* Search and Filter Bar */}
+      {/* Search Bar */}
       <div className="filter-bar">
         <div className="search-box">
           <FiSearch className="search-icon" />
@@ -182,28 +265,17 @@ const NursePatients = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-     
       </div>
 
       {/* Status Filter Pills */}
       <div className="status-pills">
-        <button
-          className={`pill ${statusFilter === 'all' ? 'active' : ''}`}
-          onClick={() => setStatusFilter('all')}
-        >
+        <button className={`pill ${statusFilter === 'all' ? 'active' : ''}`} onClick={() => setStatusFilter('all')}>
           All ({patients.length})
         </button>
-        <button
-          className={`pill critical ${statusFilter === 'critical' ? 'active' : ''}`}
-          onClick={() => setStatusFilter('critical')}
-        >
+        <button className={`pill critical ${statusFilter === 'critical' ? 'active' : ''}`} onClick={() => setStatusFilter('critical')}>
           Critical ({patients.filter(isPatientCritical).length})
         </button>
-
-        <button
-          className={`pill stable ${statusFilter === 'stable' ? 'active' : ''}`}
-          onClick={() => setStatusFilter('stable')}
-        >
+        <button className={`pill stable ${statusFilter === 'stable' ? 'active' : ''}`} onClick={() => setStatusFilter('stable')}>
           Stable ({patients.filter(p => normalizeStatus(p.status) === 'stable').length})
         </button>
       </div>
@@ -230,9 +302,7 @@ const NursePatients = () => {
                 style={{ background: statusColors.bg, borderColor: statusColors.border }}
               >
                 <div className="card-header">
-                  <div className="patient-avatar">
-                    <FiUser />
-                  </div>
+                  <div className="patient-avatar"><FiUser /></div>
                   <div className="patient-info">
                     <h3>{patient.fullName}</h3>
                     <span className="patient-meta">{patient.age}y · {patient.gender}</span>
@@ -248,7 +318,7 @@ const NursePatients = () => {
                     <span className="value room-value">
                       Room {patient.room || 'N/A'}
                       <button
-                        className="edit-room-btn"
+                        className="edit-inline-btn"
                         onClick={(e) => { e.stopPropagation(); openRoomModal(patient); }}
                         title="Edit room number"
                       >
@@ -275,7 +345,16 @@ const NursePatients = () => {
                     </div>
                     <div className="vital-item">
                       <span className="vital-label">BP</span>
-                      <span className="vital-value">{patient.vitals?.bp || 'N/A'}</span>
+                      <span className="vital-value bp-value">
+                        {patient.vitals?.bp || 'N/A'}
+                        <button
+                          className="edit-inline-btn"
+                          onClick={(e) => { e.stopPropagation(); openBPModal(patient); }}
+                          title="Edit blood pressure"
+                        >
+                          <FiEdit2 size={10} />
+                        </button>
+                      </span>
                     </div>
                     <div className="vital-item">
                       <span className="vital-label">HR</span>
@@ -292,19 +371,14 @@ const NursePatients = () => {
                   </div>
                 </div>
 
-                {patient.medication && (
-                  <div className="medication-alert">
-                    <FiLink className="med-icon" />
-                    <span>{patient.medication.name} {patient.medication.time}</span>
-                  </div>
-                )}
-
                 <div className="card-actions">
-                  <button className="action-btn">
-                    <FiFileText /> Chart
-                  </button>
-                  <button className="action-btn">
-                    <FiActivity /> Vitals
+                  <button
+                    className="action-btn action-btn--primary"
+                    onClick={() => navigate(`/nurse/patient/${patient._id}/vitals-history`, {
+                      state: { patientName: patient.fullName, room: patient.room }
+                    })}
+                  >
+                    <FiActivity /> Vitals History
                   </button>
                   <button
                     className="action-btn action-btn--iv"
@@ -315,7 +389,11 @@ const NursePatients = () => {
                   >
                     <FiDroplet /> IV
                   </button>
-                  <button className="action-btn icon-only">
+                  <button
+                    className="action-btn icon-only"
+                    onClick={(e) => { e.stopPropagation(); openCommentModal(patient); }}
+                    title="Patient comments"
+                  >
                     <FiMessageSquare />
                   </button>
                 </div>
@@ -337,13 +415,11 @@ const NursePatients = () => {
           border-radius: 12px;
           box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-
         .search-box {
           flex: 1;
           position: relative;
           max-width: 500px;
         }
-
         .search-icon {
           position: absolute;
           left: 1rem;
@@ -351,7 +427,6 @@ const NursePatients = () => {
           transform: translateY(-50%);
           color: #94a3b8;
         }
-
         .search-box input {
           width: 100%;
           padding: 0.75rem 1rem 0.75rem 2.75rem;
@@ -359,52 +434,8 @@ const NursePatients = () => {
           border-radius: 8px;
           font-size: 0.9rem;
         }
-
-        .search-box input:focus {
-          outline: none;
-          border-color: #3b82f6;
-        }
-
-        .filter-group {
-          display: flex;
-          gap: 0.5rem;
-        }
-
-        .filter-btn, .more-filters-btn {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.75rem 1rem;
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          background: white;
-          font-size: 0.85rem;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .filter-btn:hover, .more-filters-btn:hover {
-          border-color: #3b82f6;
-          color: #3b82f6;
-        }
-
-        .more-filters-btn {
-          background: #1e3a5f;
-          color: white;
-          border: none;
-        }
-
-        .more-filters-btn:hover {
-          background: #2d4a6f;
-          color: white;
-        }
-
-        .status-pills {
-          display: flex;
-          gap: 0.5rem;
-          margin-bottom: 1rem;
-        }
-
+        .search-box input:focus { outline: none; border-color: #3b82f6; }
+        .status-pills { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
         .pill {
           padding: 0.5rem 1rem;
           border: 1px solid #e2e8f0;
@@ -414,44 +445,32 @@ const NursePatients = () => {
           cursor: pointer;
           transition: all 0.2s;
         }
-
         .pill:hover { border-color: #94a3b8; }
         .pill.active { background: #1e3a5f; color: white; border-color: #1e3a5f; }
         .pill.critical.active { background: #ef4444; border-color: #ef4444; }
-        .pill.moderate.active { background: #f59e0b; border-color: #f59e0b; }
         .pill.stable.active { background: #22c55e; border-color: #22c55e; }
-
-        .results-count {
-          color: #64748b;
-          font-size: 0.9rem;
-          margin-bottom: 1rem;
-        }
-
+        .results-count { color: #64748b; font-size: 0.9rem; margin-bottom: 1rem; }
         .patients-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 1.25rem;
         }
-
         .patient-card {
           border-radius: 16px;
           padding: 1.25rem;
           border-left: 4px solid;
           transition: all 0.2s;
         }
-
         .patient-card:hover {
           box-shadow: 0 4px 12px rgba(0,0,0,0.1);
           transform: translateY(-2px);
         }
-
         .card-header {
           display: flex;
           align-items: flex-start;
           gap: 0.75rem;
           margin-bottom: 1rem;
         }
-
         .patient-avatar {
           width: 48px;
           height: 48px;
@@ -463,23 +482,14 @@ const NursePatients = () => {
           color: white;
           font-size: 1.25rem;
         }
-
-        .patient-info {
-          flex: 1;
-        }
-
+        .patient-info { flex: 1; }
         .patient-info h3 {
           font-size: 1rem;
           font-weight: 600;
           color: #1e293b;
           margin-bottom: 0.125rem;
         }
-
-        .patient-meta {
-          font-size: 0.8rem;
-          color: #64748b;
-        }
-
+        .patient-meta { font-size: 0.8rem; color: #64748b; }
         .status-badge {
           font-size: 0.7rem;
           padding: 0.25rem 0.625rem;
@@ -488,86 +498,40 @@ const NursePatients = () => {
           font-weight: 500;
           text-transform: capitalize;
         }
-
-        .card-details {
-          margin-bottom: 1rem;
-        }
-
+        .card-details { margin-bottom: 1rem; }
         .detail-row {
           display: flex;
           justify-content: space-between;
           margin-bottom: 0.375rem;
         }
-
-        .detail-row .label {
-          color: #64748b;
-          font-size: 0.85rem;
-        }
-
-        .detail-row .value {
-          font-weight: 500;
-          color: #1e293b;
-          font-size: 0.85rem;
-        }
-
-        .detail-row .value.condition {
-          font-weight: 600;
-        }
-
+        .detail-row .label { color: #64748b; font-size: 0.85rem; }
+        .detail-row .value { font-weight: 500; color: #1e293b; font-size: 0.85rem; }
+        .detail-row .value.condition { font-weight: 600; }
         .vitals-section {
           background: rgba(255,255,255,0.7);
           border-radius: 10px;
           padding: 0.875rem;
           margin-bottom: 1rem;
         }
-
         .vitals-section h4 {
           font-size: 0.75rem;
           color: #64748b;
           margin-bottom: 0.5rem;
           font-weight: 500;
         }
-
         .vitals-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
           gap: 0.5rem;
         }
-
-        .vital-item {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .vital-label {
-          font-size: 0.7rem;
-          color: #94a3b8;
-        }
-
+        .vital-item { display: flex; flex-direction: column; }
+        .vital-label { font-size: 0.7rem; color: #94a3b8; }
         .vital-value {
           font-size: 0.9rem;
           font-weight: 600;
           color: #1e293b;
         }
-
-        .medication-alert {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          color: #3b82f6;
-          font-size: 0.85rem;
-          margin-bottom: 1rem;
-        }
-
-        .med-icon {
-          font-size: 1rem;
-        }
-
-        .card-actions {
-          display: flex;
-          gap: 0.5rem;
-        }
-
+        .card-actions { display: flex; gap: 0.5rem; }
         .action-btn {
           flex: 1;
           display: flex;
@@ -582,29 +546,12 @@ const NursePatients = () => {
           cursor: pointer;
           transition: all 0.2s;
         }
-
-        .action-btn:hover {
-          background: #f8fafc;
-          border-color: #3b82f6;
-          color: #3b82f6;
-        }
-
-        .action-btn--iv:hover {
-          border-color: #6366f1 !important;
-          color: #6366f1 !important;
-        }
-
-        .action-btn.icon-only {
-          flex: 0;
-          padding: 0.625rem;
-        }
-
-        .loading-state, .empty-state {
-          text-align: center;
-          padding: 3rem;
-          color: #94a3b8;
-        }
-
+        .action-btn:hover { background: #f8fafc; border-color: #3b82f6; color: #3b82f6; }
+        .action-btn--primary { background: #1e3a5f; color: white; border-color: #1e3a5f; }
+        .action-btn--primary:hover { background: #2d4a6f; border-color: #2d4a6f; color: white; }
+        .action-btn--iv:hover { border-color: #6366f1 !important; color: #6366f1 !important; }
+        .action-btn.icon-only { flex: 0; padding: 0.625rem; }
+        .loading-state, .empty-state { text-align: center; padding: 3rem; color: #94a3b8; }
         .empty-state {
           background: white;
           border-radius: 16px;
@@ -614,52 +561,34 @@ const NursePatients = () => {
           align-items: center;
           padding: 4rem 2rem;
         }
-
-        .empty-state h3 {
-          color: #1e293b;
-          font-size: 1.25rem;
-          margin-bottom: 0.5rem;
-        }
-
-        .empty-state p {
-          color: #64748b;
-          font-size: 0.9rem;
-        }
-
-        @media (max-width: 1200px) {
-          .patients-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-
+        .empty-state h3 { color: #1e293b; font-size: 1.25rem; margin-bottom: 0.5rem; }
+        .empty-state p { color: #64748b; font-size: 0.9rem; }
+        @media (max-width: 1200px) { .patients-grid { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 768px) {
           .patients-grid { grid-template-columns: 1fr; }
           .filter-bar { flex-direction: column; }
           .search-box { max-width: 100%; }
         }
-
-        .room-value {
+        .room-value, .bp-value {
           display: flex;
           align-items: center;
           gap: 0.5rem;
         }
-
-        .edit-room-btn {
+        .edit-inline-btn {
           background: none;
           border: none;
           color: #64748b;
           cursor: pointer;
-          padding: 0.25rem;
+          padding: 0.2rem;
           border-radius: 4px;
           display: flex;
           align-items: center;
           justify-content: center;
           transition: all 0.2s;
         }
+        .edit-inline-btn:hover { background: #e2e8f0; color: #3b82f6; }
 
-        .edit-room-btn:hover {
-          background: #e2e8f0;
-          color: #3b82f6;
-        }
-
+        /* Modals */
         .modal-overlay {
           position: fixed;
           inset: 0;
@@ -669,29 +598,22 @@ const NursePatients = () => {
           justify-content: center;
           z-index: 1000;
         }
-
-        .modal-room {
+        .modal-box {
           background: white;
           border-radius: 12px;
           padding: 1.5rem;
           width: 90%;
-          max-width: 400px;
+          max-width: 420px;
           box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
         }
-
-        .modal-room-header {
+        .modal-box--wide { max-width: 520px; }
+        .modal-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
           margin-bottom: 1rem;
         }
-
-        .modal-room-header h3 {
-          margin: 0;
-          font-size: 1.1rem;
-          color: #1e293b;
-        }
-
+        .modal-header h3 { margin: 0; font-size: 1.1rem; color: #1e293b; }
         .close-btn {
           background: none;
           border: none;
@@ -700,15 +622,9 @@ const NursePatients = () => {
           color: #64748b;
           padding: 0.25rem;
         }
-
-        .close-btn:hover {
-          color: #1e293b;
-        }
-
-        .form-group {
-          margin-bottom: 1rem;
-        }
-
+        .close-btn:hover { color: #1e293b; }
+        .modal-subtitle { font-size: 0.9rem; color: #64748b; margin-bottom: 1rem; }
+        .form-group { margin-bottom: 1rem; }
         .form-group label {
           display: block;
           margin-bottom: 0.35rem;
@@ -716,8 +632,7 @@ const NursePatients = () => {
           font-weight: 500;
           color: #374151;
         }
-
-        .form-group input {
+        .form-group input, .form-group textarea {
           width: 100%;
           padding: 0.625rem 0.75rem;
           border: 1px solid #e2e8f0;
@@ -725,65 +640,110 @@ const NursePatients = () => {
           font-size: 0.9rem;
           box-sizing: border-box;
         }
-
-        .form-group input:focus {
+        .form-group input:focus, .form-group textarea:focus {
           outline: none;
           border-color: #3b82f6;
         }
-
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        .input-error { border-color: #ef4444 !important; }
+        .error-text { color: #ef4444; font-size: 0.8rem; margin-top: 0.25rem; }
         .modal-actions {
           display: flex;
           gap: 0.75rem;
           justify-content: flex-end;
           margin-top: 1rem;
         }
-
         .modal-actions button {
           padding: 0.5rem 1rem;
           border-radius: 8px;
           cursor: pointer;
           font-size: 0.9rem;
         }
+        .btn-cancel { background: white; border: 1px solid #e2e8f0; color: #64748b; }
+        .btn-cancel:hover { background: #f8fafc; }
+        .btn-save { background: #3b82f6; color: white; border: none; }
+        .btn-save:hover { background: #2563eb; }
+        .btn-save:disabled { opacity: 0.7; cursor: not-allowed; }
 
-        .btn-cancel {
-          background: white;
+        /* Comment section */
+        .comment-input-row {
+          display: flex;
+          gap: 0.5rem;
+          align-items: flex-end;
+          margin-bottom: 1rem;
+        }
+        .comment-input-row textarea {
+          flex: 1;
+          padding: 0.625rem 0.75rem;
           border: 1px solid #e2e8f0;
-          color: #64748b;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          resize: none;
+          min-height: 60px;
         }
-
-        .btn-cancel:hover {
-          background: #f8fafc;
-        }
-
-        .btn-save {
+        .comment-input-row textarea:focus { outline: none; border-color: #3b82f6; }
+        .btn-send {
           background: #3b82f6;
           color: white;
           border: none;
+          border-radius: 8px;
+          padding: 0.625rem 0.875rem;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+          font-size: 0.85rem;
+          white-space: nowrap;
         }
-
-        .btn-save:hover {
-          background: #2563eb;
+        .btn-send:hover { background: #2563eb; }
+        .btn-send:disabled { opacity: 0.6; cursor: not-allowed; }
+        .comments-list {
+          max-height: 280px;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
         }
-
-        .btn-save:disabled {
-          opacity: 0.7;
-          cursor: not-allowed;
+        .comment-item {
+          background: #f8fafc;
+          border-radius: 8px;
+          padding: 0.75rem;
+          border-left: 3px solid #3b82f6;
         }
+        .comment-meta {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 0.375rem;
+          gap: 0.5rem;
+        }
+        .comment-author {
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: #1e293b;
+        }
+        .comment-role {
+          font-size: 0.75rem;
+          color: #64748b;
+          background: #e2e8f0;
+          padding: 0.1rem 0.4rem;
+          border-radius: 4px;
+          text-transform: capitalize;
+        }
+        .comment-date { font-size: 0.75rem; color: #94a3b8; }
+        .comment-text { font-size: 0.85rem; color: #334155; line-height: 1.5; }
+        .comments-empty { text-align: center; color: #94a3b8; font-size: 0.85rem; padding: 1.5rem 0; }
+        .comments-loading { text-align: center; color: #94a3b8; font-size: 0.85rem; padding: 1rem 0; }
       `}</style>
 
       {/* Room Edit Modal */}
       {showRoomModal && selectedPatient && (
         <div className="modal-overlay" onClick={() => setShowRoomModal(false)}>
-          <div className="modal-room" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-room-header">
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
               <h3>Edit Room Number</h3>
-              <button className="close-btn" onClick={() => setShowRoomModal(false)}>
-                <FiX />
-              </button>
+              <button className="close-btn" onClick={() => setShowRoomModal(false)}><FiX /></button>
             </div>
-            <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '1rem' }}>
-              Patient: {selectedPatient.fullName}
-            </p>
+            <p className="modal-subtitle">Patient: {selectedPatient.fullName}</p>
             <div className="form-group">
               <label>Room Number</label>
               <input
@@ -794,12 +754,89 @@ const NursePatients = () => {
               />
             </div>
             <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setShowRoomModal(false)}>
-                Cancel
-              </button>
+              <button className="btn-cancel" onClick={() => setShowRoomModal(false)}>Cancel</button>
               <button className="btn-save" onClick={handleSaveRoom} disabled={savingRoom}>
                 {savingRoom ? 'Saving...' : 'Save'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Blood Pressure Edit Modal */}
+      {showBPModal && bpPatient && (
+        <div className="modal-overlay" onClick={() => setShowBPModal(false)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Edit Blood Pressure</h3>
+              <button className="close-btn" onClick={() => setShowBPModal(false)}><FiX /></button>
+            </div>
+            <p className="modal-subtitle">Patient: {bpPatient.fullName}</p>
+            <div className="form-group">
+              <label>Blood Pressure (e.g. 120/80)</label>
+              <input
+                type="text"
+                value={bpInput}
+                onChange={(e) => { setBpInput(e.target.value); setBpError(''); }}
+                placeholder="120/80"
+                className={bpError ? 'input-error' : ''}
+              />
+              {bpError && <p className="error-text">{bpError}</p>}
+            </div>
+            <div className="modal-actions">
+              <button className="btn-cancel" onClick={() => setShowBPModal(false)}>Cancel</button>
+              <button className="btn-save" onClick={handleSaveBP} disabled={savingBP}>
+                {savingBP ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Comments Modal */}
+      {showCommentModal && commentPatient && (
+        <div className="modal-overlay" onClick={() => setShowCommentModal(false)}>
+          <div className="modal-box modal-box--wide" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Patient Comments</h3>
+              <button className="close-btn" onClick={() => setShowCommentModal(false)}><FiX /></button>
+            </div>
+            <p className="modal-subtitle">Patient: {commentPatient.fullName}</p>
+
+            <div className="comment-input-row">
+              <textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="Write a comment..."
+              />
+              <button
+                className="btn-send"
+                onClick={handleSaveComment}
+                disabled={savingComment || !commentText.trim()}
+              >
+                <FiSend /> {savingComment ? 'Saving...' : 'Add'}
+              </button>
+            </div>
+
+            <div className="comments-list">
+              {loadingComments ? (
+                <div className="comments-loading">Loading comments...</div>
+              ) : comments.length === 0 ? (
+                <div className="comments-empty">No comments yet. Add the first one above.</div>
+              ) : (
+                comments.map((c) => (
+                  <div key={c._id} className="comment-item">
+                    <div className="comment-meta">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span className="comment-author">{c.authorId?.fullName || 'Unknown'}</span>
+                        <span className="comment-role">{c.authorRole}</span>
+                      </div>
+                      <span className="comment-date">{formatCommentDate(c.createdAt)}</span>
+                    </div>
+                    <p className="comment-text">{c.commentText}</p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

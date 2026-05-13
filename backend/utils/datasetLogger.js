@@ -11,6 +11,7 @@ const columns = [
   'heartRate',
   'spo2',
   'temperature',
+  'bloodPressure',
   'riskLevel',
   'confidenceScore',
   'isAbnormal',
@@ -58,6 +59,11 @@ const appendVitalToDataset = async (vital) => {
   try {
     await ensureDatasetFile();
 
+    const bp = vital.bloodPressure;
+    const bloodPressureStr = (bp?.systolic != null && bp?.diastolic != null)
+      ? `${bp.systolic}/${bp.diastolic}`
+      : '';
+
     const row = [
       vital.createdAt || vital.timestamp,
       getIdValue(vital.patientId),
@@ -65,6 +71,7 @@ const appendVitalToDataset = async (vital) => {
       vital.heartRate,
       vital.spo2,
       vital.temperature,
+      bloodPressureStr,
       vital.riskLevel,
       vital.confidenceScore,
       vital.isAbnormal,
