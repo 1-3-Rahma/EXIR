@@ -1,0 +1,36 @@
+version: "3.9"
+services:
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: exir_healthcare
+
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    env_file: ./backend/.env
+    depends_on:
+      - mongodb
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/exir_healthcare
+      - AI_SERVICE_URL=http://ai-service:8000
+
+  ai-service:
+    build: ./ai-service
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
