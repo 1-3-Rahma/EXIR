@@ -40,9 +40,9 @@ const NurseCriticalEvents = () => {
     const now = new Date();
     const diff = now - new Date(date);
     const minutes = Math.floor(diff / 60000);
-    if (minutes < 60) return `${minutes} min ago`;
+    if (minutes < 60) return t('common.minAgo', { count: minutes });
     const hours = Math.floor(diff / 3600000);
-    if (hours < 24) return `${hours} hours ago`;
+    if (hours < 24) return t('common.hoursAgo', { count: hours });
     return new Date(date).toLocaleDateString();
   };
 
@@ -50,18 +50,18 @@ const NurseCriticalEvents = () => {
     <Layout appName="NurseHub" role="nurse">
       <div className="page-header">
         <h1>{t('criticalEvents.title')}</h1>
-        <p>Patients marked critical by doctor (e.g. Dr. Ahmed Hassan) and critical vital alerts</p>
+        <p>{t('criticalEvents.patientsDesc')}</p>
       </div>
 
       <div className="card">
         <div className="card-body">
           {loading ? (
-            <p>Loading critical events...</p>
+            <p>{t('criticalEvents.loading')}</p>
           ) : events.length === 0 ? (
             <div className="empty-state">
               <FiCheckCircle className="empty-icon" />
-              <h3>All Clear</h3>
-              <p>No critical events at the moment</p>
+              <h3>{t('criticalEvents.allClear')}</h3>
+              <p>{t('criticalEvents.noEventsDesc')}</p>
             </div>
           ) : (
             <div className="alert-list">
@@ -72,28 +72,28 @@ const NurseCriticalEvents = () => {
                   </div>
                   <div className="alert-info">
                     <div className="alert-patient">
-                      <strong>{event.patientName || `Patient ${index + 1}`}</strong>
+                      <strong>{event.patientName || `${t('common.unknown')} ${index + 1}`}</strong>
                       <span className="room-badge">
-                        Room {event.room || 'N/A'}
+                        {t('common.room')} {event.room || t('common.na')}
                       </span>
                       {event.source === 'doctor' && (
-                        <span className="source-badge doctor">Doctor</span>
+                        <span className="source-badge doctor">{t('criticalEvents.doctorBadge')}</span>
                       )}
                       {event.source === 'vitals' && (
-                        <span className="source-badge vitals">Vitals</span>
+                        <span className="source-badge vitals">{t('criticalEvents.vitalsBadge')}</span>
                       )}
                     </div>
-                    <p className="alert-reason">{event.reason || 'Critical alert'}</p>
+                    <p className="alert-reason">{event.reason || t('common.critical')}</p>
                     <div className="alert-meta">
                       <span className="alert-time">
                         <FiClock /> {formatTime(event.createdAt)}
                       </span>
                       <span className="alert-type">
-                        {event.source === 'doctor' ? 'Marked by doctor' : 'Vital Alert'}
+                        {event.source === 'doctor' ? t('criticalEvents.markedByDoctor') : t('criticalEvents.vitalAlert')}
                       </span>
                     </div>
                   </div>
-                  <Link to="/nurse/patients" className="respond-btn">Respond</Link>
+                  <Link to="/nurse/patients" className="respond-btn">{t('criticalEvents.respond')}</Link>
                 </div>
               ))}
             </div>

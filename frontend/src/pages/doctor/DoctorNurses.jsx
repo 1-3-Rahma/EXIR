@@ -6,14 +6,19 @@ import { FiUser, FiClock, FiMapPin, FiActivity, FiPlus, FiMessageSquare, FiChevr
 import { jsPDF } from 'jspdf';
 import { Link, useNavigate } from 'react-router-dom';
 
-const shiftLabel = (s) => {
-  const { t } = useTranslation();
+const shiftLabel = (s, t) => {
   if (!s) return '—';
-  const map = { morning: 'Morning (7 AM - 3 PM)'};
+  const map = {
+    morning: t('medications.morning'),
+    afternoon: t('medications.afternoon'),
+    evening: t('medications.evening'),
+    night: t('medications.night')
+  };
   return map[s] || s;
 };
 
 const DoctorNurses = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [staff, setStaff] = useState([]);
   const [patients, setPatients] = useState([]);
@@ -28,10 +33,10 @@ const DoctorNurses = () => {
   const [showRxModal, setShowRxModal] = useState(false);
   const [selectedPatientForRx, setSelectedPatientForRx] = useState(null);
   const SCHEDULE_OPTIONS = [
-    { value: 'morning', label: 'Morning' },
-    { value: 'afternoon', label: 'Afternoon' },
-    { value: 'evening', label: 'Evening' },
-    { value: 'night', label: 'Night' }
+    { value: 'morning', label: t('medications.morning') },
+    { value: 'afternoon', label: t('medications.afternoon') },
+    { value: 'evening', label: t('medications.evening') },
+    { value: 'night', label: t('medications.night') }
   ];
   const [rxRows, setRxRows] = useState([{ medicineName: '', timesPerDay: '', schedule: [], note: '', duration: '', durationUnit: 'days' }]);
   const [rxSubmitting, setRxSubmitting] = useState(false);
@@ -310,7 +315,7 @@ const DoctorNurses = () => {
                           <FiActivity size={14} /> {t('nurses.generalCare')}
                         </span>
                         <span className="nurse-shift">
-                          <FiClock size={14} /> {shiftLabel(nurse.shift)}
+                          <FiClock size={14} /> {shiftLabel(nurse.shift, t)}
                         </span>
                       </div>
                     </div>
@@ -344,7 +349,7 @@ const DoctorNurses = () => {
                               <div className="patient-details">
                                 <h4 className="patient-name">{patient.fullName}</h4>
                                 <div className="patient-meta">
-                                  {patient.age != null && <span>{patient.age} years old</span>}
+                                  {patient.age != null && <span>{patient.age} {t('common.years')}</span>}
                                   <span><FiMapPin size={12} /> {patient.room || '—'}</span>
                                   <span><FiActivity size={12} /> {patient.condition || '—'}</span>
                                 </div>

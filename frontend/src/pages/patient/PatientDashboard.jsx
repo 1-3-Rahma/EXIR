@@ -145,12 +145,12 @@ const PatientDashboard = () => {
             {loading ? (
               <div className="loading-state">
                 <div className="spinner"></div>
-                <p>Loading appointments...</p>
+                <p>{t('dashboard.loadingAppointments')}</p>
               </div>
             ) : appointments.length === 0 ? (
               <div className="empty-state-small">
                 <FiCalendar className="empty-icon" />
-                <p>No upcoming appointments</p>
+                <p>{t('dashboard.noUpcomingAppointments')}</p>
               </div>
             ) : (
               appointments.map((apt) => (
@@ -161,7 +161,7 @@ const PatientDashboard = () => {
                   </div>
                   <div className="appointment-info">
                     <span className="appointment-doctor">
-                      <FiUser /> {apt.doctorId?.fullName || apt.doctorName || 'Doctor'}
+                      <FiUser /> {apt.doctorId?.fullName || apt.doctorName || t('login.doctor')}
                     </span>
                     <span className="appointment-specialty">{apt.doctorId?.specialization || apt.department}</span>
                     <span className="appointment-status">
@@ -178,22 +178,22 @@ const PatientDashboard = () => {
         <div className="card">
           <div className="card-header">
             <h2>
-              <FiHeart /> Today's Medications
+              <FiHeart /> {t('dashboard.todayMedications')}
             </h2>
             {doctor && (
-              <span className="prescribed-by">Prescribed by Dr. {doctor.fullName}</span>
+              <span className="prescribed-by">{t('dashboard.prescribedBy', { name: doctor.fullName })}</span>
             )}
           </div>
           <div className="card-body">
             {loading ? (
               <div className="loading-state">
                 <div className="spinner"></div>
-                <p>Loading medications...</p>
+                <p>{t('medications.loadingMedications')}</p>
               </div>
             ) : medications.length === 0 && ivOrders.length === 0 ? (
               <div className="empty-state-small">
                 <FiHeart className="empty-icon" />
-                <p>No medications scheduled for today</p>
+                <p>{t('dashboard.noMedicationsToday')}</p>
               </div>
             ) : (
               <div className="medications-list">

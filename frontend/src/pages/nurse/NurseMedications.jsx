@@ -180,24 +180,24 @@ const NurseMedications = () => {
       <div className="section-card">
         <div className="section-header">
           <h2>{t('medications.pending')}</h2>
-          <span className="items-count">{stats.pending} items</span>
+          <span className="items-count">{t('medications.itemsCount', { count: stats.pending })}</span>
         </div>
         <div className="medications-list">
           {filteredMedications.filter(m => m.status === 'pending').map((med) => (
             <div key={med._id} className="medication-card" style={{ borderLeftColor: getPriorityColor(med.priority) }}>
               <div className="med-header">
                 <div className="med-info">
-                  <h3>{med.name} <span className="priority-badge" style={{ background: getPriorityColor(med.priority) }}>{med.priority === 'high' ? 'High Priority' : med.priority === 'low' ? 'Low Priority' : 'Medium'}</span></h3>
+                  <h3>{med.name} <span className="priority-badge" style={{ background: getPriorityColor(med.priority) }}>{med.priority === 'high' ? t('medications.highPriority') : med.priority === 'low' ? t('medications.lowPriority') : t('medications.mediumPriority')}</span></h3>
                   <span className="med-dosage">{med.dosage} · {med.route}</span>
                 </div>
                 <span className="med-status pending">{t('medications.pending')}</span>
               </div>
               <div className="med-details">
                 <span className="detail"><FiUser /> {med.patient} - {t('common.room')} {med.room}</span>
-                <span className="detail"><FiClock /> Scheduled: {med.time}</span>
+                <span className="detail"><FiClock /> {t('medications.scheduledLabel')} {med.time}</span>
               </div>
               <div className="med-instructions">
-                <span className="label">Dosage Instructions:</span>
+                <span className="label">{t('medications.dosageInstructions')}</span>
                 <p>{med.instructions || med.notes || `${med.dosage} · ${med.route}`}</p>
               </div>
               <div className="med-actions">
@@ -219,7 +219,7 @@ const NurseMedications = () => {
       <div className="section-card">
         <div className="section-header">
           <h2>{t('tasks.completed')}</h2>
-          <span className="items-count completed">{stats.completed} administered</span>
+          <span className="items-count completed">{t('medications.administeredCount', { count: stats.completed })}</span>
         </div>
         <div className="completed-list">
           {filteredMedications.filter(m => m.status === 'given').map((med) => (
@@ -246,12 +246,12 @@ const NurseMedications = () => {
           <table>
             <thead>
               <tr>
-                <th>Time</th>
-                <th>Patient</th>
-                <th>Room</th>
-                <th>Medication</th>
-                <th>Dosage</th>
-                <th>Status</th>
+                <th>{t('medications.timeCol')}</th>
+                <th>{t('medications.patientCol')}</th>
+                <th>{t('medications.roomCol')}</th>
+                <th>{t('medications.medicationCol')}</th>
+                <th>{t('medications.dosageCol')}</th>
+                <th>{t('medications.statusCol')}</th>
               </tr>
             </thead>
             <tbody>
@@ -264,7 +264,7 @@ const NurseMedications = () => {
                   <td>{item.dosage}</td>
                   <td>
                     <span className={`status-badge ${item.status}`}>
-                      {item.status === 'given' ? 'Given' : 'Pending'}
+                      {item.status === 'given' ? t('medications.administered') : t('medications.pending')}
                     </span>
                   </td>
                 </tr>

@@ -43,7 +43,7 @@ const NurseTasks = () => {
 
   const handleCreateTask = async () => {
     if (!newTask.title.trim()) {
-      alert('Task title is required');
+      alert(t('tasks.titleRequiredAlert'));
       return;
     }
 
@@ -217,10 +217,10 @@ const NurseTasks = () => {
                 </div>
                 <div className="task-details">
                   {(task.patientName || task.room) && (
-                    <span><FiUser /> {task.patientName || 'N/A'}{task.room ? ` - Room ${task.room}` : ''}</span>
+                    <span><FiUser /> {task.patientName || t('common.na')}{task.room ? ` - ${t('tasks.roomDisplay', { room: task.room })}` : ''}</span>
                   )}
                   {task.dueDate && (
-                    <span><FiClock /> Due: {new Date(task.dueDate).toLocaleString()}</span>
+                    <span><FiClock /> {t('tasks.dueLabel')} {new Date(task.dueDate).toLocaleString()}</span>
                   )}
                 </div>
                 {task.notes && (
@@ -233,10 +233,10 @@ const NurseTasks = () => {
 
         {/* Shift Overview */}
         <div className="shift-overview">
-          <h3>Shift Overview</h3>
+          <h3>{t('tasks.shiftOverview')}</h3>
           <div className="shifts-row">
             <div className="shift-card current">
-              <span className="shift-badge current">Current Shift</span>
+              <span className="shift-badge current">{t('tasks.currentShift')}</span>
               <span className="shift-time">{shiftInfo.current.time}</span>
               <div className="shift-details">
                 <strong>{shiftInfo.current.nurse}</strong>
@@ -244,7 +244,7 @@ const NurseTasks = () => {
               </div>
             </div>
             <div className="shift-card next">
-              <span className="shift-badge next">Next Shift</span>
+              <span className="shift-badge next">{t('tasks.nextShift')}</span>
               <span className="shift-time">{shiftInfo.next.time}</span>
               <div className="shift-details">
                 <strong>{shiftInfo.next.nurse}</strong>
@@ -271,76 +271,76 @@ const NurseTasks = () => {
         <div className="modal-overlay">
           <div className="modal">
             <div className="modal-header">
-              <h2>Create New Task</h2>
+              <h2>{t('tasks.createNewTask')}</h2>
               <button className="close-btn" onClick={() => setShowNewTaskModal(false)}>
                 <FiX />
               </button>
             </div>
             <div className="modal-body">
               <div className="form-group">
-                <label>Task Title *</label>
+                <label>{t('tasks.titleRequired')}</label>
                 <input
                   type="text"
                   name="title"
                   value={newTask.title}
                   onChange={handleInputChange}
-                  placeholder="Enter task title"
+                  placeholder={t('tasks.enterTitle')}
                 />
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Patient (Optional)</label>
+                  <label>{t('tasks.patientNameOptional')}</label>
                   <input
                     type="text"
                     name="patientName"
                     value={newTask.patientName}
                     onChange={handleInputChange}
-                    placeholder="Patient name"
+                    placeholder={t('common.name')}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Room</label>
+                  <label>{t('tasks.room')}</label>
                   <input
                     type="text"
                     name="room"
                     value={newTask.room}
                     onChange={handleInputChange}
-                    placeholder="Room number"
+                    placeholder={t('patients.enterRoom')}
                   />
                 </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Priority</label>
+                  <label>{t('tasks.priority')}</label>
                   <select
                     name="priority"
                     value={newTask.priority}
                     onChange={handleInputChange}
                   >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
+                    <option value="low">{t('common.low')}</option>
+                    <option value="medium">{t('common.medium')}</option>
+                    <option value="high">{t('common.high')}</option>
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Category</label>
+                  <label>{t('tasks.category')}</label>
                   <select
                     name="category"
                     value={newTask.category}
                     onChange={handleInputChange}
                   >
-                    <option value="Medication">Medication</option>
-                    <option value="Treatment">Treatment</option>
-                    <option value="Documentation">Documentation</option>
-                    <option value="Communication">Communication</option>
-                    <option value="Vitals">Vitals</option>
-                    <option value="Assessment">Assessment</option>
-                    <option value="Other">Other</option>
+                    <option value="Medication">{t('tasks.catMedication')}</option>
+                    <option value="Treatment">{t('tasks.catTreatment')}</option>
+                    <option value="Documentation">{t('tasks.catDocumentation')}</option>
+                    <option value="Communication">{t('tasks.catCommunication')}</option>
+                    <option value="Vitals">{t('tasks.catVitals')}</option>
+                    <option value="Assessment">{t('tasks.catAssessment')}</option>
+                    <option value="Other">{t('tasks.catOther')}</option>
                   </select>
                 </div>
               </div>
               <div className="form-group">
-                <label>Due Date & Time</label>
+                <label>{t('tasks.dueDateLabel')}</label>
                 <input
                   type="datetime-local"
                   name="dueDate"
@@ -349,21 +349,21 @@ const NurseTasks = () => {
                 />
               </div>
               <div className="form-group">
-                <label>Notes (Optional)</label>
+                <label>{t('tasks.notesOptional')}</label>
                 <textarea
                   name="notes"
                   value={newTask.notes}
                   onChange={handleInputChange}
-                  placeholder="Add any additional notes..."
+                  placeholder={t('tasks.notesPlaceholder')}
                 />
               </div>
             </div>
             <div className="modal-footer">
               <button className="cancel-btn" onClick={() => setShowNewTaskModal(false)} disabled={submitting}>
-                Cancel
+                {t('common.cancel')}
               </button>
               <button className="submit-btn" onClick={handleCreateTask} disabled={submitting}>
-                {submitting ? 'Creating...' : 'Create Task'}
+                {submitting ? t('tasks.creating') : t('tasks.createTaskBtn')}
               </button>
             </div>
           </div>

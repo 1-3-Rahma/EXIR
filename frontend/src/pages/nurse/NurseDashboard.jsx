@@ -169,9 +169,9 @@ const NurseDashboard = () => {
     const now = new Date();
     const diff = now - new Date(date);
     const minutes = Math.floor(diff / 60000);
-    if (minutes < 60) return `${minutes} min ago`;
+    if (minutes < 60) return t('common.minAgo', { count: minutes });
     const hours = Math.floor(diff / 3600000);
-    if (hours < 24) return `${hours} hours ago`;
+    if (hours < 24) return t('common.hoursAgo', { count: hours });
     return new Date(date).toLocaleDateString();
   };
 
@@ -213,7 +213,7 @@ const NurseDashboard = () => {
     };
 
     await characteristic.writeValue(new TextEncoder().encode(JSON.stringify(config)));
-    setBraceletStatus(`Connected to Bracelet for: ${assignedPatients.find(p => p._id === patientId)?.fullName || 'Selected patient'}`);
+    setBraceletStatus(t('bracelet.connectedFor', { name: assignedPatients.find(p => p._id === patientId)?.fullName || t('bracelet.selectPatient') }));
   };
 
   const handleVitalsNotification = async (event) => {
@@ -253,12 +253,12 @@ const NurseDashboard = () => {
     setBraceletWarning('');
 
     if (!selectedPatientId) {
-      setBraceletError('Please select a patient first');
+      setBraceletError(t('bracelet.noPatientSelected'));
       return;
     }
 
     if (!navigator.bluetooth) {
-      setBraceletError('Web Bluetooth is available in Chrome or Edge on localhost or HTTPS.');
+      setBraceletError(t('bracelet.bluetoothRequired'));
       return;
     }
 
@@ -270,7 +270,7 @@ const NurseDashboard = () => {
 
       device.addEventListener('gattserverdisconnected', () => {
         setBraceletConnected(false);
-        setBraceletStatus('Bracelet disconnected');
+        setBraceletStatus(t('bracelet.disconnectedStatus'));
       });
 
       const server = await device.gatt.connect();
@@ -285,11 +285,11 @@ const NurseDashboard = () => {
       await vitalsCharacteristic.startNotifications();
 
       setBraceletConnected(true);
-      setBraceletStatus(`Connected to Bracelet for: ${selectedPatientName || 'Selected patient'}`);
+      setBraceletStatus(t('bracelet.connectedFor', { name: selectedPatientName || t('bracelet.selectPatient') }));
     } catch (error) {
       console.error('Failed to connect bracelet:', error);
       setBraceletConnected(false);
-      setBraceletError(error?.message || 'Failed to connect bracelet');
+      setBraceletError(error?.message || t('bracelet.connectFailed'));
     }
   };
 
@@ -421,10 +421,10 @@ const NurseDashboard = () => {
               value={readingIntervalSeconds}
               onChange={handleIntervalChange}
             >
-              <option value={60}>1 min</option>
-              <option value={300}>5 min</option>
-              <option value={600}>10 min</option>
-              <option value={900}>15 min</option>
+              <option value={60}>{t('bracelet.1min')}</option>
+              <option value={300}>{t('bracelet.5min')}</option>
+              <option value={600}>{t('bracelet.10min')}</option>
+              <option value={900}>{t('bracelet.15min')}</option>
             </select>
           </label>
 
@@ -434,7 +434,7 @@ const NurseDashboard = () => {
         </div>
 
         {selectedPatientName && braceletConnected && (
-          <p className="bracelet-linked">Connected to Bracelet for: {selectedPatientName}</p>
+          <p className="bracelet-linked">{t('bracelet.connectedFor', { name: selectedPatientName })}</p>
         )}
         {braceletError && <p className="bracelet-error">{braceletError}</p>}
         {braceletWarning && <p className="bracelet-warning">{braceletWarning}</p>}
@@ -468,10 +468,10 @@ const NurseDashboard = () => {
                             {t('common.room')} {item.room}
                           </span>
                           {item.source === 'doctor' && (
-                            <span className="source-badge doctor">Doctor</span>
+                            <span className="source-badge doctor">{t('criticalEvents.doctorBadge')}</span>
                           )}
                           {item.source === 'vitals' && (
-                            <span className="source-badge vitals">Vitals</span>
+                            <span className="source-badge vitals">{t('criticalEvents.vitalsBadge')}</span>
                           )}
                         </div>
                         <p className="urgent-reason">{item.reason}</p>

@@ -11,7 +11,7 @@ const NurseProfile = () => {
     <Layout appName="NurseHub" role="nurse">
       <div className="page-header">
         <h1>{t('profile.title')}</h1>
-        <p>Your profile information</p>
+        <p>{t('profile.yourProfileInfo')}</p>
       </div>
 
       <div className="profile-container">
@@ -22,7 +22,7 @@ const NurseProfile = () => {
             </div>
             <div className="profile-title">
               <h2>{user?.fullName || 'Nurse'}</h2>
-              <span className="role-badge">Registered Nurse</span>
+              <span className="role-badge">{t('login.nurse')}</span>
             </div>
           </div>
 
@@ -32,8 +32,8 @@ const NurseProfile = () => {
                 <FiUser />
               </div>
               <div className="info-content">
-                <label>Full Name</label>
-                <span>{user?.fullName || 'Not set'}</span>
+                <label>{t('profile.fullName')}</label>
+                <span>{user?.fullName || t('common.notSet')}</span>
               </div>
             </div>
 
@@ -42,8 +42,8 @@ const NurseProfile = () => {
                 <FiClock />
               </div>
               <div className="info-content">
-                <label>Shift</label>
-                <span>{user?.shift || 'Not assigned'}</span>
+                <label>{t('profile.shift')}</label>
+                <span>{user?.shift || t('common.notSet')}</span>
               </div>
             </div>
           </div>
