@@ -27,7 +27,7 @@ const StatusDisplay = ({ onExternalStatusChange, patientId }) => {
 
     const poll = async () => {
       try {
-        const base = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+        const base = process.env.REACT_APP_API_URL || '/api/v1';
         const url = patientId
           ? `${base}/iv/status?patientId=${encodeURIComponent(patientId)}`
           : `${base}/iv/status`;

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
 import {
@@ -9,10 +10,11 @@ import { nurseAPI } from '../../services/api';
 
 // ── Simple SVG line chart ─────────────────────────────────────────────────────
 const LineChart = ({ dataPoints, color, unit }) => {
+  const { t } = useTranslation();
   if (!dataPoints || dataPoints.length < 2) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8', fontSize: '0.85rem' }}>
-        Not enough data
+        {t('nurseVitals.notEnoughData')}
       </div>
     );
   }
@@ -102,6 +104,7 @@ const getRiskBg = (risk) => {
 
 // ── Main component ────────────────────────────────────────────────────────────
 const NursePatientVitalsHistory = () => {
+  const { t } = useTranslation();
   const { patientId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -142,28 +145,28 @@ const NursePatientVitalsHistory = () => {
   // ── Top cards ────────────────────────────────────────────────────────────────
   const topCards = [
     {
-      label: 'Blood Pressure',
+      label: t('nurseVitals.bloodPressure'),
       value: formatBP(latest?.bloodPressure),
       unit: 'mmHg',
       icon: <FiHeart />,
       color: '#3b82f6'
     },
     {
-      label: 'Heart Rate',
+      label: t('nurseVitals.heartRate'),
       value: latest?.heartRate != null ? latest.heartRate : 'N/A',
       unit: 'bpm',
       icon: <FiActivity />,
       color: '#ef4444'
     },
     {
-      label: 'Temperature',
+      label: t('nurseVitals.temperature'),
       value: latest?.temperature != null ? latest.temperature : 'N/A',
       unit: '°C',
       icon: <FiThermometer />,
       color: '#f59e0b'
     },
     {
-      label: 'O₂ Saturation',
+      label: t('nurseVitals.o2Saturation'),
       value: latest?.spo2 != null ? latest.spo2 : 'N/A',
       unit: '%',
       icon: <FiWind />,
@@ -172,10 +175,10 @@ const NursePatientVitalsHistory = () => {
   ];
 
   const charts = [
-    { label: 'Blood Pressure (Systolic)', points: bpSysPoints, color: '#3b82f6', unit: 'mmHg' },
-    { label: 'Heart Rate', points: hrPoints, color: '#ef4444', unit: 'bpm' },
-    { label: 'Temperature', points: tempPoints, color: '#f59e0b', unit: '°C' },
-    { label: 'O₂ Saturation', points: o2Points, color: '#06b6d4', unit: '%' }
+    { label: t('nurseVitals.bloodPressureSystolic'), points: bpSysPoints, color: '#3b82f6', unit: 'mmHg' },
+    { label: t('nurseVitals.heartRate'), points: hrPoints, color: '#ef4444', unit: 'bpm' },
+    { label: t('nurseVitals.temperature'), points: tempPoints, color: '#f59e0b', unit: '°C' },
+    { label: t('nurseVitals.o2Saturation'), points: o2Points, color: '#06b6d4', unit: '%' }
   ];
 
   return (
@@ -183,30 +186,30 @@ const NursePatientVitalsHistory = () => {
       {/* Page header */}
       <div className="vh-page-header">
         <button className="back-btn" onClick={() => navigate('/nurse/patients')}>
-          <FiArrowLeft /> Back
+          <FiArrowLeft /> {t('nurseVitals.back')}
         </button>
         <div>
-          <h1>{patientName} — Vitals History</h1>
-          {patientRoom && <p>Room {patientRoom}</p>}
+          <h1>{patientName} — {t('nurseVitals.vitalsHistory')}</h1>
+          {patientRoom && <p>{t('nurseVitals.room')} {patientRoom}</p>}
         </div>
         {latest && (
           <span className="last-update">
-            <FiClock /> Last update: {formatDate(latest.createdAt)}
+            <FiClock /> {t('nurseVitals.lastUpdate')} {formatDate(latest.createdAt)}
           </span>
         )}
       </div>
 
       {loading ? (
-        <div className="vh-loading">Loading vitals history...</div>
+        <div className="vh-loading">{t('nurseVitals.loadingVitals')}</div>
       ) : error ? (
         <div className="vh-error">{error}</div>
       ) : vitals.length === 0 ? (
-        <div className="vh-empty">No vitals recorded for this patient yet.</div>
+        <div className="vh-empty">{t('nurseVitals.noVitalsYet')}</div>
       ) : (
         <>
           {/* ── TOP SECTION: Latest vitals cards ── */}
           <section className="vh-section">
-            <h2 className="vh-section-title">Latest Readings</h2>
+            <h2 className="vh-section-title">{t('nurseVitals.latestReadings')}</h2>
             {latest && (
               <div style={{ marginBottom: '0.5rem' }}>
                 <span
@@ -216,10 +219,10 @@ const NursePatientVitalsHistory = () => {
                     color: getRiskColor(latest.riskLevel)
                   }}
                 >
-                  AI Risk: {latest.riskLevel || 'N/A'}
+                  {t('nurseVitals.aiRisk')} {latest.riskLevel || 'N/A'}
                 </span>
                 <span className="confidence-badge">
-                  Confidence: {formatConfidence(latest.confidenceScore)}
+                  {t('nurseVitals.confidence')} {formatConfidence(latest.confidenceScore)}
                 </span>
               </div>
             )}
@@ -243,7 +246,7 @@ const NursePatientVitalsHistory = () => {
 
           {/* ── MIDDLE SECTION: Charts ── */}
           <section className="vh-section">
-            <h2 className="vh-section-title">History Charts</h2>
+            <h2 className="vh-section-title">{t('nurseVitals.historyCharts')}</h2>
             <div className="charts-grid">
               {charts.map((ch) => (
                 <div key={ch.label} className="chart-card">
@@ -253,8 +256,8 @@ const NursePatientVitalsHistory = () => {
                   </div>
                   <div className="chart-footer">
                     {ch.points.length > 0
-                      ? `${ch.points.length} reading${ch.points.length !== 1 ? 's' : ''}`
-                      : 'No data'}
+                      ? (ch.points.length === 1 ? t('nurseVitals.readings') : t('nurseVitals.readingsPlural', { count: ch.points.length }))
+                      : t('nurseVitals.noData')}
                   </div>
                 </div>
               ))}
@@ -263,18 +266,18 @@ const NursePatientVitalsHistory = () => {
 
           {/* ── BOTTOM SECTION: History table ── */}
           <section className="vh-section">
-            <h2 className="vh-section-title">Vitals History</h2>
+            <h2 className="vh-section-title">{t('nurseVitals.vitalsHistoryTable')}</h2>
             <div className="table-wrapper">
               <table className="vitals-table">
                 <thead>
                   <tr>
-                    <th>Date / Time</th>
-                    <th>Blood Pressure</th>
-                    <th>Heart Rate</th>
-                    <th>SpO₂</th>
-                    <th>Temperature</th>
-                    <th>Risk Level</th>
-                    <th>AI Confidence</th>
+                    <th>{t('nurseVitals.dateTime')}</th>
+                    <th>{t('nurseVitals.bloodPressure')}</th>
+                    <th>{t('nurseVitals.heartRate')}</th>
+                    <th>{t('nurseVitals.spo2')}</th>
+                    <th>{t('nurseVitals.temperature')}</th>
+                    <th>{t('nurseVitals.riskLevel')}</th>
+                    <th>{t('nurseVitals.aiConfidence')}</th>
                   </tr>
                 </thead>
                 <tbody>

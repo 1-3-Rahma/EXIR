@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import { patientAPI } from '../../services/api';
 import {
@@ -7,6 +8,7 @@ import {
 } from 'react-icons/fi';
 
 const PatientMedications = () => {
+  const { t } = useTranslation();
   const [medicationsData, setMedicationsData] = useState({
     medications: [],
     medicationHistory: [],
@@ -122,8 +124,8 @@ const PatientMedications = () => {
   return (
     <Layout appName="Patient View" role="patient">
       <div className="page-header">
-        <h1>Medications</h1>
-        <p>Your current prescriptions and medication schedule</p>
+        <h1>{t('medications.title')}</h1>
+        <p>{t('medications.scheduleCurrentPrescriptions')}</p>
       </div>
 
       {/* Doctor Info */}
@@ -131,7 +133,7 @@ const PatientMedications = () => {
         <div className="prescriber-info">
           <FiUser className="prescriber-icon" />
           <div className="prescriber-details">
-            <span className="prescriber-label">Prescribed by</span>
+            <span className="prescriber-label">{t('medications.prescribedBy')}</span>
             <span className="prescriber-name">Dr. {medicationsData.doctor.fullName}</span>
             <span className="prescriber-specialty">{medicationsData.doctor.specialization}</span>
           </div>
@@ -150,28 +152,28 @@ const PatientMedications = () => {
           <FiCheckCircle className="summary-icon active" />
           <div className="summary-info">
             <span className="summary-value">{activeMedications.length}</span>
-            <span className="summary-label">Active Medications</span>
+            <span className="summary-label">{t('medications.activeMedications')}</span>
           </div>
         </div>
         <div className="summary-card">
           <FiSun className="summary-icon morning" />
           <div className="summary-info">
             <span className="summary-value">{countByTime('Morning')}</span>
-            <span className="summary-label">Morning Doses</span>
+            <span className="summary-label">{t('medications.morningDoses')}</span>
           </div>
         </div>
         <div className="summary-card">
           <FiSunset className="summary-icon evening" />
           <div className="summary-info">
             <span className="summary-value">{countByTime('Evening')}</span>
-            <span className="summary-label">Evening Doses</span>
+            <span className="summary-label">{t('medications.eveningDoses')}</span>
           </div>
         </div>
         <div className="summary-card">
           <FiMoon className="summary-icon night" />
           <div className="summary-info">
             <span className="summary-value">{countByTime('Night')}</span>
-            <span className="summary-label">Night Doses</span>
+            <span className="summary-label">{t('medications.nightDoses')}</span>
           </div>
         </div>
       </div>
@@ -179,20 +181,20 @@ const PatientMedications = () => {
       {/* Current Prescriptions */}
       <div className="card">
         <div className="card-header">
-          <h2>Current Prescriptions</h2>
-          <span className="count-badge">{activeMedications.length} active</span>
+          <h2>{t('medications.currentPrescriptions')}</h2>
+          <span className="count-badge">{activeMedications.length} {t('medications.active')}</span>
         </div>
         <div className="card-body">
           {loading ? (
             <div className="loading-state">
               <div className="spinner"></div>
-              <p>Loading medications...</p>
+              <p>{t('medications.loadingMedications')}</p>
             </div>
           ) : activeMedications.length === 0 ? (
             <div className="empty-state">
               <FiInfo className="empty-icon" />
-              <h3>No Active Medications</h3>
-              <p>You don't have any active prescriptions at the moment</p>
+              <h3>{t('medications.noActiveMedications')}</h3>
+              <p>{t('medications.noActiveMedicationsDesc')}</p>
             </div>
           ) : (
             <div className="med-list">
@@ -221,7 +223,7 @@ const PatientMedications = () => {
                         </p>
                       )}
                       <div className="med-schedule">
-                        <span className="schedule-label">Take at:</span>
+                        <span className="schedule-label">{t('medications.takeAt')}</span>
                         <div className="schedule-times">
                           {schedule.map((s, i) => (
                             <span key={i} className="time-badge">
@@ -244,8 +246,8 @@ const PatientMedications = () => {
       {activeIvOrders.length > 0 && (
         <div className="card">
           <div className="card-header">
-            <h2><FiDroplet /> IV Orders</h2>
-            <span className="count-badge">{activeIvOrders.length} active</span>
+            <h2><FiDroplet /> {t('medications.ivOrders')}</h2>
+            <span className="count-badge">{activeIvOrders.length} {t('medications.active')}</span>
           </div>
           <div className="card-body">
             <div className="med-list">
@@ -277,8 +279,8 @@ const PatientMedications = () => {
       {medicationsData.medicationHistory.length > 0 && (
         <div className="card">
           <div className="card-header">
-            <h2><FiClock /> Medication History</h2>
-            <span className="count-badge history-badge">{medicationsData.medicationHistory.length} completed</span>
+            <h2><FiClock /> {t('medications.medicationHistory')}</h2>
+            <span className="count-badge history-badge">{medicationsData.medicationHistory.length} {t('medications.completed')}</span>
           </div>
           <div className="card-body">
             <div className="med-list">
@@ -299,7 +301,7 @@ const PatientMedications = () => {
                     </div>
                   </div>
                   <div className={`history-status-badge ${med.isExpired ? 'expired' : 'completed'}`}>
-                    {med.isExpired ? 'Duration Ended' : 'Completed'}
+                    {med.isExpired ? t('medications.durationEnded') : t('medications.completed')}
                   </div>
                 </div>
               ))}
@@ -312,14 +314,14 @@ const PatientMedications = () => {
       {activeMedications.length > 0 && (
         <div className="card">
           <div className="card-header">
-            <h2>Daily Schedule</h2>
+            <h2>{t('medications.dailySchedule')}</h2>
           </div>
           <div className="card-body">
             <div className="schedule-grid">
               <div className="schedule-section">
                 <div className="schedule-header morning">
                   <FiSun />
-                  <h4>Morning</h4>
+                  <h4>{t('medications.morning')}</h4>
                   <span className="time-hint">6:00 AM - 9:00 AM</span>
                 </div>
                 <div className="schedule-meds">
@@ -332,7 +334,7 @@ const PatientMedications = () => {
                       </div>
                     ))}
                   {countByTime('Morning') === 0 && (
-                    <p className="no-meds">No medications</p>
+                    <p className="no-meds">{t('medications.noMeds')}</p>
                   )}
                 </div>
               </div>
@@ -340,7 +342,7 @@ const PatientMedications = () => {
               <div className="schedule-section">
                 <div className="schedule-header afternoon">
                   <FiSunset />
-                  <h4>Afternoon</h4>
+                  <h4>{t('medications.afternoon')}</h4>
                   <span className="time-hint">12:00 PM - 2:00 PM</span>
                 </div>
                 <div className="schedule-meds">
@@ -353,7 +355,7 @@ const PatientMedications = () => {
                       </div>
                     ))}
                   {activeMedications.filter(med => getDoseSchedule(med).some(s => s.time === 'Afternoon' || s.time === 'Noon')).length === 0 && (
-                    <p className="no-meds">No medications</p>
+                    <p className="no-meds">{t('medications.noMeds')}</p>
                   )}
                 </div>
               </div>
@@ -361,7 +363,7 @@ const PatientMedications = () => {
               <div className="schedule-section">
                 <div className="schedule-header evening">
                   <FiSunset />
-                  <h4>Evening</h4>
+                  <h4>{t('medications.evening')}</h4>
                   <span className="time-hint">6:00 PM - 8:00 PM</span>
                 </div>
                 <div className="schedule-meds">
@@ -374,7 +376,7 @@ const PatientMedications = () => {
                       </div>
                     ))}
                   {countByTime('Evening') === 0 && (
-                    <p className="no-meds">No medications</p>
+                    <p className="no-meds">{t('medications.noMeds')}</p>
                   )}
                 </div>
               </div>
@@ -382,7 +384,7 @@ const PatientMedications = () => {
               <div className="schedule-section">
                 <div className="schedule-header night">
                   <FiMoon />
-                  <h4>Night</h4>
+                  <h4>{t('medications.night')}</h4>
                   <span className="time-hint">9:00 PM - 10:00 PM</span>
                 </div>
                 <div className="schedule-meds">
@@ -395,7 +397,7 @@ const PatientMedications = () => {
                       </div>
                     ))}
                   {countByTime('Night') === 0 && (
-                    <p className="no-meds">No medications</p>
+                    <p className="no-meds">{t('medications.noMeds')}</p>
                   )}
                 </div>
               </div>
@@ -407,21 +409,21 @@ const PatientMedications = () => {
       {/* Reminders */}
       <div className="card">
         <div className="card-header">
-          <h2>Important Reminders</h2>
+          <h2>{t('medications.importantReminders')}</h2>
         </div>
         <div className="card-body">
           <div className="reminder-list">
             <div className="reminder-item">
               <FiAlertCircle className="reminder-icon warning" />
-              <p>Take medications at the same time each day for best results</p>
+              <p>{t('medications.reminderConsistency')}</p>
             </div>
             <div className="reminder-item">
               <FiInfo className="reminder-icon info" />
-              <p>Contact your doctor if you experience any side effects</p>
+              <p>{t('medications.reminderSideEffects')}</p>
             </div>
             <div className="reminder-item">
               <FiCheckCircle className="reminder-icon success" />
-              <p>Don't stop taking medications without consulting your doctor</p>
+              <p>{t('medications.reminderDontStop')}</p>
             </div>
           </div>
         </div>

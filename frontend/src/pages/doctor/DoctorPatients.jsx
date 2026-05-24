@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import { useAuth } from '../../context/AuthContext';
 import { doctorAPI } from '../../services/api';
 import { FiUser, FiActivity, FiHeart, FiThermometer, FiWind, FiCheckCircle, FiAlertCircle, FiSearch, FiClock, FiMessageSquare } from 'react-icons/fi';
 
 const getPatientCase = (patient) => {
+  const { t } = useTranslation();
   const rl = patient.latestVital?.riskLevel;
   if (rl) return rl;
   return patient.patientStatus === 'critical' ? 'Critical' : 'Normal';
@@ -126,8 +128,8 @@ const DoctorPatients = () => {
   return (
     <Layout appName="Doctor's Hospital" role="doctor">
       <div className="page-header">
-        <h1>My Patients</h1>
-        <p>View and manage your patients' treatment plans</p>
+        <h1>{t('patients.title')}</h1>
+        <p>{t('patients.viewTreatmentPlans')}</p>
       </div>
 
       <div className="search-section">
@@ -135,7 +137,7 @@ const DoctorPatients = () => {
           <FiSearch />
           <input
             type="text"
-            placeholder="Search patients by name or National ID..."
+            placeholder={t('patients.searchByNameOrId')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -143,30 +145,30 @@ const DoctorPatients = () => {
       </div>
 
       <div className="case-legend-bar">
-        <span className="case-legend-label">Patient Case:</span>
-        <span className="case-legend-item"><span className="case-dot case-dot-stable" />Normal / Stable</span>
-        <span className="case-legend-item"><span className="case-dot case-dot-abnormal" />Abnormal / Warning</span>
-        <span className="case-legend-item"><span className="case-dot case-dot-critical" />Critical</span>
+        <span className="case-legend-label">{t('patients.patientCase')}:</span>
+        <span className="case-legend-item"><span className="case-dot case-dot-stable" />{t('patients.normalStable')}</span>
+        <span className="case-legend-item"><span className="case-dot case-dot-abnormal" />{t('patients.abnormalWarning')}</span>
+        <span className="case-legend-item"><span className="case-dot case-dot-critical" />{t('common.critical')}</span>
       </div>
 
       <div className="card">
         <div className="card-body">
           {loading ? (
-            <p>Loading patients...</p>
+            <p>{t('patients.loadingPatients')}</p>
           ) : patients.length === 0 ? (
-            <p className="no-notifications">No patients found</p>
+            <p className="no-notifications">{t('patients.noPatients')}</p>
           ) : (
             <div className="patients-table">
               <table>
                 <thead>
                   <tr>
-                    <th>Patient</th>
-                    <th>National ID</th>
+                    <th>{t('common.name')}</th>
+                    <th>{t('patients.nationalId')}</th>
                     {/* <th>Doctor (Appointment)</th> */}
-                    <th>Appointment</th>
-                    <th>Patient Case</th>
-                    <th>Assigned Nurse</th>
-                    <th>Actions</th>
+                    <th>{t('patients.appointment')}</th>
+                    <th>{t('patients.patientCase')}</th>
+                    <th>{t('patients.assignedNurse')}</th>
+                    <th>{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -187,7 +189,7 @@ const DoctorPatients = () => {
                       <td>{patient.nationalID}</td>
                       <td>
                         {formatAppointmentDateTime(patient.appointmentDate, patient.appointmentTime)}
-                        {!ready && <span className="waiting-badge"><FiClock /> Waiting</span>}
+                        {!ready && <span className="waiting-badge"><FiClock /> {t('patients.waiting')}</span>}
                       </td>
                       <td>
                         <div className="status-actions">
@@ -197,7 +199,7 @@ const DoctorPatients = () => {
                             onClick={() => handleSetStatus(patient._id, patient.caseId, 'stable')}
                             disabled={!ready}
                           >
-                            Stable
+                            {t('common.stable')}
                           </button>
                           <button
                             type="button"
@@ -205,19 +207,19 @@ const DoctorPatients = () => {
                             onClick={() => handleSetStatus(patient._id, patient.caseId, 'critical')}
                             disabled={!ready}
                           >
-                            Critical
+                            {t('common.critical')}
                           </button>
                         </div>
                       </td>
-                      <td>{patient.assignedNurse || 'Unassigned'}</td>
+                      <td>{patient.assignedNurse || t('patients.unassigned')}</td>
                       <td>
                         <button
                           className={`action-btn-view action-btn-view-${caseClass}`}
                           onClick={() => openViewDetails(patient)}
-                          title={ready ? "View patient vitals and details" : "Appointment time has not arrived yet"}
+                          title={ready ? t('patients.viewDetails') : t('patients.waiting')}
                           disabled={!ready}
                         >
-                          <FiActivity /> View Details
+                          <FiActivity /> {t('patients.viewDetails')}
                         </button>
                       </td>
                     </tr>
@@ -420,60 +422,60 @@ const DoctorPatients = () => {
       {showDetailsModal && selectedPatient && (
         <div className="modal-overlay" onClick={() => setShowDetailsModal(false)}>
           <div className="modal-details" onClick={(e) => e.stopPropagation()}>
-            <h3>Patient Details – {selectedPatient.fullName}</h3>
-            <p className="modal-sub">Vital signs (from sensors)</p>
+            <h3>{t('patients.patientDetails')} – {selectedPatient.fullName}</h3>
+            <p className="modal-sub">{t('patients.vitalSigns')}</p>
 
             {vitalsLoading ? (
-              <p className="vitals-loading">Loading vitals...</p>
+              <p className="vitals-loading">{t('patients.loadingVitals')}</p>
             ) : !latestVital ? (
               <div className="vitals-empty">
                 <FiActivity size={32} style={{ color: '#94a3b8', marginBottom: '8px' }} />
-                <p>No vitals recorded yet for this patient.</p>
-                <p className="vitals-hint">Data will appear when sensors or nurses record vitals.</p>
+                <p>{t('patients.noVitalsYet')}</p>
+                <p className="vitals-hint">{t('patients.vitalsHint')}</p>
               </div>
             ) : (
               <div className="vitals-grid-doc">
                 {(latestVital.bloodPressure?.systolic != null || latestVital.bloodPressure?.diastolic != null) && (
                   <div className="vital-item">
-                    <FiHeart /> <span>Blood Pressure:</span> {latestVital.bloodPressure?.systolic}/{latestVital.bloodPressure?.diastolic} mmHg
+                    <FiHeart /> <span>{t('patients.bloodPressureLabel')}</span> {latestVital.bloodPressure?.systolic}/{latestVital.bloodPressure?.diastolic} mmHg
                   </div>
                 )}
                 {latestVital.heartRate != null && (
                   <div className="vital-item">
-                    <FiActivity /> <span>Heart Rate:</span> {latestVital.heartRate} bpm
+                    <FiActivity /> <span>{t('patients.heartRateLabel')}</span> {latestVital.heartRate} bpm
                   </div>
                 )}
                 {latestVital.temperature != null && (
                   <div className="vital-item">
-                    <FiThermometer /> <span>Temperature:</span> {latestVital.temperature} °C
+                    <FiThermometer /> <span>{t('patients.temperatureLabel')}</span> {latestVital.temperature} °C
                   </div>
                 )}
                 {(latestVital.oxygenSaturation != null || latestVital.spo2 != null) && (
                   <div className="vital-item">
-                    <FiWind /> <span>O₂ Saturation:</span> {latestVital.oxygenSaturation ?? latestVital.spo2}%
+                    <FiWind /> <span>{t('patients.o2SaturationLabel')}</span> {latestVital.oxygenSaturation ?? latestVital.spo2}%
                   </div>
                 )}
                 {latestVital.respiratoryRate != null && (
                   <div className="vital-item">
-                    <FiActivity /> <span>Resp. Rate:</span> {latestVital.respiratoryRate} /min
+                    <FiActivity /> <span>{t('patients.respRateLabel')}</span> {latestVital.respiratoryRate} /min
                   </div>
                 )}
                 {!latestVital.bloodPressure?.systolic && latestVital.heartRate == null && latestVital.temperature == null && latestVital.oxygenSaturation == null && latestVital.spo2 == null && latestVital.respiratoryRate == null && (
-                  <p className="vitals-hint">No vital values in this record.</p>
+                  <p className="vitals-hint">{t('patients.noVitalValues')}</p>
                 )}
               </div>
             )}
-            <p className="vital-time">Last updated: {formatVitalTime(latestVital?.createdAt)}</p>
+            <p className="vital-time">{t('patients.lastUpdatedAt')} {formatVitalTime(latestVital?.createdAt)}</p>
 
             <div className="comments-section">
               <div className="comments-heading">
                 <FiMessageSquare size={15} />
-                <span>Nurse Comments</span>
+                <span>{t('patients.nurseComments')}</span>
               </div>
               {loadingComments ? (
-                <p className="vitals-loading">Loading comments...</p>
+                <p className="vitals-loading">{t('patients.loadingComments')}</p>
               ) : comments.length === 0 ? (
-                <p className="no-comments">No comments recorded for this patient.</p>
+                <p className="no-comments">{t('patients.noCommentsForPatient')}</p>
               ) : (
                 <div className="comments-list">
                   {comments.map((c) => (
@@ -490,7 +492,7 @@ const DoctorPatients = () => {
             </div>
 
             <div className="modal-actions">
-              <button type="button" onClick={() => setShowDetailsModal(false)}>Close</button>
+              <button type="button" onClick={() => setShowDetailsModal(false)}>{t('common.close')}</button>
             </div>
           </div>
         </div>

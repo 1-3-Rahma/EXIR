@@ -1,10 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
 import { receptionistAPI } from '../../services/api';
 import { FiUser, FiSearch, FiPlus, FiPhone, FiCalendar, FiLogIn } from 'react-icons/fi';
 
 const ReceptionistPatients = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -114,7 +116,7 @@ const ReceptionistPatients = () => {
   return (
     <Layout appName="MedHub" role="receptionist">
       <div className="page-header">
-        <h1>Patient Management (emergency)</h1>
+        <h1>{t('patients.title')}</h1>
         <p>View, search, and manage all patients</p>
       </div>
 

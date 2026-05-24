@@ -1,15 +1,17 @@
-import Layout from '../../components/common/Layout';
+﻿import Layout from '../../components/common/Layout';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { FiUser, FiBriefcase } from 'react-icons/fi';
 
 const DoctorProfile = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
 
   return (
     <Layout appName="EXIR" role="doctor">
       <div className="page-header">
-        <h1>My Profile</h1>
-        <p>Your profile information</p>
+        <h1>{t('profile.title')}</h1>
+        <p>{t('profile.yourProfileInfo')}</p>
       </div>
 
       <div className="profile-container">
@@ -19,8 +21,8 @@ const DoctorProfile = () => {
               {user?.fullName?.charAt(0) || 'D'}
             </div>
             <div className="profile-title">
-              <h2>{user?.fullName || 'Doctor'}</h2>
-              <span className="role-badge">Doctor</span>
+              <h2>{user?.fullName || t('login.doctor')}</h2>
+              <span className="role-badge">{t('login.doctor')}</span>
             </div>
           </div>
 
@@ -30,8 +32,8 @@ const DoctorProfile = () => {
                 <FiUser />
               </div>
               <div className="info-content">
-                <label>Full Name</label>
-                <span>{user?.fullName || 'Not set'}</span>
+                <label>{t('profile.fullName')}</label>
+                <span>{user?.fullName || t('common.notSet')}</span>
               </div>
             </div>
 
@@ -40,8 +42,8 @@ const DoctorProfile = () => {
                 <FiBriefcase />
               </div>
               <div className="info-content">
-                <label>Specialization</label>
-                <span>{user?.specialization || 'Not set'}</span>
+                <label>{t('profile.specialization')}</label>
+                <span>{user?.specialization || t('common.notSet')}</span>
               </div>
             </div>
 
@@ -50,7 +52,7 @@ const DoctorProfile = () => {
                 <FiUser />
               </div>
               <div className="info-content">
-                <label>Identifier</label>
+                <label>{t('profile.identifier')}</label>
                 <span>{user?.identifier || '—'}</span>
               </div>
             </div>

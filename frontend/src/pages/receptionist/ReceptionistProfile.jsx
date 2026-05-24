@@ -1,15 +1,17 @@
-import Layout from '../../components/common/Layout';
+﻿import Layout from '../../components/common/Layout';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { FiUser, FiBriefcase, FiMail, FiPhone, FiCalendar } from 'react-icons/fi';
 
 const ReceptionistProfile = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
 
   return (
     <Layout appName="MedHub" role="receptionist">
       <div className="page-header">
-        <h1>My Profile</h1>
-        <p>Your profile information</p>
+        <h1>{t('profile.title')}</h1>
+        <p>{t('profile.yourProfileInfo')}</p>
       </div>
 
       <div className="profile-container">
@@ -19,8 +21,8 @@ const ReceptionistProfile = () => {
               {user?.fullName?.charAt(0) || 'R'}
             </div>
             <div className="profile-title">
-              <h2>{user?.fullName || 'Receptionist'}</h2>
-              <span className="role-badge">Receptionist</span>
+              <h2>{user?.fullName || t('login.receptionist')}</h2>
+              <span className="role-badge">{t('login.receptionist')}</span>
             </div>
           </div>
 
@@ -30,8 +32,8 @@ const ReceptionistProfile = () => {
                 <FiUser />
               </div>
               <div className="info-content">
-                <label>Full Name</label>
-                <span>{user?.fullName || 'Not set'}</span>
+                <label>{t('profile.fullName')}</label>
+                <span>{user?.fullName || t('common.notSet')}</span>
               </div>
             </div>
 
@@ -40,8 +42,8 @@ const ReceptionistProfile = () => {
                 <FiMail />
               </div>
               <div className="info-content">
-                <label>Email</label>
-                <span>{user?.email || 'Not set'}</span>
+                <label>{t('profile.email')}</label>
+                <span>{user?.email || t('common.notSet')}</span>
               </div>
             </div>
 
@@ -50,8 +52,8 @@ const ReceptionistProfile = () => {
                 <FiPhone />
               </div>
               <div className="info-content">
-                <label>Phone</label>
-                <span>{user?.phone || 'Not set'}</span>
+                <label>{t('profile.phone')}</label>
+                <span>{user?.phone || t('common.notSet')}</span>
               </div>
             </div>
 
@@ -60,8 +62,8 @@ const ReceptionistProfile = () => {
                 <FiBriefcase />
               </div>
               <div className="info-content">
-                <label>Department</label>
-                <span>{user?.department || 'Front Desk'}</span>
+                <label>{t('profile.department')}</label>
+                <span>{user?.department || t('sidebar.receptionDesk')}</span>
               </div>
             </div>
 
@@ -70,7 +72,7 @@ const ReceptionistProfile = () => {
                 <FiCalendar />
               </div>
               <div className="info-content">
-                <label>Joined</label>
+                <label>{t('profile.joined')}</label>
                 <span>
                   {user?.createdAt
                     ? new Date(user.createdAt).toLocaleDateString('en-US', {
@@ -78,7 +80,7 @@ const ReceptionistProfile = () => {
                         month: 'long',
                         day: 'numeric'
                       })
-                    : 'Not available'}
+                    : t('common.notAvailable')}
                 </span>
               </div>
             </div>

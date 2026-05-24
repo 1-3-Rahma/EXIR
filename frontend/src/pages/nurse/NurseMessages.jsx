@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -6,6 +7,7 @@ import { getSocket } from '../../services/socket';
 
 const NurseMessages = () => {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [contacts, setContacts] = useState([]);
   const [selectedContact, setSelectedContact] = useState(null);
   const [currentChatId, setCurrentChatId] = useState(null);
@@ -748,8 +750,8 @@ const NurseMessages = () => {
   return (
     <Layout appName="NurseHub" role="nurse">
       <div style={styles.header}>
-        <h1 style={styles.title}>Messages & Communication</h1>
-        <p style={styles.subtitle}>Stay connected with your team</p>
+        <h1 style={styles.title}>{t('messages.title')}</h1>
+        <p style={styles.subtitle}>{t('messages.startConversation')}</p>
       </div>
 
       <div className="chat-main-grid" style={styles.mainGrid}>
@@ -758,7 +760,7 @@ const NurseMessages = () => {
           <div style={styles.contactsHeader}>
             <input
               type="text"
-              placeholder="Search contacts..."
+              placeholder={t('messages.search')}
               style={styles.searchInput}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -786,11 +788,11 @@ const NurseMessages = () => {
           <div style={styles.contactsList}>
             {loadingContacts ? (
               <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
-                Loading contacts...
+                {t('common.loading')}
               </div>
             ) : filteredContacts.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>
-                No contacts available
+                {t('messages.noContacts')}
               </div>
             ) : (
               filteredContacts.map((contact) => (

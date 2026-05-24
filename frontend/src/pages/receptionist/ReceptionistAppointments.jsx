@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
 import { receptionistAPI } from '../../services/api';
@@ -8,6 +9,7 @@ import {
 } from 'react-icons/fi';
 
 const ReceptionistAppointments = () => {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState([]);
@@ -281,11 +283,11 @@ const ReceptionistAppointments = () => {
       <div className="page-header">
         <div className="header-content">
           <div>
-            <h1>Appointments</h1>
-            <p>Manage patient appointments and schedules</p>
+            <h1>{t('appointments.title')}</h1>
+            <p>{t('appointments.manageSchedules')}</p>
           </div>
           <button className="new-appointment-btn" onClick={() => setShowNewModal(true)}>
-            <FiPlus /> New Appointment
+            <FiPlus /> {t('appointments.newAppointmentBtn')}
           </button>
         </div>
       </div>
@@ -303,7 +305,7 @@ const ReceptionistAppointments = () => {
           <FiChevronRight />
         </button>
         <button className="today-btn" onClick={() => setSelectedDate(new Date())}>
-          Today
+          {t('appointments.today')}
         </button>
       </div>
 
@@ -313,7 +315,7 @@ const ReceptionistAppointments = () => {
           <FiSearch />
           <input
             type="text"
-            placeholder="Search by patient name..."
+            placeholder={t('appointments.searchByPatient')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -323,28 +325,28 @@ const ReceptionistAppointments = () => {
       {/* Appointments List */}
       <div className="card">
         <div className="card-header">
-          <h2>Scheduled Appointments</h2>
-          <span className="appointment-count">{filteredAppointments.length} appointments</span>
+          <h2>{t('appointments.scheduledAppointments')}</h2>
+          <span className="appointment-count">{t('appointments.appointmentsCount', { count: filteredAppointments.length })}</span>
         </div>
         <div className="card-body">
           {loading ? (
-            <div className="loading-state">Loading appointments...</div>
+            <div className="loading-state">{t('appointments.loadingAppointments')}</div>
           ) : filteredAppointments.length === 0 ? (
             <div className="empty-state">
               <FiCalendar className="empty-icon" />
-              <h3>No Appointments</h3>
-              <p>{searchTerm ? 'No appointments found matching your search' : 'No appointments scheduled for this day'}</p>
+              <h3>{t('appointments.noAppointments')}</h3>
+              <p>{searchTerm ? t('appointments.noAppointmentsSearch') : t('appointments.noAppointmentsDay')}</p>
             </div>
           ) : (
             <div className="appointments-table">
               <table>
                 <thead>
                   <tr>
-                    <th>Patient Name</th>
-                    <th>Date</th>
-                    <th>Time</th>
-                    <th>Doctor</th>
-                    <th>Department</th>
+                    <th>{t('appointments.patientName')}</th>
+                    <th>{t('appointments.date')}</th>
+                    <th>{t('appointments.time')}</th>
+                    <th>{t('appointments.doctor')}</th>
+                    <th>{t('appointments.department')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -366,7 +368,7 @@ const ReceptionistAppointments = () => {
                       </td>
                       <td>
                         <span className="doctor-name">
-                          <FiUser /> {apt.doctorName || 'Not assigned'}
+                          <FiUser /> {apt.doctorName || t('appointments.notAssigned')}
                         </span>
                       </td>
                       <td>
@@ -386,7 +388,7 @@ const ReceptionistAppointments = () => {
         <div className="modal-overlay" onClick={() => { setShowNewModal(false); resetForm(); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Schedule New Appointment</h2>
+              <h2>{t('appointments.scheduleNew')}</h2>
               <button className="close-btn" onClick={() => { setShowNewModal(false); resetForm(); }}>
                 <FiX />
               </button>
@@ -406,21 +408,21 @@ const ReceptionistAppointments = () => {
 
               {!prefilledPatient && (
                 <div className="form-group">
-                  <label>Patient Name *</label>
+                  <label>{t('appointments.patientNameRequired')}</label>
                   <input
                     type="text"
                     value={newAppointment.patientName}
                     onChange={(e) => setNewAppointment({ ...newAppointment, patientName: e.target.value })}
-                    placeholder="Enter patient name"
+                    placeholder={t('appointments.enterPatientName')}
                     required
                   />
-                  <span className="field-hint warning">Tip: Schedule from a patient's profile for better tracking</span>
+                  <span className="field-hint warning">{t('appointments.trackingTip')}</span>
                 </div>
               )}
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Department *</label>
+                  <label>{t('appointments.departmentRequired')}</label>
                   <select
                     value={newAppointment.department}
                     onChange={(e) => {
@@ -435,7 +437,7 @@ const ReceptionistAppointments = () => {
                     }}
                     required
                   >
-                    <option value="">Select department</option>
+                    <option value="">{t('appointments.selectDepartment')}</option>
                     {departments.map(dept => (
                       <option key={dept} value={dept}>{dept}</option>
                     ))}
@@ -444,12 +446,12 @@ const ReceptionistAppointments = () => {
 
                 {newAppointment.department === 'Other' && (
                   <div className="form-group">
-                    <label>Specify Department *</label>
+                    <label>{t('appointments.specifyDepartment')}</label>
                     <input
                       type="text"
                       value={newAppointment.customDepartment}
                       onChange={(e) => setNewAppointment({ ...newAppointment, customDepartment: e.target.value })}
-                      placeholder="Enter department name"
+                      placeholder={t('appointments.enterDepartment')}
                       required
                     />
                   </div>
@@ -457,7 +459,7 @@ const ReceptionistAppointments = () => {
               </div>
 
               <div className="form-group">
-                <label>Doctor *</label>
+                <label>{t('appointments.doctorRequired')}</label>
                 <select
                   value={newAppointment.doctorId}
                   onChange={(e) => handleDoctorChange(e.target.value)}
@@ -465,9 +467,9 @@ const ReceptionistAppointments = () => {
                   disabled={!newAppointment.department || loadingDoctors}
                 >
                   <option value="">
-                    {loadingDoctors ? 'Loading doctors...' :
-                     !newAppointment.department ? 'Select department first' :
-                     doctors.length === 0 ? 'No doctors available' : 'Select doctor'}
+                    {loadingDoctors ? t('appointments.loadingDoctors') :
+                     !newAppointment.department ? t('appointments.selectDeptFirst') :
+                     doctors.length === 0 ? t('appointments.noDoctorsAvailable') : t('appointments.selectDoctor')}
                   </option>
                   {doctors.map(doctor => (
                     <option key={doctor._id} value={doctor._id}>
@@ -484,7 +486,7 @@ const ReceptionistAppointments = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>Date *</label>
+                  <label>{t('appointments.dateRequired')}</label>
                   <input
                     type="date"
                     value={newAppointment.date}
@@ -494,7 +496,7 @@ const ReceptionistAppointments = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Time *</label>
+                  <label>{t('appointments.timeRequired')}</label>
                   <input
                     type="time"
                     value={newAppointment.time}
@@ -511,23 +513,23 @@ const ReceptionistAppointments = () => {
               )}
 
               <div className="form-group">
-                <label>Symptoms / Reason for Visit *</label>
+                <label>{t('appointments.symptomsReason')}</label>
                 <textarea
                   value={newAppointment.notes}
                   onChange={(e) => setNewAppointment({ ...newAppointment, notes: e.target.value })}
-                  placeholder="Describe the patient's symptoms or reason for the appointment..."
+                  placeholder={t('appointments.symptomsPlaceholder')}
                   rows={4}
                   required
                 />
-                <span className="field-hint">This information will be visible to the doctor</span>
+                <span className="field-hint">{t('appointments.doctorVisibleHint')}</span>
               </div>
 
               <div className="modal-footer">
                 <button type="button" className="cancel-btn" onClick={() => { setShowNewModal(false); resetForm(); }}>
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" className="submit-btn" disabled={!!shiftError}>
-                  Schedule Appointment
+                  {t('appointments.scheduleAppointmentBtn')}
                 </button>
               </div>
             </form>

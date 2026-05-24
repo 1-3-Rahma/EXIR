@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import { receptionistAPI } from '../../services/api';
 import {
@@ -7,6 +8,7 @@ import {
 } from 'react-icons/fi';
 
 const ReceptionistDocuments = () => {
+  const { t } = useTranslation();
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -189,8 +191,8 @@ const ReceptionistDocuments = () => {
   return (
     <Layout appName="MedHub" role="receptionist">
       <div className="page-header">
-        <h1>Patient Documents</h1>
-        <p>Manage patient identification documents</p>
+        <h1>{t('documents.title')}</h1>
+        <p>{t('documents.managePatientDocs')}</p>
       </div>
 
       <div className="search-section">
@@ -198,23 +200,23 @@ const ReceptionistDocuments = () => {
           <FiSearch />
           <input
             type="text"
-            placeholder="Search by name, ID, or phone..."
+            placeholder={t('documents.searchPlaceholder')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyDown={handleKeyDown}
           />
         </div>
         <button className="search-btn" onClick={handleSearch} disabled={loading}>
-          Search
+          {t('common.search')}
         </button>
       </div>
 
       {loading ? (
-        <div className="loading-state">Loading patients...</div>
+        <div className="loading-state">{t('documents.loadingPatients')}</div>
       ) : patients.length === 0 ? (
         <div className="empty-state">
           <FiFileText className="empty-icon" />
-          <p>No patients found</p>
+          <p>{t('documents.noPatients')}</p>
         </div>
       ) : (
         <div className="patients-grid">
@@ -235,13 +237,13 @@ const ReceptionistDocuments = () => {
               <div className="document-status">
                 <div className={`status-item ${patient.hasNationalID ? 'has-doc' : 'no-doc'}`}>
                   <FiFileText />
-                  <span>National ID</span>
+                  <span>{t('documents.nationalIdDoc')}</span>
                   {patient.hasNationalID ? <FiCheckCircle className="check" /> : <FiAlertCircle className="alert" />}
                 </div>
                 <div className={`status-item ${patient.hasInsuranceCard ? 'has-doc' : 'no-doc'}`}>
                   <FiFileText />
-                  <span>Insurance</span>
-                  {patient.hasInsuranceCard ? <FiCheckCircle className="check" /> : <span className="optional">(Optional)</span>}
+                  <span>{t('documents.insurance')}</span>
+                  {patient.hasInsuranceCard ? <FiCheckCircle className="check" /> : <span className="optional">({t('common.optional')})</span>}
                 </div>
               </div>
             </div>
@@ -254,16 +256,16 @@ const ReceptionistDocuments = () => {
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-content documents-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Patient Documents</h2>
+              <h2>{t('documents.patientDocuments')}</h2>
               <button className="modal-close" onClick={closeModal}>
                 <FiX />
               </button>
             </div>
             <div className="modal-body">
               {loadingDocuments ? (
-                <div className="loading-state">Loading documents...</div>
+                <div className="loading-state">{t('documents.loadingDocuments')}</div>
               ) : !documents ? (
-                <div className="error-state">Failed to load documents</div>
+                <div className="error-state">{t('documents.failedToLoad')}</div>
               ) : (
                 <>
                   <div className="patient-header">
@@ -282,25 +284,25 @@ const ReceptionistDocuments = () => {
                       <div className="document-header">
                         <FiFileText className="doc-icon" />
                         <div className="doc-info">
-                          <h4>National ID</h4>
-                          <span className="required-badge">Required</span>
+                          <h4>{t('documents.nationalIdDoc')}</h4>
+                          <span className="required-badge">{t('documents.required')}</span>
                         </div>
                       </div>
                       {documents.documents.nationalID ? (
                         <div className="document-details">
                           <p className="file-name">{documents.documents.nationalID.originalName}</p>
                           <p className="file-meta">
-                            Uploaded: {new Date(documents.documents.nationalID.uploadedAt).toLocaleDateString()}
+                            {t('documents.uploadedLabel')} {new Date(documents.documents.nationalID.uploadedAt).toLocaleDateString()}
                           </p>
                           <div className="document-actions">
                             <button className="action-btn view" onClick={() => handleViewDocument('nationalID')}>
-                              <FiEye /> View
+                              <FiEye /> {t('documents.view')}
                             </button>
                             <button className="action-btn download" onClick={() => handleDownloadDocument('nationalID')}>
-                              <FiDownload /> Download
+                              <FiDownload /> {t('documents.download')}
                             </button>
                             <label className="action-btn upload">
-                              <FiUpload /> Replace
+                              <FiUpload /> {t('documents.replace')}
                               <input
                                 type="file"
                                 accept=".jpg,.jpeg,.png,.pdf"
@@ -314,9 +316,9 @@ const ReceptionistDocuments = () => {
                       ) : (
                         <div className="no-document">
                           <FiAlertCircle className="warning-icon" />
-                          <p>No document uploaded</p>
+                          <p>{t('documents.noDocumentUploaded')}</p>
                           <label className="upload-btn">
-                            <FiUpload /> Upload National ID
+                            <FiUpload /> {t('documents.uploadNationalId')}
                             <input
                               type="file"
                               accept=".jpg,.jpeg,.png,.pdf"
@@ -334,25 +336,25 @@ const ReceptionistDocuments = () => {
                       <div className="document-header">
                         <FiFileText className="doc-icon" />
                         <div className="doc-info">
-                          <h4>Insurance Card</h4>
-                          <span className="optional-badge">Optional</span>
+                          <h4>{t('documents.insuranceCard')}</h4>
+                          <span className="optional-badge">{t('documents.optional')}</span>
                         </div>
                       </div>
                       {documents.documents.insuranceCard ? (
                         <div className="document-details">
                           <p className="file-name">{documents.documents.insuranceCard.originalName}</p>
                           <p className="file-meta">
-                            Uploaded: {new Date(documents.documents.insuranceCard.uploadedAt).toLocaleDateString()}
+                            {t('documents.uploadedLabel')} {new Date(documents.documents.insuranceCard.uploadedAt).toLocaleDateString()}
                           </p>
                           <div className="document-actions">
                             <button className="action-btn view" onClick={() => handleViewDocument('insuranceCard')}>
-                              <FiEye /> View
+                              <FiEye /> {t('documents.view')}
                             </button>
                             <button className="action-btn download" onClick={() => handleDownloadDocument('insuranceCard')}>
-                              <FiDownload /> Download
+                              <FiDownload /> {t('documents.download')}
                             </button>
                             <label className="action-btn upload">
-                              <FiUpload /> Replace
+                              <FiUpload /> {t('documents.replace')}
                               <input
                                 type="file"
                                 accept=".jpg,.jpeg,.png,.pdf"
@@ -362,15 +364,15 @@ const ReceptionistDocuments = () => {
                               />
                             </label>
                             <button className="action-btn delete" onClick={() => handleDeleteDocument('insuranceCard')}>
-                              <FiTrash2 /> Delete
+                              <FiTrash2 /> {t('documents.delete')}
                             </button>
                           </div>
                         </div>
                       ) : (
                         <div className="no-document optional">
-                          <p>No insurance card uploaded</p>
+                          <p>{t('documents.noInsuranceCard')}</p>
                           <label className="upload-btn secondary">
-                            <FiUpload /> Upload Insurance Card
+                            <FiUpload /> {t('documents.uploadInsuranceCard')}
                             <input
                               type="file"
                               accept=".jpg,.jpeg,.png,.pdf"
@@ -385,7 +387,7 @@ const ReceptionistDocuments = () => {
                   </div>
 
                   <div className="file-format-info">
-                    <p>Accepted formats: JPG, PNG, PDF (Max 5MB)</p>
+                    <p>{t('documents.acceptedFormats')}</p>
                   </div>
                 </>
               )}
@@ -399,7 +401,7 @@ const ReceptionistDocuments = () => {
         <div className="modal-overlay viewer-overlay" onClick={closeDocumentViewer}>
           <div className="viewer-modal" onClick={(e) => e.stopPropagation()}>
             <div className="viewer-header">
-              <h3>{viewingDocument.type === 'nationalID' ? 'National ID' : 'Insurance Card'}</h3>
+              <h3>{viewingDocument.type === 'nationalID' ? t('documents.nationalIdDoc') : t('documents.insuranceCard')}</h3>
               <button className="modal-close" onClick={closeDocumentViewer}>
                 <FiX />
               </button>

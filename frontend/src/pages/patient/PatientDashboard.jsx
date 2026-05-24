@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import { useAuth } from '../../context/AuthContext';
 import { patientAPI, notificationAPI } from '../../services/api';
 import { FiCalendar, FiHeart, FiBell, FiMapPin, FiChevronRight, FiAlertCircle, FiInfo, FiCheckCircle, FiClock, FiUser, FiDroplet } from 'react-icons/fi';
 
 const PatientDashboard = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [stats, setStats] = useState({
     upcomingAppointments: 0,
@@ -96,8 +98,8 @@ const PatientDashboard = () => {
       <div className="page-header">
         <div className="header-content">
           <div>
-            <h1>Dashboard</h1>
-            <p>Welcome back, {user?.fullName || 'Patient'}</p>
+            <h1>{t('nav.dashboard')}</h1>
+            <p>{t('dashboard.welcomeBack')}, {user?.fullName || t('common.unknown')}</p>
           </div>
         </div>
       </div>
@@ -105,27 +107,27 @@ const PatientDashboard = () => {
       <div className="colored-stats">
         <div className="colored-stat blue">
           <div className="colored-stat-content">
-            <span>Upcoming</span>
+            <span>{t('appointments.upcoming')}</span>
             <strong>{stats.upcomingAppointments}</strong>
-            <span>Appointments</span>
+            <span>{t('nav.appointments')}</span>
           </div>
           <FiCalendar className="colored-stat-icon" />
         </div>
 
         <div className="colored-stat green">
           <div className="colored-stat-content">
-            <span>Today's</span>
+            <span>{t('appointments.today')}</span>
             <strong>{stats.todayMedications}</strong>
-            <span>Medications</span>
+            <span>{t('nav.medications')}</span>
           </div>
           <FiHeart className="colored-stat-icon" />
         </div>
 
         <div className="colored-stat orange">
           <div className="colored-stat-content">
-            <span>Unread</span>
+            <span>{t('common.unread')}</span>
             <strong>{stats.unreadNotifications}</strong>
-            <span>Notifications</span>
+            <span>{t('notifications.title')}</span>
           </div>
           <FiBell className="colored-stat-icon" />
         </div>
@@ -136,7 +138,7 @@ const PatientDashboard = () => {
         <div className="card">
           <div className="card-header">
             <h2>
-              <FiCalendar /> Upcoming Appointments
+              <FiCalendar /> {t('dashboard.upcomingAppointments')}
             </h2>
           </div>
           <div className="appointment-list">

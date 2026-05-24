@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import {
   FiClock, FiCheckCircle, FiAlertCircle, FiUser,
@@ -6,9 +7,10 @@ import {
 } from 'react-icons/fi';
 import { nurseAPI } from '../../services/api';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+const API_URL = process.env.REACT_APP_API_URL || '/api/v1';
 
 const NurseMedications = () => {
+  const { t } = useTranslation();
   const [medications, setMedications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -120,17 +122,17 @@ const NurseMedications = () => {
   return (
     <Layout appName="NurseHub" role="nurse">
       <div className="page-header">
-        <h1>Medication Administration</h1>
-        <p>Manage medication schedules and administration</p>
+        <h1>{t('medications.title')}</h1>
+        <p>{t('medications.title')}</p>
       </div>
 
       {loading ? (
-        <div className="loading-state">Loading medications...</div>
+        <div className="loading-state">{t('common.loading')}</div>
       ) : medications.length === 0 ? (
         <div className="empty-state">
           <FiPackage style={{ fontSize: '48px', color: '#94a3b8', marginBottom: '16px' }} />
-          <h3>No medications scheduled</h3>
-          <p>There are no medications to administer at the moment.</p>
+          <h3>{t('medications.noMedications')}</h3>
+          <p>{t('medications.noMedications')}</p>
         </div>
       ) : (
       <>
@@ -142,7 +144,7 @@ const NurseMedications = () => {
           </div>
           <div className="stat-info">
             <span className="stat-value">{stats.total}</span>
-            <span className="stat-label">Total Today</span>
+            <span className="stat-label">{t('dashboard.tasksToday')}</span>
           </div>
         </div>
         <div className="stat-card-med">
@@ -151,7 +153,7 @@ const NurseMedications = () => {
           </div>
           <div className="stat-info">
             <span className="stat-value">{stats.pending}</span>
-            <span className="stat-label">Pending</span>
+            <span className="stat-label">{t('tasks.pending')}</span>
           </div>
         </div>
         <div className="stat-card-med">
@@ -160,7 +162,7 @@ const NurseMedications = () => {
           </div>
           <div className="stat-info">
             <span className="stat-value">{stats.completed}</span>
-            <span className="stat-label">Completed</span>
+            <span className="stat-label">{t('tasks.completed')}</span>
           </div>
         </div>
         <div className="stat-card-med">
@@ -169,7 +171,7 @@ const NurseMedications = () => {
           </div>
           <div className="stat-info">
             <span className="stat-value">{stats.highPriority}</span>
-            <span className="stat-label">High Priority</span>
+            <span className="stat-label">{t('tasks.high')}</span>
           </div>
         </div>
       </div>
@@ -177,7 +179,7 @@ const NurseMedications = () => {
       {/* Pending Medications Section */}
       <div className="section-card">
         <div className="section-header">
-          <h2>Pending Medications</h2>
+          <h2>{t('medications.pending')}</h2>
           <span className="items-count">{stats.pending} items</span>
         </div>
         <div className="medications-list">
@@ -188,10 +190,10 @@ const NurseMedications = () => {
                   <h3>{med.name} <span className="priority-badge" style={{ background: getPriorityColor(med.priority) }}>{med.priority === 'high' ? 'High Priority' : med.priority === 'low' ? 'Low Priority' : 'Medium'}</span></h3>
                   <span className="med-dosage">{med.dosage} · {med.route}</span>
                 </div>
-                <span className="med-status pending">Pending</span>
+                <span className="med-status pending">{t('medications.pending')}</span>
               </div>
               <div className="med-details">
-                <span className="detail"><FiUser /> {med.patient} - Room {med.room}</span>
+                <span className="detail"><FiUser /> {med.patient} - {t('common.room')} {med.room}</span>
                 <span className="detail"><FiClock /> Scheduled: {med.time}</span>
               </div>
               <div className="med-instructions">
@@ -205,7 +207,7 @@ const NurseMedications = () => {
                   disabled={markingAsGiven === med._id}
                 >
                   {markingAsGiven === med._id ? <FiLoader className="spin" /> : <FiCheckCircle />}
-                  {markingAsGiven === med._id ? 'Saving...' : 'Given'}
+                  {markingAsGiven === med._id ? t('common.saving') : t('medications.administered')}
                 </button>
               </div>
             </div>
@@ -216,7 +218,7 @@ const NurseMedications = () => {
       {/* Completed Today */}
       <div className="section-card">
         <div className="section-header">
-          <h2>Completed Today</h2>
+          <h2>{t('tasks.completed')}</h2>
           <span className="items-count completed">{stats.completed} administered</span>
         </div>
         <div className="completed-list">
@@ -227,9 +229,9 @@ const NurseMedications = () => {
               </div>
               <div className="completed-info">
                 <span className="med-name">{med.name} {med.dosage} - {med.patient}</span>
-                <span className="med-room">Room {med.room} · {med.time}</span>
+                <span className="med-room">{t('common.room')} {med.room} · {med.time}</span>
               </div>
-              <span className="given-badge">Given</span>
+              <span className="given-badge">{t('medications.administered')}</span>
             </div>
           ))}
         </div>
@@ -238,7 +240,7 @@ const NurseMedications = () => {
       {/* Medication Schedule Overview */}
       <div className="section-card">
         <div className="section-header">
-          <h2>Medication Schedule Overview</h2>
+          <h2>{t('medications.title')}</h2>
         </div>
         <div className="schedule-table">
           <table>

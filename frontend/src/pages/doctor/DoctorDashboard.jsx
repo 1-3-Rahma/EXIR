@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import StatCard from '../../components/common/StatCard';
 import { useAuth } from '../../context/AuthContext';
@@ -7,6 +8,7 @@ import { FiUsers, FiAlertTriangle, FiClipboard, FiEdit, FiCalendar, FiBell } fro
 import { Link } from 'react-router-dom';
 
 const DoctorDashboard = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [stats, setStats] = useState({
     totalPatients: 0,
@@ -89,32 +91,32 @@ const DoctorDashboard = () => {
   return (
     <Layout appName="EXIR" role="doctor">
       <div className="page-header">
-        <h1>Dashboard</h1>
-        <p>Welcome back, Dr. {user?.fullName || 'Doctor'}</p>
+        <h1>{t('nav.dashboard')}</h1>
+        <p>{t('dashboard.welcomeBack')}, Dr. {user?.fullName || t('login.doctor')}</p>
       </div>
 
       <div className="stats-grid">
         <StatCard
-          title="Total Patients"
+          title={t('dashboard.totalPatients')}
           value={stats.totalPatients}
           icon={FiUsers}
           color="blue"
         />
         <StatCard
-          title="Critical Cases"
+          title={t('dashboard.criticalCases')}
           value={stats.criticalCases}
           icon={FiAlertTriangle}
           color="red"
           trend="critical"
         />
         <StatCard
-          title="Nurses on Duty"
+          title={t('dashboard.nursesOnDuty')}
           value={stats.nursesOnDuty}
           icon={FiUsers}
           color="blue"
         />
         <StatCard
-          title="Pending Tasks"
+          title={t('dashboard.pendingTasks')}
           value={stats.pendingTasks}
           icon={FiClipboard}
           color="orange"
@@ -125,18 +127,18 @@ const DoctorDashboard = () => {
       <div className="dashboard-grid">
         <div className="notes-section">
           <div className="notes-header">
-            <h2>Notes</h2>
+            <h2>{t('dashboard.quickNotes')}</h2>
             <FiClipboard />
           </div>
           <div className="notes-body">
             <textarea
               className="notes-input"
-              placeholder="Write a note..."
+              placeholder={t('dashboard.addNote')}
               value={newNote}
               onChange={(e) => setNewNote(e.target.value)}
             />
             <button className="save-note-btn" onClick={saveNote}>
-              Save Note
+              {t('dashboard.saveNote')}
             </button>
 
             {notes.length > 0 && (
