@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 
-const IV_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1').replace(/\/api\/v1$/, '/api');
-
 const DEFAULT_PUMPS = [
   { pump: 1, flowRateMlMin: '' },
   { pump: 2, flowRateMlMin: '' },
@@ -61,7 +59,7 @@ const ParallelForm = ({ onConfigured, patientId }) => {
           flowRateMlMin: p.flowRateMlMin === '' ? 0 : parseFloat(p.flowRateMlMin),
         })),
       };
-      const res = await fetch(`${IV_BASE}/iv/parallel`, {
+      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1'}/iv/parallel`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
