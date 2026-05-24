@@ -12,7 +12,7 @@ const { appendVitalToDataset } = require('../utils/datasetLogger');
 const NORMAL_VITAL_RANGES = {
   bloodPressure: { systolicMin: 90, systolicMax: 120, diastolicMin: 60, diastolicMax: 80, unit: 'mmHg' },
   heartRate: { min: 60, max: 100, unit: 'bpm' },
-  temperature: { min: 97.8, max: 99.1, unit: '°F' },
+  temperature: { min: 36.1, max: 37.2, unit: '°C' },
   oxygenSaturation: { min: 95, max: 100, unit: '%' },
   respiratoryRate: { min: 12, max: 20, unit: '/min' }
 };
@@ -34,7 +34,7 @@ const getVitalStatus = (type, value, value2 = null) => {
       if (value < NORMAL_VITAL_RANGES.heartRate.min || value > NORMAL_VITAL_RANGES.heartRate.max) return 'warning';
       return 'normal';
     case 'temp':
-      if (value < 96 || value > 101) return 'critical';
+      if (value < 35 || value > 39) return 'critical';
       if (value < NORMAL_VITAL_RANGES.temperature.min || value > NORMAL_VITAL_RANGES.temperature.max) return 'warning';
       return 'normal';
     case 'o2':

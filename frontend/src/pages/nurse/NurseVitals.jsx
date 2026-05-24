@@ -140,7 +140,7 @@ const NurseVitals = () => {
         if (value < 50 || value > 120) return 'critical';
         return 'warning';
       case 'temp':
-        if (value < 96 || value > 101) return 'critical';
+        if (value < 35 || value > 39) return 'critical';
         return 'warning';
       case 'o2':
         if (value < 90) return 'critical';

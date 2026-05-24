@@ -7,13 +7,13 @@ import { jsPDF } from 'jspdf';
 import { Link, useNavigate } from 'react-router-dom';
 
 const shiftLabel = (s) => {
-  const { t } = useTranslation();
   if (!s) return '—';
   const map = { morning: 'Morning (7 AM - 3 PM)'};
   return map[s] || s;
 };
 
 const DoctorNurses = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [staff, setStaff] = useState([]);
   const [patients, setPatients] = useState([]);

@@ -6,7 +6,6 @@ import { doctorAPI } from '../../services/api';
 import { FiUser, FiActivity, FiHeart, FiThermometer, FiWind, FiCheckCircle, FiAlertCircle, FiSearch, FiClock, FiMessageSquare } from 'react-icons/fi';
 
 const getPatientCase = (patient) => {
-  const { t } = useTranslation();
   const rl = patient.latestVital?.riskLevel;
   if (rl) return rl;
   return patient.patientStatus === 'critical' ? 'Critical' : 'Normal';
@@ -16,10 +15,12 @@ const getCaseClass = (caseLevel) => {
   const l = String(caseLevel || '').toLowerCase();
   if (l === 'critical') return 'critical';
   if (l === 'abnormal') return 'abnormal';
+  if (l === 'normal' || l === 'stable') return 'stable';
   return 'stable';
 };
 
 const DoctorPatients = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const isEmergencyDoctor = user?.department === 'Emergency';
   const [patients, setPatients] = useState([]);
