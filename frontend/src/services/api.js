@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1',
+  // Use relative API path when served from the frontend container so nginx
+  // can proxy /api to the backend service. Fall back to the env var if set.
+  baseURL: process.env.REACT_APP_API_URL || '/api/v1',
   headers: {
     'Content-Type': 'application/json'
   }

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import { receptionistAPI } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +10,7 @@ import {
 } from 'react-icons/fi';
 
 const PatientRegistration = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -272,7 +274,7 @@ const PatientRegistration = () => {
         <button className="back-btn" onClick={() => navigate(-1)}>
           <FiArrowLeft /> Back
         </button>
-        <h1>Register New Patient</h1>
+        <h1>{t('patientReg.title')}</h1>
         <p>Enter patient information to create a new record</p>
       </div>
 

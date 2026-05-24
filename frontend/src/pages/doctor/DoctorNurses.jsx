@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import { doctorAPI } from '../../services/api';
 import { FiUser, FiClock, FiMapPin, FiActivity, FiPlus, FiMessageSquare, FiChevronDown, FiChevronUp, FiPackage, FiDroplet, FiTrash2 } from 'react-icons/fi';
@@ -6,6 +7,7 @@ import { jsPDF } from 'jspdf';
 import { Link, useNavigate } from 'react-router-dom';
 
 const shiftLabel = (s) => {
+  const { t } = useTranslation();
   if (!s) return '—';
   const map = { morning: 'Morning (7 AM - 3 PM)'};
   return map[s] || s;
@@ -277,16 +279,16 @@ const DoctorNurses = () => {
   return (
     <Layout appName="EXIR" role="doctor">
       <div className="page-header">
-        <h1>Nursing Staff</h1>
-        <p>Manage nurses and their assigned patients</p>
+        <h1>{t('nurses.title')}</h1>
+        <p>{t('nurses.manageNurses')}</p>
       </div>
 
       {loading ? (
-        <p className="text-muted">Loading nursing staff...</p>
+        <p className="text-muted">{t('nurses.loadingNursing')}</p>
       ) : staff.length === 0 ? (
         <div className="card">
           <div className="card-body">
-            <p className="no-data">No nursing staff in the system yet.</p>
+            <p className="no-data">{t('nurses.noNursingStaff')}</p>
           </div>
         </div>
       ) : (
@@ -305,7 +307,7 @@ const DoctorNurses = () => {
                       <h3 className="nurse-name">{nurse.fullName}</h3>
                       <div className="nurse-meta">
                         <span className="nurse-dept">
-                          <FiActivity size={14} /> General Care
+                          <FiActivity size={14} /> {t('nurses.generalCare')}
                         </span>
                         <span className="nurse-shift">
                           <FiClock size={14} /> {shiftLabel(nurse.shift)}
@@ -315,15 +317,15 @@ const DoctorNurses = () => {
                   </div>
                   <div className="nurse-actions">
                     <button type="button" className="btn-add-patient" onClick={() => openAssign(nurse)}>
-                      <FiPlus size={16} /> Add Patient
+                      <FiPlus size={16} /> {t('nurses.addPatient')}
                     </button>
                     <Link to="/doctor/messages" className="btn-message" onClick={() => { try { localStorage.setItem('chatOpenContactId', nurse._id); } catch (_) {} }}>
-                      <FiMessageSquare size={16} /> Message
+                      <FiMessageSquare size={16} /> {t('nurses.message')}
                     </Link>
                   </div>
                   <div className="nurse-assigned-header" onClick={() => toggleNurse(nurse._id)}>
-                    <span>Assigned Patients</span>
-                    <span className="assigned-count">{patients.length} patients</span>
+                    <span>{t('nurses.assignedPatients')}</span>
+                    <span className="assigned-count">{t('nurses.assignedPatientsCount', { count: patients.length })}</span>
                     {isNurseOpen ? <FiChevronUp size={18} /> : <FiChevronDown size={18} />}
                   </div>
                 </div>
@@ -349,20 +351,20 @@ const DoctorNurses = () => {
                               </div>
                             </div>
                             <div className="patient-actions">
-                              <button type="button" className="btn-add-rx" title="Add prescription" onClick={() => openAddRx(patient)}>
-                                <FiPackage size={14} /> Add Rx
+                              <button type="button" className="btn-add-rx" title={t('nurses.addPrescription')} onClick={() => openAddRx(patient)}>
+                                <FiPackage size={14} /> {t('nurses.addRx')}
                               </button>
-                              <button type="button" className="btn-add-iv" title="Add IV order" onClick={() => openAddIv(patient)}>
-                                <FiDroplet size={14} /> Add IV
+                              <button type="button" className="btn-add-iv" title={t('nurses.addIvOrder')} onClick={() => openAddIv(patient)}>
+                                <FiDroplet size={14} /> {t('nurses.addIv')}
                               </button>
                             </div>
                           </div>
                           <div className="patient-sections-header" onClick={() => togglePatient(patient._id)}>
                             <div className="patient-section-item">
-                              <FiPackage size={14} /> Prescriptions ({patient.prescriptionsCount || 0})
+                              <FiPackage size={14} /> {t('nurses.prescriptions')} ({patient.prescriptionsCount || 0})
                             </div>
                             <div className="patient-section-item">
-                              <FiDroplet size={14} /> IV Orders ({patient.ivOrdersCount || 0})
+                              <FiDroplet size={14} /> {t('nurses.ivOrders')} ({patient.ivOrdersCount || 0})
                             </div>
                             <div className="expand-icon">
                               {isPatientOpen ? <FiChevronUp size={16} /> : <FiChevronDown size={16} />}
@@ -374,7 +376,7 @@ const DoctorNurses = () => {
                             <div className="patient-orders-details">
                               {/* Prescriptions List */}
                               <div className="orders-section">
-                                <h5><FiPackage size={14} /> Prescriptions</h5>
+                                <h5><FiPackage size={14} /> {t('nurses.prescriptions')}</h5>
                                 {patient.prescriptions && patient.prescriptions.length > 0 ? (
                                   <div className="orders-list">
                                     {patient.prescriptions.map((rx, idx) => {
@@ -387,23 +389,23 @@ const DoctorNurses = () => {
                                             <span className="order-name">{rx.medicineName}</span>
                                             <span className="order-dosage">{rx.timesPerDay}x/day {rx.schedule?.length ? `(${when})` : ''}</span>
                                           </div>
-                                          {rx.schedule?.length ? <p className="order-note">Take at: {when}</p> : null}
+                                          {rx.schedule?.length ? <p className="order-note">{t('nurses.addPrescription') && t('medications.takeAt')} {when}</p> : null}
                                           {rx.note && <p className="order-note">{rx.note}</p>}
                                           {rx.status === 'given' && (
-                                            <span className="status-badge given">Given</span>
+                                            <span className="status-badge given">{t('nurses.given')}</span>
                                           )}
                                         </div>
                                       );
                                     })}
                                   </div>
                                 ) : (
-                                  <p className="no-orders">No prescriptions yet</p>
+                                  <p className="no-orders">{t('nurses.noPrescriptions')}</p>
                                 )}
                               </div>
 
                               {/* IV Orders List */}
                               <div className="orders-section">
-                                <h5><FiDroplet size={14} /> IV Orders</h5>
+                                <h5><FiDroplet size={14} /> {t('nurses.ivOrders')}</h5>
                                 {patient.ivOrders && patient.ivOrders.length > 0 ? (
                                   <div className="orders-list">
                                     {patient.ivOrders.map((iv, idx) => (
@@ -414,13 +416,13 @@ const DoctorNurses = () => {
                                         </div>
                                         {iv.instructions && <p className="order-note">{iv.instructions}</p>}
                                         {iv.status === 'given' && (
-                                          <span className="status-badge given">Given</span>
+                                          <span className="status-badge given">{t('nurses.given')}</span>
                                         )}
                                       </div>
                                     ))}
                                   </div>
                                 ) : (
-                                  <p className="no-orders">No IV orders yet</p>
+                                  <p className="no-orders">{t('nurses.noIvOrders')}</p>
                                 )}
                               </div>
                             </div>
@@ -494,12 +496,12 @@ const DoctorNurses = () => {
       {showAssignModal && selectedNurse && (
         <div className="modal-overlay" onClick={() => setShowAssignModal(false)}>
           <div className="modal-assign" onClick={(e) => e.stopPropagation()}>
-            <h3>Add Patient to {selectedNurse.fullName}</h3>
+            <h3>{t('nurses.addPatientTo', { name: selectedNurse.fullName })}</h3>
             <form onSubmit={handleAssignSubmit}>
               <div className="form-group">
-                <label>Patient</label>
+                <label>{t('nurses.patient')}</label>
                 <select value={assignPatientId} onChange={(e) => setAssignPatientId(e.target.value)} required>
-                  <option value="">Select patient</option>
+                  <option value="">{t('nurses.selectPatient')}</option>
                   {unassignedPatients.map((p) => (
                     <option key={p._id} value={p._id}>{p.fullName}</option>
                   ))}
@@ -508,8 +510,8 @@ const DoctorNurses = () => {
 
 
               <div className="modal-actions">
-                <button type="button" onClick={() => setShowAssignModal(false)}>Cancel</button>
-                <button type="submit" disabled={assignSubmitting}>{assignSubmitting ? 'Assigning...' : 'Assign'}</button>
+                <button type="button" onClick={() => setShowAssignModal(false)}>{t('common.cancel')}</button>
+                <button type="submit" disabled={assignSubmitting}>{assignSubmitting ? t('common.assigning') : t('nurses.assign')}</button>
               </div>
             </form>
           </div>
@@ -518,18 +520,18 @@ const DoctorNurses = () => {
       {showRxModal && selectedPatientForRx && (
         <div className="modal-overlay" onClick={() => setShowRxModal(false)}>
           <div className="modal-rx" onClick={(e) => e.stopPropagation()}>
-            <h3>Add Prescription – {selectedPatientForRx.fullName}</h3>
-            <p className="rx-subtitle">Assigned by doctor</p>
+            <h3>{t('nurses.addPrescription')} – {selectedPatientForRx.fullName}</h3>
+            <p className="rx-subtitle">{t('nurses.assignedByDoctor')}</p>
             <form onSubmit={handleRxSubmit}>
               <div className="rx-table-wrap">
                 <table className="rx-table">
                   <thead>
                     <tr>
-                      <th>Medicine name</th>
-                      <th>Times per day</th>
-                      <th>When (select times)</th>
-                      <th>Note</th>
-                      <th>Duration</th>
+                      <th>{t('nurses.medicineName')}</th>
+                      <th>{t('nurses.timesPerDay')}</th>
+                      <th>{t('nurses.when')}</th>
+                      <th>{t('nurses.note')}</th>
+                      <th>{t('nurses.duration')}</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -544,7 +546,7 @@ const DoctorNurses = () => {
                               type="text"
                               value={row.medicineName}
                               onChange={(e) => updateRxRow(index, 'medicineName', e.target.value)}
-                              placeholder="e.g. Paracetamol"
+                              placeholder={t('nurses.medicinePlaceholder')}
                             />
                           </td>
                           <td>
@@ -579,7 +581,7 @@ const DoctorNurses = () => {
                               type="text"
                               value={row.note}
                               onChange={(e) => updateRxRow(index, 'note', e.target.value)}
-                              placeholder="Optional note"
+                              placeholder={t('nurses.optionalNote')}
                             />
                           </td>
                           <td className="rx-duration-cell">
@@ -597,8 +599,8 @@ const DoctorNurses = () => {
                                 onChange={(e) => updateRxRow(index, 'durationUnit', e.target.value)}
                                 className="rx-duration-unit"
                               >
-                                <option value="days">Days</option>
-                                <option value="weeks">Weeks</option>
+                                <option value="days">{t('nurses.days')}</option>
+                                <option value="weeks">{t('nurses.weeks')}</option>
                               </select>
                             </div>
                           </td>
@@ -614,12 +616,12 @@ const DoctorNurses = () => {
                 </table>
               </div>
               <button type="button" className="btn-add-row" onClick={addRxRow}>
-                <FiPlus size={14} /> Add row
+                <FiPlus size={14} /> {t('nurses.addRow')}
               </button>
               <div className="modal-actions">
-                <button type="button" onClick={() => setShowRxModal(false)}>Cancel</button>
-                <button type="button" className="btn-download-pdf" onClick={handleDownloadPdf} disabled={rxSubmitting}>Download PDF</button>
-                <button type="submit" disabled={rxSubmitting}>{rxSubmitting ? 'Saving...' : 'Save'}</button>
+                <button type="button" onClick={() => setShowRxModal(false)}>{t('common.cancel')}</button>
+                <button type="button" className="btn-download-pdf" onClick={handleDownloadPdf} disabled={rxSubmitting}>{t('nurses.downloadPdf')}</button>
+                <button type="submit" disabled={rxSubmitting}>{rxSubmitting ? t('common.saving') : t('common.save')}</button>
               </div>
             </form>
           </div>
@@ -628,51 +630,51 @@ const DoctorNurses = () => {
       {showIvModal && selectedPatientForIv && (
         <div className="modal-overlay" onClick={() => setShowIvModal(false)}>
           <div className="modal-rx modal-iv" onClick={(e) => e.stopPropagation()}>
-            <h3>Add IV Order – {selectedPatientForIv.fullName}</h3>
-            <p className="rx-subtitle">IV fluid order – notifies assigned nurse(s)</p>
+            <h3>{t('nurses.addIvOrder')} – {selectedPatientForIv.fullName}</h3>
+            <p className="rx-subtitle">{t('nurses.ivFluidNotify')}</p>
             <form onSubmit={handleIvSubmit}>
               <div className="form-group">
-                <label>IV Fluid Name *</label>
+                <label>{t('nurses.ivFluidName')}</label>
                 <input
                   type="text"
                   value={ivForm.fluidName}
                   onChange={(e) => setIvForm(f => ({ ...f, fluidName: e.target.value }))}
-                  placeholder="e.g. Normal Saline 0.9%, Ringer's Lactate"
+                  placeholder={t('nurses.ivFluidPlaceholder')}
                   required
                 />
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Volume</label>
+                  <label>{t('nurses.volume')}</label>
                   <input
                     type="text"
                     value={ivForm.volume}
                     onChange={(e) => setIvForm(f => ({ ...f, volume: e.target.value }))}
-                    placeholder="e.g. 500ml, 1L"
+                    placeholder={t('nurses.volumePlaceholder')}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Rate</label>
+                  <label>{t('nurses.rate')}</label>
                   <input
                     type="text"
                     value={ivForm.rate}
                     onChange={(e) => setIvForm(f => ({ ...f, rate: e.target.value }))}
-                    placeholder="e.g. 100ml/hr"
+                    placeholder={t('nurses.ratePlaceholder')}
                   />
                 </div>
               </div>
               <div className="form-group">
-                <label>Instructions</label>
+                <label>{t('common.notes')}</label>
                 <textarea
                   value={ivForm.instructions}
                   onChange={(e) => setIvForm(f => ({ ...f, instructions: e.target.value }))}
-                  placeholder="Additional instructions for the nurse..."
+                  placeholder={t('nurses.additionalInstructions')}
                   rows={3}
                 />
               </div>
               <div className="modal-actions">
-                <button type="button" onClick={() => setShowIvModal(false)}>Cancel</button>
-                <button type="submit" disabled={ivSubmitting}>{ivSubmitting ? 'Sending...' : 'Send IV Order'}</button>
+                <button type="button" onClick={() => setShowIvModal(false)}>{t('common.cancel')}</button>
+                <button type="submit" disabled={ivSubmitting}>{ivSubmitting ? t('common.sending') : t('nurses.sendIvOrder')}</button>
               </div>
             </form>
           </div>

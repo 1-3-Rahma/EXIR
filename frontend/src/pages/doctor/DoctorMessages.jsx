@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { getSocket } from '../../services/socket';
 
 const DoctorMessages = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [contacts, setContacts] = useState([]);
   const [selectedContact, setSelectedContact] = useState(null);
@@ -283,7 +285,7 @@ const DoctorMessages = () => {
       console.error('Failed to send message:', error);
       setMessages(prev => prev.filter(m => String(m.id) !== optimisticId));
       setNewMessage(messageText);
-      alert('Failed to send message. Please try again.');
+      alert(t('messages.sendingFailed'));
     } finally {
       setSendingMessage(false);
     }
@@ -398,8 +400,8 @@ const DoctorMessages = () => {
   return (
     <Layout appName="EXIR" role="doctor">
       <div style={styles.header}>
-        <h1 style={styles.title}>Messages & Communication</h1>
-        <p style={styles.subtitle}>Message nurses and colleagues</p>
+        <h1 style={styles.title}>{t('messages.messagesTitle')}</h1>
+        <p style={styles.subtitle}>{t('messages.messagesSubtitle')}</p>
       </div>
 
       <div className="chat-main-grid" style={styles.mainGrid}>
@@ -407,16 +409,16 @@ const DoctorMessages = () => {
           <div style={styles.contactsHeader}>
             <input
               type="text"
-              placeholder="Search contacts..."
+              placeholder={t('messages.searchContacts')}
               style={styles.searchInput}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
             <div style={styles.filterTabs}>
               {[
-                { key: 'all', label: 'All' },
-                { key: 'doctors', label: 'Doctors' },
-                { key: 'nurses', label: 'Nurses' },
+                { key: 'all', label: t('messages.all') },
+                { key: 'doctors', label: t('messages.doctors') },
+                { key: 'nurses', label: t('messages.nurses') },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -434,9 +436,9 @@ const DoctorMessages = () => {
           </div>
           <div style={styles.contactsList}>
             {loadingContacts ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>Loading contacts...</div>
+              <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>{t('messages.loadingContacts')}</div>
             ) : filteredContacts.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>No contacts available</div>
+              <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>{t('messages.noContactsAvailable')}</div>
             ) : (
               filteredContacts.map((contact) => (
                 <div
@@ -487,11 +489,11 @@ const DoctorMessages = () => {
               </div>
               <div style={styles.chatMessages}>
                 {loadingMessages ? (
-                  <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>Loading messages...</div>
+                  <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>{t('messages.loadingMessages')}</div>
                 ) : messages.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
                     <div style={{ fontSize: '32px', marginBottom: '8px' }}>👋</div>
-                    <div>No messages yet. Start the conversation!</div>
+                    <div>{t('messages.noMessagesYet')}</div>
                   </div>
                 ) : (
                   messages.map((message) => (
@@ -519,7 +521,7 @@ const DoctorMessages = () => {
                 <form style={styles.chatForm} onSubmit={handleSendMessage}>
                   <input
                     type="text"
-                    placeholder="Type a message..."
+                    placeholder={t('messages.typeMessage')}
                     style={styles.messageInput}
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
@@ -530,7 +532,7 @@ const DoctorMessages = () => {
                     style={{ ...styles.sendBtn, opacity: sendingMessage ? 0.7 : 1, cursor: sendingMessage ? 'not-allowed' : 'pointer' }}
                     disabled={sendingMessage}
                   >
-                    {sendingMessage ? 'Sending...' : 'Send'}
+                    {sendingMessage ? t('messages.sending') : t('messages.send')}
                   </button>
                 </form>
               </div>
@@ -538,8 +540,8 @@ const DoctorMessages = () => {
           ) : (
             <div style={styles.emptyChat}>
               <div style={{ fontSize: '64px', marginBottom: '16px' }}>💬</div>
-              <div style={{ fontSize: '18px', fontWeight: '500', marginBottom: '8px' }}>Select a conversation</div>
-              <div style={{ fontSize: '14px' }}>Choose a nurse or colleague to message</div>
+              <div style={{ fontSize: '18px', fontWeight: '500', marginBottom: '8px' }}>{t('messages.selectConversation')}</div>
+              <div style={{ fontSize: '14px' }}>{t('messages.chooseToMessage')}</div>
             </div>
           )}
         </div>

@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiUser, FiLock, FiPhone, FiCreditCard, FiEye, FiEyeOff } from 'react-icons/fi';
+import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../context/LanguageContext';
+import { FiUser, FiLock, FiPhone, FiCreditCard, FiEye, FiEyeOff, FiGlobe } from 'react-icons/fi';
 
 const Login = () => {
   const navigate = useNavigate();
   const { login, requestOTP, verifyOTP } = useAuth();
+  const { t } = useTranslation();
+  const { toggleLanguage } = useLanguage();
 
   const [loginType, setLoginType] = useState('staff');
   const [role, setRole] = useState('doctor');
@@ -31,7 +35,7 @@ const Login = () => {
     if (result.success && result.user) {
       navigate(`/${result.user.role}`);
     } else {
-      setError(result.message || 'Login failed');
+      setError(result.message || t('login.loginFailed'));
     }
 
     setLoading(false);
@@ -69,15 +73,43 @@ const Login = () => {
     setLoading(false);
   };
 
+  const getRoleLabel = () => {
+    switch (role) {
+      case 'doctor': return t('login.doctor');
+      case 'nurse': return t('login.nurse');
+      case 'receptionist': return t('login.receptionist');
+      default: return role;
+    }
+  };
+
+  const getIdLabel = () => {
+    switch (role) {
+      case 'doctor': return t('login.doctorId');
+      case 'nurse': return t('login.nurseId');
+      case 'receptionist': return t('login.receptionistId');
+      default: return t('login.doctorId');
+    }
+  };
+
   return (
     <div className="login-page">
       <div className="login-container">
+        <button
+          type="button"
+          className="login-lang-btn"
+          onClick={toggleLanguage}
+          aria-label="Switch language"
+        >
+          <FiGlobe size={16} />
+          <span>{t('lang.toggle')}</span>
+        </button>
+
         <div className="login-header">
           <div className="login-logo">
             <span className="logo-icon">E</span>
-            <h1>EXIR Healthcare</h1>
+            <h1>{t('login.title')}</h1>
           </div>
-          <p>Smart Healthcare Monitoring System</p>
+          <p>{t('login.subtitle')}</p>
         </div>
 
         <div className="login-tabs">
@@ -85,13 +117,13 @@ const Login = () => {
             className={`tab ${loginType === 'staff' ? 'active' : ''}`}
             onClick={() => { setLoginType('staff'); setError(''); }}
           >
-            Staff Login
+            {t('login.staffLogin')}
           </button>
           <button
             className={`tab ${loginType === 'patient' ? 'active' : ''}`}
             onClick={() => { setLoginType('patient'); setError(''); setOtpSent(false); }}
           >
-            Patient Login
+            {t('login.patientLogin')}
           </button>
         </div>
 
@@ -100,44 +132,41 @@ const Login = () => {
         {loginType === 'staff' ? (
           <form onSubmit={handleStaffLogin} className="login-form">
             <div className="form-group">
-              <label>Role</label>
+              <label>{t('login.role')}</label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
                 className="form-select"
               >
-                <option value="doctor">Doctor</option>
-                <option value="nurse">Nurse</option>
-                <option value="receptionist">Receptionist</option>
+                <option value="doctor">{t('login.doctor')}</option>
+                <option value="nurse">{t('login.nurse')}</option>
+                <option value="receptionist">{t('login.receptionist')}</option>
               </select>
             </div>
 
             <div className="form-group">
-              <label>
-                {role === 'doctor' ? 'Doctor ID' :
-                 role === 'nurse' ? 'Nurse ID' : 'Receptionist ID'}
-              </label>
+              <label>{getIdLabel()}</label>
               <div className="input-wrapper">
                 <FiUser className="input-icon" />
                 <input
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder={`Enter your ${role} ID`}
+                  placeholder={t('login.enterYourId', { role: getRoleLabel() })}
                   required
                 />
               </div>
             </div>
 
             <div className="form-group">
-              <label>Password</label>
+              <label>{t('login.password')}</label>
               <div className="input-wrapper">
                 <FiLock className="input-icon" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder={t('login.enterPassword')}
                   required
                 />
                 <button
@@ -151,7 +180,7 @@ const Login = () => {
             </div>
 
             <button type="submit" className="login-btn" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? t('login.signingIn') : t('login.signIn')}
             </button>
           </form>
         ) : (
@@ -159,59 +188,59 @@ const Login = () => {
             {!otpSent ? (
               <form onSubmit={handleRequestOTP} className="login-form">
                 <div className="form-group">
-                  <label>National ID</label>
+                  <label>{t('login.nationalId')}</label>
                   <div className="input-wrapper">
                     <FiCreditCard className="input-icon" />
                     <input
                       type="text"
                       value={nationalID}
                       onChange={(e) => setNationalID(e.target.value)}
-                      placeholder="Enter your National ID"
+                      placeholder={t('login.enterNationalId')}
                       required
                     />
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label>Phone Number</label>
+                  <label>{t('login.phoneNumber')}</label>
                   <div className="input-wrapper">
                     <FiPhone className="input-icon" />
                     <input
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder="Enter your phone number"
+                      placeholder={t('login.enterPhone')}
                       required
                     />
                   </div>
                 </div>
 
                 <button type="submit" className="login-btn" disabled={loading}>
-                  {loading ? 'Sending OTP...' : 'Request OTP'}
+                  {loading ? t('login.sendingOtp') : t('login.requestOtp')}
                 </button>
               </form>
             ) : (
               <form onSubmit={handleVerifyOTP} className="login-form">
                 <div className="otp-info">
-                  <p>OTP sent to {phone}</p>
+                  <p>{t('login.otpSentTo', { phone })}</p>
                   <button
                     type="button"
                     className="change-number"
                     onClick={() => setOtpSent(false)}
                   >
-                    Change number
+                    {t('login.changeNumber')}
                   </button>
                 </div>
 
                 <div className="form-group">
-                  <label>Enter OTP</label>
+                  <label>{t('login.enterOtp')}</label>
                   <div className="input-wrapper">
                     <FiLock className="input-icon" />
                     <input
                       type="text"
                       value={otp}
                       onChange={(e) => setOtp(e.target.value)}
-                      placeholder="Enter 6-digit OTP"
+                      placeholder={t('login.enterSixDigitOtp')}
                       maxLength={6}
                       required
                     />
@@ -219,7 +248,7 @@ const Login = () => {
                 </div>
 
                 <button type="submit" className="login-btn" disabled={loading}>
-                  {loading ? 'Verifying...' : 'Verify & Login'}
+                  {loading ? t('login.verifying') : t('login.verifyLogin')}
                 </button>
 
                 <button
@@ -228,7 +257,7 @@ const Login = () => {
                   onClick={handleRequestOTP}
                   disabled={loading}
                 >
-                  Resend OTP
+                  {t('login.resendOtp')}
                 </button>
               </form>
             )}

@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import { doctorAPI } from '../../services/api';
 import { FiAlertTriangle, FiClock, FiUser, FiArrowRight } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 
 const DoctorPriorityCases = () => {
+  const { t } = useTranslation();
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,27 +29,27 @@ const DoctorPriorityCases = () => {
     const now = new Date();
     const diff = now - new Date(date);
     const minutes = Math.floor(diff / 60000);
-    if (minutes < 60) return `${minutes} min ago`;
+    if (minutes < 60) return t('common.minAgo', { count: minutes });
     const hours = Math.floor(diff / 3600000);
-    return `${hours} hours ago`;
+    return t('common.hoursAgo', { count: hours });
   };
 
   return (
     <Layout appName="Doctor's Hospital" role="doctor">
       <div className="page-header">
-        <h1>Priority Cases</h1>
-        <p>Patients requiring urgent attention</p>
+        <h1>{t('priorityCases.title')}</h1>
+        <p>{t('priorityCases.patientsUrgent')}</p>
       </div>
 
       <div className="card">
         <div className="card-body">
           {loading ? (
-            <p>Loading priority cases...</p>
+            <p>{t('priorityCases.loading')}</p>
           ) : cases.length === 0 ? (
             <div className="empty-state">
               <FiAlertTriangle className="empty-icon success" />
-              <h3>No Priority Cases</h3>
-              <p>All patients are currently stable</p>
+              <h3>{t('priorityCases.noPriorityCases')}</h3>
+              <p>{t('priorityCases.allStable')}</p>
             </div>
           ) : (
             <div className="priority-list">
@@ -62,7 +64,7 @@ const DoctorPriorityCases = () => {
                     <p className="priority-reason">{caseItem.reason}</p>
                     <div className="priority-meta">
                       <span><FiClock /> {formatTime(caseItem.createdAt)}</span>
-                      <span className="room">Room: {caseItem.room || 'N/A'}</span>
+                      <span className="room">{t('priorityCases.room')} {caseItem.room || t('common.na')}</span>
                     </div>
                   </div>
                   <div className="priority-actions">

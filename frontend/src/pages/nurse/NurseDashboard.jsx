@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import { useAuth } from '../../context/AuthContext';
 import { notificationAPI, tasksAPI, nurseAPI, vitalsAPI } from '../../services/api';
@@ -9,7 +10,7 @@ import {
 } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+const API_URL = process.env.REACT_APP_API_URL || '/api/v1';
 const BRACELET_DEVICE_NAME = 'EXIR_BRACELET_001';
 const BRACELET_NAME_PREFIX = 'EXIR_BRACELET';
 const BRACELET_SERVICE_UUID = '7b2d0001-6b0d-4b7a-9f9b-7e6a00000001';
@@ -18,6 +19,7 @@ const CONFIG_CHARACTERISTIC_UUID = '7b2d0003-6b0d-4b7a-9f9b-7e6a00000003';
 
 const NurseDashboard = () => {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [stats, setStats] = useState({
     totalPatients: 0,
     urgentCases: 0,
@@ -354,8 +356,8 @@ const NurseDashboard = () => {
         </div>
       )}
       <div className="page-header">
-        <h1>Dashboard Overview</h1>
-        <p>Welcome back, {user?.fullName || 'Nurse'}! Here's your shift summary.</p>
+        <h1>{t('nav.dashboard')}</h1>
+        <p>{t('dashboard.welcomeBack')}, {user?.fullName || 'Nurse'}!</p>
       </div>
 
       {/* Stats Grid */}
@@ -366,7 +368,7 @@ const NurseDashboard = () => {
           </div>
           <div className="stat-info">
             <span className="stat-value">{stats.totalPatients}</span>
-            <span className="stat-label">Total Patients</span>
+            <span className="stat-label">{t('dashboard.totalPatients')}</span>
           </div>
         </div>
         <div className="stat-card-new red">
@@ -375,7 +377,7 @@ const NurseDashboard = () => {
           </div>
           <div className="stat-info">
             <span className="stat-value">{stats.urgentCases}</span>
-            <span className="stat-label">Urgent Cases</span>
+            <span className="stat-label">{t('dashboard.urgentCases')}</span>
           </div>
         </div>
         <div className="stat-card-new green">
@@ -384,7 +386,7 @@ const NurseDashboard = () => {
           </div>
           <div className="stat-info">
             <span className="stat-value">{stats.tasksToday}</span>
-            <span className="stat-label">Tasks Today</span>
+            <span className="stat-label">{t('dashboard.tasksToday')}</span>
           </div>
         </div>
       </div>
@@ -392,19 +394,19 @@ const NurseDashboard = () => {
       <div className="bracelet-panel">
         <div className="bracelet-header">
           <div>
-            <h2>BLE Bracelet Link</h2>
-            <p>{braceletStatus || 'Select a patient, connect the bracelet, and the browser will bridge vitals to EXIR.'}</p>
+            <h2>{t('bracelet.title')}</h2>
+            <p>{braceletStatus || t('bracelet.selectPatient')}</p>
           </div>
           <span className={`bracelet-state ${braceletConnected ? 'connected' : ''}`}>
-            {braceletConnected ? 'Connected' : 'Not connected'}
+            {braceletConnected ? t('bracelet.connected') : t('bracelet.disconnected')}
           </span>
         </div>
 
         <div className="bracelet-controls">
           <label className="bracelet-field">
-            <span>Select Patient</span>
+            <span>{t('bracelet.selectPatient')}</span>
             <select value={selectedPatientId} onChange={handlePatientChange}>
-              <option value="">Select Patient</option>
+              <option value="">{t('bracelet.selectPatient')}</option>
               {assignedPatients.map((p) => (
                 <option key={p._id} value={p._id}>
                   {p.fullName}
@@ -414,7 +416,7 @@ const NurseDashboard = () => {
           </label>
 
           <label className="bracelet-field interval-field">
-            <span>Interval</span>
+            <span>{t('bracelet.readingInterval')}</span>
             <select
               value={readingIntervalSeconds}
               onChange={handleIntervalChange}
@@ -427,7 +429,7 @@ const NurseDashboard = () => {
           </label>
 
           <button type="button" className="connect-bracelet-btn" onClick={connectBracelet}>
-            Connect Bracelet
+            {t('bracelet.connect')}
           </button>
         </div>
 
@@ -445,16 +447,16 @@ const NurseDashboard = () => {
           {/* Urgent Cases - Left */}
           <div className="section-card flex-1">
             <div className="section-header">
-              <h2><FiAlertTriangle className="header-icon red" /> Urgent Cases / Priority Alerts</h2>
+              <h2><FiAlertTriangle className="header-icon red" /> {t('dashboard.urgentCasesTitle')}</h2>
               <Link to="/nurse/critical" className="view-all-link">
-                View All <FiArrowRight />
+                {t('common.viewAll')} <FiArrowRight />
               </Link>
             </div>
             <div className="section-body">
               {loading ? (
-                <p className="loading-text">Loading...</p>
+                <p className="loading-text">{t('common.loading')}</p>
               ) : urgentCases.length === 0 ? (
-                <p className="empty-text">No urgent cases at the moment</p>
+                <p className="empty-text">{t('dashboard.noUrgentCases')}</p>
               ) : (
                 <div className="urgent-list">
                   {urgentCases.map((item) => (
@@ -463,7 +465,7 @@ const NurseDashboard = () => {
                         <div className="urgent-header">
                           <span className="patient-name">{item.patientName}</span>
                           <span className="room-badge" style={{ background: getPriorityColor(item.priority) }}>
-                            Room {item.room}
+                            {t('common.room')} {item.room}
                           </span>
                           {item.source === 'doctor' && (
                             <span className="source-badge doctor">Doctor</span>
@@ -475,7 +477,7 @@ const NurseDashboard = () => {
                         <p className="urgent-reason">{item.reason}</p>
                         <span className="urgent-time"><FiClock /> {formatTime(item.createdAt)}</span>
                       </div>
-                      <Link to="/nurse/patients" className="respond-btn">Respond</Link>
+                      <Link to="/nurse/patients" className="respond-btn">{t('common.view')}</Link>
                     </div>
                   ))}
                 </div>
@@ -486,14 +488,14 @@ const NurseDashboard = () => {
           {/* Notifications Panel - Right */}
           <div className="section-card flex-1">
             <div className="section-header">
-              <h2><FiBell className="header-icon blue" /> Notifications</h2>
+              <h2><FiBell className="header-icon blue" /> {t('notifications.title')}</h2>
               {unreadCount > 0 && (
                 <span className="notif-count unread-badge">{unreadCount}</span>
               )}
             </div>
             <div className="section-body">
               {notifications.length === 0 ? (
-                <p className="empty-text">No notifications yet</p>
+                <p className="empty-text">{t('dashboard.noNotifications')}</p>
               ) : (
                 <>
                   <div className="notification-list">
@@ -515,7 +517,7 @@ const NurseDashboard = () => {
                       </div>
                     ))}
                   </div>
-                  <button type="button" className="view-all-btn" onClick={() => setShowNotifModal(true)}>View All Notifications ({allNotifications.length})</button>
+                  <button type="button" className="view-all-btn" onClick={() => setShowNotifModal(true)}>{t('dashboard.viewAllNotifications')} ({allNotifications.length})</button>
                 </>
               )}
             </div>
@@ -1154,8 +1156,8 @@ const NurseDashboard = () => {
           <div className="notif-modal" onClick={(e) => e.stopPropagation()}>
             <div className="notif-modal-header">
               <h3>
-                <FiBell /> All Notifications
-                {allUnreadCount > 0 && <span className="unread-count">{allUnreadCount} unread</span>}
+                <FiBell /> {t('notifications.all')}
+                {allUnreadCount > 0 && <span className="unread-count">{allUnreadCount} {t('common.unread')}</span>}
               </h3>
               <button className="notif-modal-close" onClick={() => setShowNotifModal(false)}>
                 <FiX size={20} />
@@ -1165,7 +1167,7 @@ const NurseDashboard = () => {
               {allNotifications.length === 0 ? (
                 <div className="notif-modal-empty">
                   <FiBell />
-                  <p>No notifications yet</p>
+                  <p>{t('dashboard.noNotifications')}</p>
                 </div>
               ) : (
                 <div className="notif-modal-list">

@@ -1,14 +1,16 @@
-import Layout from '../../components/common/Layout';
+﻿import Layout from '../../components/common/Layout';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { FiUser, FiClock } from 'react-icons/fi';
 
 const NurseProfile = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
 
   return (
     <Layout appName="NurseHub" role="nurse">
       <div className="page-header">
-        <h1>My Profile</h1>
+        <h1>{t('profile.title')}</h1>
         <p>Your profile information</p>
       </div>
 

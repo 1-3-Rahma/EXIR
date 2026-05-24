@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
 import { nurseAPI } from '../../services/api';
 import { FiAlertTriangle, FiClock, FiCheckCircle } from 'react-icons/fi';
 
 const NurseCriticalEvents = () => {
+  const { t } = useTranslation();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -47,7 +49,7 @@ const NurseCriticalEvents = () => {
   return (
     <Layout appName="NurseHub" role="nurse">
       <div className="page-header">
-        <h1>Priority Cases / Urgent Cases</h1>
+        <h1>{t('criticalEvents.title')}</h1>
         <p>Patients marked critical by doctor (e.g. Dr. Ahmed Hassan) and critical vital alerts</p>
       </div>
 

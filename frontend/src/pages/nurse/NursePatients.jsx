@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import {
   FiSearch, FiUser, FiActivity,
@@ -7,12 +8,13 @@ import {
 } from 'react-icons/fi';
 import { nurseAPI } from '../../services/api';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+const API_URL = process.env.REACT_APP_API_URL || '/api/v1';
 
 const BP_REGEX = /^\d{2,3}\/\d{2,3}$/;
 
 const NursePatients = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -250,8 +252,8 @@ const NursePatients = () => {
   return (
     <Layout appName="NurseHub" role="nurse">
       <div className="page-header">
-        <h1>Patient Management</h1>
-        <p>View and manage your assigned patients</p>
+        <h1>{t('patients.title')}</h1>
+        <p>{t('patients.myPatients')}</p>
       </div>
 
       {/* Search Bar */}
@@ -260,7 +262,7 @@ const NursePatients = () => {
           <FiSearch className="search-icon" />
           <input
             type="text"
-            placeholder="Search by patient name or room number..."
+            placeholder={t('patients.search')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -270,13 +272,13 @@ const NursePatients = () => {
       {/* Status Filter Pills */}
       <div className="status-pills">
         <button className={`pill ${statusFilter === 'all' ? 'active' : ''}`} onClick={() => setStatusFilter('all')}>
-          All ({patients.length})
+          {t('common.all')} ({patients.length})
         </button>
         <button className={`pill critical ${statusFilter === 'critical' ? 'active' : ''}`} onClick={() => setStatusFilter('critical')}>
-          Critical ({patients.filter(isPatientCritical).length})
+          {t('common.critical')} ({patients.filter(isPatientCritical).length})
         </button>
         <button className={`pill stable ${statusFilter === 'stable' ? 'active' : ''}`} onClick={() => setStatusFilter('stable')}>
-          Stable ({patients.filter(p => normalizeStatus(p.status) === 'stable').length})
+          {t('common.stable')} ({patients.filter(p => normalizeStatus(p.status) === 'stable').length})
         </button>
       </div>
 
@@ -284,12 +286,12 @@ const NursePatients = () => {
 
       {/* Patient Cards Grid */}
       {loading ? (
-        <div className="loading-state">Loading patients...</div>
+        <div className="loading-state">{t('common.loading')}</div>
       ) : patients.length === 0 ? (
         <div className="empty-state">
           <FiUser style={{ fontSize: '48px', color: '#94a3b8', marginBottom: '16px' }} />
-          <h3>No patients assigned</h3>
-          <p>You don't have any patients assigned to your care yet.</p>
+          <h3>{t('patients.noPatients')}</h3>
+          <p>{t('vitals.noPatients')}</p>
         </div>
       ) : (
         <div className="patients-grid">
@@ -314,9 +316,9 @@ const NursePatients = () => {
 
                 <div className="card-details">
                   <div className="detail-row">
-                    <span className="label">Room:</span>
+                    <span className="label">{t('common.room')}:</span>
                     <span className="value room-value">
-                      Room {patient.room || 'N/A'}
+                      {t('common.room')} {patient.room || t('common.na')}
                       <button
                         className="edit-inline-btn"
                         onClick={(e) => { e.stopPropagation(); openRoomModal(patient); }}
@@ -327,13 +329,13 @@ const NursePatients = () => {
                     </span>
                   </div>
                   <div className="detail-row">
-                    <span className="label">Condition:</span>
+                    <span className="label">{t('history.diagnosis')}:</span>
                     <span className="value condition">{patient.condition}</span>
                   </div>
                 </div>
 
                 <div className="vitals-section">
-                  <h4>Latest Vitals</h4>
+                  <h4>{t('vitals.latestReading')}</h4>
                   <div className="vitals-grid">
                     <div className="vital-item">
                       <span className="vital-label">AI Risk</span>
@@ -378,7 +380,7 @@ const NursePatients = () => {
                       state: { patientName: patient.fullName, room: patient.room }
                     })}
                   >
-                    <FiActivity /> Vitals History
+                    <FiActivity /> {t('vitals.history')}
                   </button>
                   <button
                     className="action-btn action-btn--iv"
@@ -740,23 +742,23 @@ const NursePatients = () => {
         <div className="modal-overlay" onClick={() => setShowRoomModal(false)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Edit Room Number</h3>
+              <h3>{t('patients.editRoom')}</h3>
               <button className="close-btn" onClick={() => setShowRoomModal(false)}><FiX /></button>
             </div>
-            <p className="modal-subtitle">Patient: {selectedPatient.fullName}</p>
+            <p className="modal-subtitle">{selectedPatient.fullName}</p>
             <div className="form-group">
-              <label>Room Number</label>
+              <label>{t('patients.roomNumber')}</label>
               <input
                 type="text"
                 value={roomInput}
                 onChange={(e) => setRoomInput(e.target.value)}
-                placeholder="Enter room number (e.g., 101, ICU-3)"
+                placeholder={t('patients.enterRoom')}
               />
             </div>
             <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setShowRoomModal(false)}>Cancel</button>
+              <button className="btn-cancel" onClick={() => setShowRoomModal(false)}>{t('common.cancel')}</button>
               <button className="btn-save" onClick={handleSaveRoom} disabled={savingRoom}>
-                {savingRoom ? 'Saving...' : 'Save'}
+                {savingRoom ? t('common.saving') : t('common.save')}
               </button>
             </div>
           </div>
@@ -768,25 +770,25 @@ const NursePatients = () => {
         <div className="modal-overlay" onClick={() => setShowBPModal(false)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Edit Blood Pressure</h3>
+              <h3>{t('patients.updateBP')}</h3>
               <button className="close-btn" onClick={() => setShowBPModal(false)}><FiX /></button>
             </div>
-            <p className="modal-subtitle">Patient: {bpPatient.fullName}</p>
+            <p className="modal-subtitle">{bpPatient.fullName}</p>
             <div className="form-group">
-              <label>Blood Pressure (e.g. 120/80)</label>
+              <label>{t('vitals.bloodPressure')} ({t('patients.enterBP')})</label>
               <input
                 type="text"
                 value={bpInput}
                 onChange={(e) => { setBpInput(e.target.value); setBpError(''); }}
-                placeholder="120/80"
+                placeholder={t('patients.enterBP')}
                 className={bpError ? 'input-error' : ''}
               />
               {bpError && <p className="error-text">{bpError}</p>}
             </div>
             <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setShowBPModal(false)}>Cancel</button>
+              <button className="btn-cancel" onClick={() => setShowBPModal(false)}>{t('common.cancel')}</button>
               <button className="btn-save" onClick={handleSaveBP} disabled={savingBP}>
-                {savingBP ? 'Saving...' : 'Save'}
+                {savingBP ? t('common.saving') : t('common.save')}
               </button>
             </div>
           </div>
@@ -798,31 +800,31 @@ const NursePatients = () => {
         <div className="modal-overlay" onClick={() => setShowCommentModal(false)}>
           <div className="modal-box modal-box--wide" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Patient Comments</h3>
+              <h3>{t('patients.comments')}</h3>
               <button className="close-btn" onClick={() => setShowCommentModal(false)}><FiX /></button>
             </div>
-            <p className="modal-subtitle">Patient: {commentPatient.fullName}</p>
+            <p className="modal-subtitle">{commentPatient.fullName}</p>
 
             <div className="comment-input-row">
               <textarea
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Write a comment..."
+                placeholder={t('patients.writeComment')}
               />
               <button
                 className="btn-send"
                 onClick={handleSaveComment}
                 disabled={savingComment || !commentText.trim()}
               >
-                <FiSend /> {savingComment ? 'Saving...' : 'Add'}
+                <FiSend /> {savingComment ? t('common.saving') : t('patients.addComment')}
               </button>
             </div>
 
             <div className="comments-list">
               {loadingComments ? (
-                <div className="comments-loading">Loading comments...</div>
+                <div className="comments-loading">{t('common.loading')}</div>
               ) : comments.length === 0 ? (
-                <div className="comments-empty">No comments yet. Add the first one above.</div>
+                <div className="comments-empty">{t('patients.noComments')}</div>
               ) : (
                 comments.map((c) => (
                   <div key={c._id} className="comment-item">

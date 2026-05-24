@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import {
   FiHeart, FiActivity, FiThermometer, FiWind,
   FiAlertTriangle, FiTrendingUp, FiTrendingDown, FiMinus, FiClock
 } from 'react-icons/fi';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
+const API_URL = process.env.REACT_APP_API_URL || '/api/v1';
 
 const NurseVitals = () => {
+  const { t } = useTranslation();
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -95,11 +97,11 @@ const NurseVitals = () => {
   };
 
   // Reference display data
-  const normalRangesDisplay = [
-    { name: 'Blood Pressure', range: '90-120 / 60-80 mmHg', color: '#3b82f6', icon: 'bp' },
-    { name: 'Heart Rate', range: '60-100 bpm', color: '#ef4444', icon: 'hr' },
-    { name: 'Temperature', range: '36.1-37.2 °C', color: '#f59e0b', icon: 'temp' },
-    { name: 'O₂ Saturation', range: '95-100 %', color: '#06b6d4', icon: 'o2' }
+  const normalRangesDisplay = () => [
+    { name: t('vitals.bloodPressure'), range: '90-120 / 60-80 mmHg', color: '#3b82f6', icon: 'bp' },
+    { name: t('vitals.heartRate'), range: '60-100 bpm', color: '#ef4444', icon: 'hr' },
+    { name: t('vitals.temperature'), range: '36.1-37.2 °C', color: '#f59e0b', icon: 'temp' },
+    { name: t('vitals.spo2'), range: '95-100 %', color: '#06b6d4', icon: 'o2' }
   ];
 
   const criticalCount = patients.filter(patient => patient.latestVitals?.isCritical === true).length;
@@ -151,23 +153,23 @@ const NurseVitals = () => {
   return (
     <Layout appName="NurseHub" role="nurse">
       <div className="page-header">
-        <h1>Live Vitals Dashboard</h1>
-        <p>Real-time patient vital signs monitoring</p>
-        <span className="critical-count">Critical: {criticalCount}</span>
+        <h1>{t('vitals.liveVitals')}</h1>
+        <p>{t('vitals.title')}</p>
+        <span className="critical-count">{t('common.critical')}: {criticalCount}</span>
       </div>
 
       {loading ? (
-        <div className="loading-state">Loading vitals data...</div>
+        <div className="loading-state">{t('common.loading')}</div>
       ) : patients.length === 0 ? (
         <div className="empty-state">
           <FiActivity style={{ fontSize: '48px', color: '#94a3b8', marginBottom: '16px' }} />
-          <h3>No vitals data available</h3>
-          <p>There are no patient vitals to monitor at the moment.</p>
+          <h3>{t('vitals.noVitals')}</h3>
+          <p>{t('vitals.noPatients')}</p>
           {/* Show normal ranges reference when no data */}
           <div className="empty-reference-card">
             <h3 className="reference-title">Normal Vital Ranges Reference</h3>
             <div className="empty-ranges-grid">
-              {normalRangesDisplay.map((item, index) => (
+              {normalRangesDisplay().map((item, index) => (
                 <div key={index} className="empty-range-item">
                   <div className="range-icon" style={{ background: item.color + '20', color: item.color }}>
                     {item.icon === 'bp' && <FiHeart />}
@@ -198,7 +200,7 @@ const NurseVitals = () => {
               </div>
 
             <div className="ranges-grid">
-              {normalRangesDisplay.map((item, index) => (
+              {normalRangesDisplay().map((item, index) => (
                 <div key={index} className="range-item">
                   <div className="range-icon" style={{ background: item.color + '20', color: item.color }}>
                     {item.icon === 'bp' && <FiHeart />}
@@ -222,7 +224,7 @@ const NurseVitals = () => {
                 <div className="patient-header">
                   <div className="patient-info">
                     <h3>{patient.name}</h3>
-                    <span className="room">Room {patient.room}</span>
+                    <span className="room">{t('common.room')} {patient.room}</span>
                   </div>
                   <span
                     className="ai-status-badge"
@@ -248,7 +250,7 @@ const NurseVitals = () => {
                       )}
                       {getTrendIcon(patient.vitals.bp.trend)}
                     </div>
-                    <span className="vital-label">Blood Pressure</span>
+                    <span className="vital-label">{t('vitals.bloodPressure')}</span>
                     <span className="vital-value" style={{ color: getStatusColor(patient.vitals.bp.status) }}>
                       {patient.vitals.bp.systolic}/{patient.vitals.bp.diastolic}
                     </span>
@@ -265,7 +267,7 @@ const NurseVitals = () => {
                       )}
                       {getTrendIcon(patient.vitals.hr.trend)}
                     </div>
-                    <span className="vital-label">Heart Rate</span>
+                    <span className="vital-label">{t('vitals.heartRate')}</span>
                     <span className="vital-value" style={{ color: getStatusColor(patient.vitals.hr.status) }}>
                       {patient.vitals.hr.value}
                     </span>
@@ -282,7 +284,7 @@ const NurseVitals = () => {
                       )}
                       {getTrendIcon(patient.vitals.temp.trend)}
                     </div>
-                    <span className="vital-label">Temperature</span>
+                    <span className="vital-label">{t('vitals.temperature')}</span>
                     <span className="vital-value" style={{ color: getStatusColor(patient.vitals.temp.status) }}>
                       {patient.vitals.temp.value}
                     </span>

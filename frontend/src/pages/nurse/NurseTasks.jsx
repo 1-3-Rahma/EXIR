@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import {
   FiPlus, FiClock, FiCheckCircle, FiUser,
@@ -7,6 +8,7 @@ import {
 import api from '../../services/api';
 
 const NurseTasks = () => {
+  const { t } = useTranslation();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -125,11 +127,11 @@ const NurseTasks = () => {
     <Layout appName="NurseHub" role="nurse">
       <div className="page-header-flex">
         <div>
-          <h1>Task Management</h1>
-          <p>Organize and track your daily nursing tasks</p>
+          <h1>{t('tasks.title')}</h1>
+          <p>{t('tasks.myTasks')}</p>
         </div>
         <button className="new-task-btn" onClick={() => setShowNewTaskModal(true)}>
-          <FiPlus /> New Task
+          <FiPlus /> {t('tasks.newTask')}
         </button>
       </div>
 
@@ -139,21 +141,21 @@ const NurseTasks = () => {
           <div className="stat-icon yellow"><FiClock /></div>
           <div className="stat-info">
             <span className="stat-value">{stats.pending}</span>
-            <span className="stat-label">Pending Tasks</span>
+            <span className="stat-label">{t('tasks.pending')}</span>
           </div>
         </div>
         <div className="task-stat">
           <div className="stat-icon blue"><FiEdit2 /></div>
           <div className="stat-info">
             <span className="stat-value">{stats.inProgress}</span>
-            <span className="stat-label">In Progress</span>
+            <span className="stat-label">{t('tasks.inProgress')}</span>
           </div>
         </div>
         <div className="task-stat">
           <div className="stat-icon green"><FiCheckCircle /></div>
           <div className="stat-info">
             <span className="stat-value">{stats.completed}</span>
-            <span className="stat-label">Completed</span>
+            <span className="stat-label">{t('tasks.completed')}</span>
           </div>
         </div>
       </div>
@@ -161,16 +163,16 @@ const NurseTasks = () => {
       {/* Filter Tabs */}
       <div className="filter-tabs">
         <button className={`tab ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>
-          All Tasks ({tasks.length})
+          {t('tasks.filterAll')} ({tasks.length})
         </button>
         <button className={`tab ${filter === 'pending' ? 'active' : ''}`} onClick={() => setFilter('pending')}>
-          Pending ({stats.pending})
+          {t('tasks.filterPending')} ({stats.pending})
         </button>
         <button className={`tab ${filter === 'in_progress' ? 'active' : ''}`} onClick={() => setFilter('in_progress')}>
-          In Progress ({stats.inProgress})
+          {t('tasks.inProgress')} ({stats.inProgress})
         </button>
         <button className={`tab ${filter === 'completed' ? 'active' : ''}`} onClick={() => setFilter('completed')}>
-          Completed ({stats.completed})
+          {t('tasks.filterCompleted')} ({stats.completed})
         </button>
       </div>
 
@@ -180,18 +182,18 @@ const NurseTasks = () => {
           {loading ? (
             <div className="loading-state">
               <FiLoader className="spin" style={{ fontSize: '32px', color: '#3b82f6' }} />
-              <p>Loading tasks...</p>
+              <p>{t('common.loading')}</p>
             </div>
           ) : error ? (
             <div className="error-state">
-              <p>Error: {error}</p>
-              <button onClick={fetchTasks}>Retry</button>
+              <p>{t('common.error')}: {error}</p>
+              <button onClick={fetchTasks}>{t('common.retry')}</button>
             </div>
           ) : filteredTasks.length === 0 ? (
             <div className="empty-state">
               <FiCheckCircle style={{ fontSize: '48px', color: '#94a3b8', marginBottom: '16px' }} />
-              <h3>No tasks yet</h3>
-              <p>Create a new task to get started.</p>
+              <h3>{t('tasks.noTasks')}</h3>
+              <p>{t('tasks.addTask')}</p>
             </div>
           ) : filteredTasks.map((task) => (
             <div key={task._id} className={`task-card ${task.status}`} style={{ borderLeftColor: getPriorityColor(task.priority) }}>

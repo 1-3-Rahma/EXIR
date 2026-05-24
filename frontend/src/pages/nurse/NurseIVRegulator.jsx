@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useEffect } from 'react';
+﻿import React, { useState, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useLocation } from 'react-router-dom';
 import ModeSelector from '../../components/IVRegulator/ModeSelector';
 import ParallelForm from '../../components/IVRegulator/ParallelForm';
@@ -9,6 +10,7 @@ import ConnectionPanel from '../../components/IVRegulator/ConnectionPanel';
 import Layout from '../../components/common/Layout';
 
 const NurseIVRegulator = () => {
+  const { t } = useTranslation();
   const { patientId } = useParams();
   const location = useLocation();
   const patientName = location.state?.patientName || null;
@@ -66,9 +68,10 @@ const NurseIVRegulator = () => {
 
   // Immediately restore this patient's session state on mount/patientId change
   useEffect(() => {
+    const base = process.env.REACT_APP_API_URL || '/api/v1';
     const url = patientId
-      ? `http://localhost:5000/api/iv/status?patientId=${encodeURIComponent(patientId)}`
-      : 'http://localhost:5000/api/iv/status';
+      ? `${base}/iv/status?patientId=${encodeURIComponent(patientId)}`
+      : `${base}/iv/status`;
     fetch(url)
       .then((r) => r.json())
       .then((data) => { if (data.success) handleExternalStatus(data); })
@@ -79,15 +82,15 @@ const NurseIVRegulator = () => {
     <Layout appName="EXIR" role="nurse">
       <div className="iv-page">
         <div className="iv-page-header">
-          <h1 className="iv-page-title">IV Regulator Control</h1>
+          <h1 className="iv-page-title">{t('ivRegulator.controlTitle')}</h1>
           {patientName ? (
             <p className="iv-page-subtitle">
-              Patient: <strong>{patientName}</strong>
-              {patientRoom && patientRoom !== 'N/A' ? ` · Room ${patientRoom}` : ''}
+              {t('ivRegulator.patient')} <strong>{patientName}</strong>
+              {patientRoom && patientRoom !== 'N/A' ? ` · ${t('common.room')} ${patientRoom}` : ''}
             </p>
           ) : (
             <p className="iv-page-subtitle">
-              Configure and control the ESP32 IV infusion system
+              {t('ivRegulator.configureControl')}
             </p>
           )}
         </div>
@@ -114,7 +117,7 @@ const NurseIVRegulator = () => {
               <>
                 {lastCommand && (
                   <div className="iv-last-command">
-                    <span className="iv-last-command-label">Prepared command:</span>
+                    <span className="iv-last-command-label">{t('ivRegulator.preparedCommand')}</span>
                     <code className="iv-last-command-value">{lastCommand}</code>
                   </div>
                 )}

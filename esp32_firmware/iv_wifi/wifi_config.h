@@ -6,6 +6,8 @@
 #define WIFI_PASSWORD "n9v63421"
 #define SERVER_HOST   "192.168.1.10"
 
+//#define SERVER_HOST   "192.168.1.18"   //reham
+
 // ── Mobile Hotspot ───────────────────────────────────────────────────────────
 
 // #define WIFI_SSID     "RA"

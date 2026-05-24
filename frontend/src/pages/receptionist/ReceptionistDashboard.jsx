@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import StatCard from '../../components/common/StatCard';
 import { receptionistAPI } from '../../services/api';
@@ -9,6 +10,7 @@ import {
 import { Link, useNavigate } from 'react-router-dom';
 
 const ReceptionistDashboard = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     todayCheckIns: 0,
@@ -112,7 +114,7 @@ const ReceptionistDashboard = () => {
       <div className="page-header">
         <div className="header-with-date">
           <div>
-            <h1>Hospital Management System</h1>
+            <h1>{t('nav.dashboard')}</h1>
           </div>
           <div className="header-date">
             <span className="role-badge">Receptionist</span>
@@ -130,11 +132,11 @@ const ReceptionistDashboard = () => {
           <div className="quick-actions-grid">
             <Link to="/receptionist/patients/register" className="quick-action-card purple">
               <FiUserPlus className="action-icon" />
-              <span>Register New Patient</span>
+              <span>{t('receptionist.registerPatient')}</span>
             </Link>
             <Link to="/receptionist/appointments/new" className="quick-action-card orange">
               <FiCalendar className="action-icon" />
-              <span>Schedule Appointment</span>
+              <span>{t('appointments.scheduleAppointment')}</span>
             </Link>
           </div>
         </div>
@@ -151,19 +153,19 @@ const ReceptionistDashboard = () => {
             className={`search-tab ${searchTab === 'name' ? 'active' : ''}`}
             onClick={() => setSearchTab('name')}
           >
-            By Name
+            {t('receptionist.byName')}
           </button>
           <button
             className={`search-tab ${searchTab === 'phone' ? 'active' : ''}`}
             onClick={() => setSearchTab('phone')}
           >
-            By Phone
+            {t('receptionist.byPhone')}
           </button>
           <button
             className={`search-tab ${searchTab === 'nationalID' ? 'active' : ''}`}
             onClick={() => setSearchTab('nationalID')}
           >
-            By National ID
+            {t('receptionist.byNationalId')}
           </button>
         </div>
         <div className="search-input-row">

@@ -37,7 +37,17 @@ function markDisconnected(ws) {
 }
 
 function init(httpServer) {
-  wss = new WebSocket.Server({ server: httpServer, path: '/esp32' });
+  // Use noServer so we only handle /esp32 upgrades. Attaching ws directly to the
+  // HTTP server can break Socket.io (/socket.io) with "Invalid frame header".
+  wss = new WebSocket.Server({ noServer: true });
+
+  httpServer.on('upgrade', (request, socket, head) => {
+    const pathname = new URL(request.url, 'http://localhost').pathname;
+    if (pathname !== '/esp32') return;
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+    });
+  });
 
   // Heartbeat: ping every 5 s — terminate silently-dead connections immediately
   const pingInterval = setInterval(() => {

@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import { tasksAPI } from '../../services/api';
 import { FiPlus, FiClock, FiCheckCircle, FiUser, FiX, FiEdit2, FiLoader } from 'react-icons/fi';
 
 const DoctorTasks = () => {
+  const { t } = useTranslation();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -112,11 +114,11 @@ const DoctorTasks = () => {
     <Layout appName="EXIR" role="doctor">
       <div className="page-header-flex">
         <div>
-          <h1>Tasks</h1>
-          <p>Manage your tasks and follow-ups</p>
+          <h1>{t('tasks.title')}</h1>
+          <p>{t('tasks.manageTasksFollowUps')}</p>
         </div>
         <button className="new-task-btn" onClick={() => setShowNewTaskModal(true)}>
-          <FiPlus /> New Task
+          <FiPlus /> {t('tasks.newTaskBtn')}
         </button>
       </div>
 
@@ -125,7 +127,7 @@ const DoctorTasks = () => {
           <div className="stat-icon yellow"><FiClock /></div>
           <div className="stat-info">
             <span className="stat-value">{stats.pending}</span>
-            <span className="stat-label">Pending</span>
+            <span className="stat-label">{t('tasks.pending')}</span>
           </div>
         </div>
         {/* <div className="task-stat">
@@ -139,23 +141,23 @@ const DoctorTasks = () => {
           <div className="stat-icon green"><FiCheckCircle /></div>
           <div className="stat-info">
             <span className="stat-value">{stats.completed}</span>
-            <span className="stat-label">Completed</span>
+            <span className="stat-label">{t('tasks.completed')}</span>
           </div>
         </div>
       </div>
 
       <div className="filter-tabs">
         <button className={`tab ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>
-          All ({tasks.length})
+          {t('tasks.filterAll')} ({tasks.length})
         </button>
         <button className={`tab ${filter === 'pending' ? 'active' : ''}`} onClick={() => setFilter('pending')}>
-          Pending ({stats.pending})
+          {t('tasks.filterPending')} ({stats.pending})
         </button>
         {/* <button className={`tab ${filter === 'in_progress' ? 'active' : ''}`} onClick={() => setFilter('in_progress')}>
           In Progress ({stats.inProgress})
         </button> */}
         <button className={`tab ${filter === 'completed' ? 'active' : ''}`} onClick={() => setFilter('completed')}>
-          Completed ({stats.completed})
+          {t('tasks.filterCompleted')} ({stats.completed})
         </button>
       </div>
 
@@ -163,18 +165,18 @@ const DoctorTasks = () => {
         {loading ? (
           <div className="loading-state">
             <FiLoader className="spin" style={{ fontSize: 32, color: '#0ea5e9' }} />
-            <p>Loading tasks...</p>
+            <p>{t('common.loading')}</p>
           </div>
         ) : error ? (
           <div className="error-state">
             <p>{error}</p>
-            <button onClick={fetchTasks}>Retry</button>
+            <button onClick={fetchTasks}>{t('common.retry')}</button>
           </div>
         ) : filteredTasks.length === 0 ? (
           <div className="empty-state">
             <FiCheckCircle style={{ fontSize: 48, color: '#94a3b8', marginBottom: 16 }} />
-            <h3>No tasks</h3>
-            <p>Create a new task to get started.</p>
+            <h3>{t('tasks.noTasks')}</h3>
+            <p>{t('tasks.noTasksDesc')}</p>
           </div>
         ) : (
           <div className="tasks-list">
@@ -204,10 +206,10 @@ const DoctorTasks = () => {
                   </div>
                   <div className="task-details">
                     {(task.patientName || task.room) && (
-                      <span><FiUser /> {task.patientName || 'N/A'}{task.room ? ` · Room ${task.room}` : ''}</span>
+                      <span><FiUser /> {task.patientName || t('common.na')}{task.room ? ` · ${t('tasks.room')} ${task.room}` : ''}</span>
                     )}
                     {task.dueDate && (
-                      <span><FiClock /> Due: {new Date(task.dueDate).toLocaleString()}</span>
+                      <span><FiClock /> {t('tasks.dueLabel')} {new Date(task.dueDate).toLocaleString()}</span>
                     )}
                   </div>
                   {task.notes && <p className="task-notes">{task.notes}</p>}
@@ -222,35 +224,35 @@ const DoctorTasks = () => {
         <div className="modal-overlay" onClick={() => setShowNewTaskModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>New Task</h2>
+              <h2>{t('tasks.newTask')}</h2>
               <button className="close-btn" onClick={() => setShowNewTaskModal(false)}><FiX /></button>
             </div>
             <form onSubmit={handleCreateTask} className="modal-body">
               <div className="form-group">
-                <label>Title *</label>
-                <input type="text" name="title" value={newTask.title} onChange={handleInputChange} placeholder="Task title" required />
+                <label>{t('tasks.titleRequired')}</label>
+                <input type="text" name="title" value={newTask.title} onChange={handleInputChange} placeholder={t('tasks.taskTitle')} required />
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Patient Name (Optional)</label>
-                  <input type="text" name="patientName" value={newTask.patientName} onChange={handleInputChange} placeholder="Patient name" />
+                  <label>{t('tasks.patientNameOptional')}</label>
+                  <input type="text" name="patientName" value={newTask.patientName} onChange={handleInputChange} placeholder={t('tasks.patientNameOptional')} />
                 </div>
                 <div className="form-group">
-                  <label>Room</label>
-                  <input type="text" name="room" value={newTask.room} onChange={handleInputChange} placeholder="Room" />
+                  <label>{t('tasks.room')}</label>
+                  <input type="text" name="room" value={newTask.room} onChange={handleInputChange} placeholder={t('tasks.room')} />
                 </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Priority</label>
+                  <label>{t('tasks.priority')}</label>
                   <select name="priority" value={newTask.priority} onChange={handleInputChange}>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
+                    <option value="low">{t('common.low')}</option>
+                    <option value="medium">{t('common.medium')}</option>
+                    <option value="high">{t('common.high')}</option>
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Category</label>
+                  <label>{t('tasks.category')}</label>
                   <select name="category" value={newTask.category} onChange={handleInputChange}>
                     {categories.map((c) => (
                       <option key={c} value={c}>{c}</option>
@@ -259,16 +261,16 @@ const DoctorTasks = () => {
                 </div>
               </div>
               <div className="form-group">
-                <label>Due date</label>
+                <label>{t('tasks.dueDateLabel')}</label>
                 <input type="datetime-local" name="dueDate" value={newTask.dueDate} onChange={handleInputChange} />
               </div>
               <div className="form-group">
-                <label>Notes</label>
-                <textarea name="notes" value={newTask.notes} onChange={handleInputChange} placeholder="Notes" rows={3} />
+                <label>{t('common.notes')}</label>
+                <textarea name="notes" value={newTask.notes} onChange={handleInputChange} placeholder={t('common.notes')} rows={3} />
               </div>
               <div className="modal-actions">
-                <button type="button" className="btn-cancel" onClick={() => setShowNewTaskModal(false)}>Cancel</button>
-                <button type="submit" className="btn-submit" disabled={submitting}>{submitting ? 'Creating...' : 'Create Task'}</button>
+                <button type="button" className="btn-cancel" onClick={() => setShowNewTaskModal(false)}>{t('common.cancel')}</button>
+                <button type="submit" className="btn-submit" disabled={submitting}>{submitting ? t('tasks.creating') : t('tasks.createTask')}</button>
               </div>
             </form>
           </div>

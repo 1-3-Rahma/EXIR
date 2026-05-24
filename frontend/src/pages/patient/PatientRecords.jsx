@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import { patientAPI, medicalRecordAPI } from '../../services/api';
 import {
@@ -7,6 +8,7 @@ import {
 } from 'react-icons/fi';
 
 const formatBP = (bp) => {
+  const { t } = useTranslation();
   if (!bp) return 'N/A';
   if (bp.systolic != null && bp.diastolic != null) return `${bp.systolic}/${bp.diastolic}`;
   return 'N/A';
@@ -27,6 +29,7 @@ const getRiskColor = (risk) => {
 };
 
 const PatientRecords = () => {
+  const { t } = useTranslation();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('lab');
@@ -117,26 +120,26 @@ const PatientRecords = () => {
   return (
     <Layout appName="Patient View" role="patient">
       <div className="page-header">
-        <h1>Medical Records</h1>
-        <p>View your medical documents, prescriptions, and vitals history</p>
+        <h1>{t('medicalRecords.title')}</h1>
+        <p>{t('medicalRecords.viewMedicalDocs')}</p>
       </div>
 
       <div className="records-toolbar">
         <div className="filter-tabs">
           <button className={filter === 'lab' ? 'active' : ''} onClick={() => setFilter('lab')}>
-            Lab Results
+            {t('medicalRecords.labResults')}
           </button>
           <button className={filter === 'imaging' ? 'active' : ''} onClick={() => setFilter('imaging')}>
-            Imaging
+            {t('medicalRecords.imaging')}
           </button>
           <button className={filter === 'prescription' ? 'active' : ''} onClick={() => setFilter('prescription')}>
-            Prescriptions
+            {t('medicalRecords.prescriptions')}
           </button>
           <button className={filter === 'report' ? 'active' : ''} onClick={() => setFilter('report')}>
-            Reports
+            {t('medicalRecords.reports')}
           </button>
           <button className={filter === 'vitals' ? 'active' : ''} onClick={() => setFilter('vitals')}>
-            Vitals History ({vitals.length})
+            {t('medicalRecords.vitalsHistory')} ({vitals.length})
           </button>
         </div>
       </div>
@@ -148,26 +151,26 @@ const PatientRecords = () => {
             {vitalsLoading ? (
               <div className="loading-state">
                 <div className="spinner"></div>
-                <p>Loading vitals history...</p>
+                <p>{t('medicalRecords.loadingVitalsHistory')}</p>
               </div>
             ) : vitals.length === 0 ? (
               <div className="empty-state">
                 <FiActivity className="empty-icon" />
-                <h3>No vitals records found</h3>
-                <p>Your vital signs history will appear here once recorded by your care team.</p>
+                <h3>{t('medicalRecords.noVitalsFound')}</h3>
+                <p>{t('medicalRecords.vitalsWillAppear')}</p>
               </div>
             ) : (
               <div className="vitals-table-wrapper">
                 <table className="vitals-hist-table">
                   <thead>
                     <tr>
-                      <th>Date / Time</th>
-                      <th>Heart Rate</th>
-                      <th>SpO₂</th>
-                      <th>Temperature</th>
-                      <th>Blood Pressure</th>
-                      <th>Risk Level</th>
-                      <th>AI Confidence</th>
+                      <th>{t('medicalRecords.dateTime')}</th>
+                      <th>{t('medicalRecords.heartRate')}</th>
+                      <th>{t('medicalRecords.spo2')}</th>
+                      <th>{t('medicalRecords.temperature')}</th>
+                      <th>{t('medicalRecords.bloodPressure')}</th>
+                      <th>{t('medicalRecords.riskLevel')}</th>
+                      <th>{t('medicalRecords.aiConfidence')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -204,13 +207,13 @@ const PatientRecords = () => {
             {loading ? (
               <div className="loading-state">
                 <div className="spinner"></div>
-                <p>Loading records...</p>
+                <p>{t('medicalRecords.loadingRecords')}</p>
               </div>
             ) : filteredRecords.length === 0 ? (
               <div className="empty-state">
                 <FiFile className="empty-icon" />
-                <h3>No Records Found</h3>
-                <p>{`No ${filter} records available`}</p>
+                <h3>{t('medicalRecords.noRecordsFound')}</h3>
+                <p>{t('medicalRecords.noRecordsAvailable', { filter })}</p>
               </div>
             ) : (
               <div className="records-grid">
@@ -236,7 +239,7 @@ const PatientRecords = () => {
                         <p className="record-description">{record.description}</p>
                       )}
                       {record.diagnosis && (
-                        <p className="record-diagnosis">Diagnosis: {record.diagnosis}</p>
+                        <p className="record-diagnosis">{t('medicalRecords.diagnosisLabel')} {record.diagnosis}</p>
                       )}
                       <div className="record-footer">
                         <span className="record-date">{formatDate(record.createdAt)}</span>
@@ -248,7 +251,7 @@ const PatientRecords = () => {
                     </div>
                     {record.source === 'file' && (
                       <button className="download-btn" onClick={() => handleDownload(record)}>
-                        <FiDownload /> Download
+                        <FiDownload /> {t('common.download')}
                       </button>
                     )}
                   </div>
@@ -261,7 +264,9 @@ const PatientRecords = () => {
 
       {showRecordsTab && (
         <div className="records-count">
-          Showing {filteredRecords.length} of {records.length} record{records.length !== 1 ? 's' : ''}
+          {records.length !== 1
+            ? t('medicalRecords.showingPlural', { count: filteredRecords.length, total: records.length })
+            : t('medicalRecords.showing', { count: filteredRecords.length, total: records.length })}
         </div>
       )}
 
