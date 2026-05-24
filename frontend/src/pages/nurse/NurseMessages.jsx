@@ -893,7 +893,7 @@ const NurseMessages = () => {
                 <form style={styles.chatForm} onSubmit={handleSendMessage}>
                   <input
                     type="text"
-                    placeholder="Type a message..."
+                    placeholder={t('messages.typeMessage')}
                     style={styles.messageInput}
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
@@ -935,7 +935,7 @@ const NurseMessages = () => {
           <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <h2 style={styles.modalTitle}>
-                <span>🚨</span> Emergency Request
+                <span>🚨</span> {t('messages.emergencyRequest')}
               </h2>
               <button style={styles.closeBtn} onClick={() => setShowEmergencyModal(false)}>
                 &times;
@@ -943,45 +943,45 @@ const NurseMessages = () => {
             </div>
             <form onSubmit={handleEmergencyRequest}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Emergency Type *</label>
+                <label style={styles.label}>{t('messages.emergencyType')}</label>
                 <select
                   style={styles.select}
                   value={emergencyType}
                   onChange={(e) => setEmergencyType(e.target.value)}
                   required
                 >
-                  <option value="">Select type</option>
-                  <option value="code_blue">Code Blue - Cardiac Arrest</option>
-                  <option value="code_red">Code Red - Fire</option>
-                  <option value="code_pink">Code Pink - Infant Abduction</option>
-                  <option value="code_orange">Code Orange - Hazmat</option>
-                  <option value="rapid_response">Rapid Response Team</option>
-                  <option value="security">Security Assistance</option>
-                  <option value="other">Other Emergency</option>
+                  <option value="">{t('messages.emergencyTypePlaceholder')}</option>
+                  <option value="code_blue">{t('messages.codeBlue')}</option>
+                  <option value="code_red">{t('messages.codeRed')}</option>
+                  <option value="code_pink">{t('messages.codePink')}</option>
+                  <option value="code_orange">{t('messages.codeOrange')}</option>
+                  <option value="rapid_response">{t('messages.rapidResponse')}</option>
+                  <option value="security">{t('messages.security')}</option>
+                  <option value="other">{t('messages.otherEmergency')}</option>
                 </select>
               </div>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Location *</label>
+                <label style={styles.label}>{t('messages.locationLabel')}</label>
                 <input
                   type="text"
                   style={styles.input}
-                  placeholder="e.g., Room 305, ICU Ward"
+                  placeholder={t('messages.locationPlaceholder')}
                   value={emergencyLocation}
                   onChange={(e) => setEmergencyLocation(e.target.value)}
                   required
                 />
               </div>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Details</label>
+                <label style={styles.label}>{t('messages.detailsLabel')}</label>
                 <textarea
                   style={styles.textarea}
-                  placeholder="Provide any additional details..."
+                  placeholder={t('messages.detailsPlaceholder')}
                   value={emergencyDetails}
                   onChange={(e) => setEmergencyDetails(e.target.value)}
                 />
               </div>
               <button type="submit" style={styles.submitEmergencyBtn}>
-                Send Emergency Alert
+                {t('messages.sendEmergencyAlert')}
               </button>
             </form>
           </div>

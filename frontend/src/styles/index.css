@@ -226,6 +226,129 @@ body.rtl .login-lang-btn {
   left: 1rem;
 }
 
+/* Tables */
+body.rtl table th,
+body.rtl table td {
+  text-align: right;
+}
+
+body.rtl .patients-table th,
+body.rtl .patients-table td {
+  text-align: right;
+}
+
+/* Page header flex (tasks page) */
+body.rtl .page-header-flex {
+  flex-direction: row-reverse;
+}
+
+/* Task/filter tabs */
+body.rtl .filter-tabs,
+body.rtl .task-stats {
+  flex-direction: row-reverse;
+}
+
+/* Nurse card layout */
+body.rtl .nurse-card,
+body.rtl .nurse-card-left,
+body.rtl .patient-card,
+body.rtl .patient-card-left {
+  flex-direction: row-reverse;
+}
+
+body.rtl .nurse-assigned-header {
+  flex-direction: row-reverse;
+}
+
+body.rtl .nurse-actions,
+body.rtl .patient-actions {
+  flex-direction: row-reverse;
+}
+
+/* Chat layout */
+body.rtl .chat-main-grid {
+  direction: rtl;
+}
+
+body.rtl .message-row-own {
+  flex-direction: row;
+}
+
+/* Forms and labels */
+body.rtl .form-group label {
+  text-align: right;
+  display: block;
+}
+
+body.rtl .modal-rx .rx-table th,
+body.rtl .modal-rx .rx-table td {
+  text-align: right;
+}
+
+/* Visit cards */
+body.rtl .visit-card-header,
+body.rtl .visit-card-body,
+body.rtl .visit-card-footer {
+  direction: rtl;
+}
+
+/* Alert cards */
+body.rtl .alert-card.priority {
+  flex-direction: row-reverse;
+}
+
+/* Priority cards */
+body.rtl .priority-card {
+  flex-direction: row-reverse;
+}
+
+body.rtl .priority-indicator {
+  right: 0;
+  left: auto;
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+}
+
+/* Patient card in nurse view */
+body.rtl .patient-info {
+  text-align: right;
+}
+
+/* Stats grid */
+body.rtl .stat-content {
+  text-align: right;
+}
+
+/* Waiting badge */
+body.rtl .waiting-badge {
+  margin-left: 0;
+  margin-right: 0.5rem;
+}
+
+/* Case legend bar */
+body.rtl .case-legend-bar {
+  flex-direction: row-reverse;
+}
+
+/* Search input wrapper icon fix */
+body.rtl .search-input-wrapper {
+  position: relative;
+}
+
+body.rtl .search-input-wrapper svg {
+  position: absolute;
+  right: 1rem;
+  left: auto;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+body.rtl .search-input-wrapper input {
+  padding-left: 1rem;
+  padding-right: 2.75rem;
+  text-align: right;
+}
+
 /* ── Mobile sidebar: slides in from the RIGHT in RTL ── */
 @media (max-width: 768px) {
   body.rtl .sidebar {

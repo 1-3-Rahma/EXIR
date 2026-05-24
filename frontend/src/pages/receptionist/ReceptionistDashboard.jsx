@@ -117,7 +117,7 @@ const ReceptionistDashboard = () => {
             <h1>{t('nav.dashboard')}</h1>
           </div>
           <div className="header-date">
-            <span className="role-badge">Receptionist</span>
+            <span className="role-badge">{t('login.receptionist')}</span>
             <span className="date">{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
           </div>
         </div>
@@ -126,7 +126,7 @@ const ReceptionistDashboard = () => {
       {/* Quick Actions */}
       <div className="card quick-actions-section">
         <div className="card-header">
-          <h2>Quick Actions</h2>
+          <h2>{t('receptionist.quickActions')}</h2>
         </div>
         <div className="card-body">
           <div className="quick-actions-grid">
@@ -146,7 +146,7 @@ const ReceptionistDashboard = () => {
       <div className="search-section">
         <div className="search-header">
           <FiSearch />
-          <h2>Quick Patient Search</h2>
+          <h2>{t('receptionist.quickSearch')}</h2>
         </div>
         <div className="search-tabs">
           <button
@@ -173,7 +173,7 @@ const ReceptionistDashboard = () => {
             <FiSearch />
             <input
               type="text"
-              placeholder={`Start typing to search by ${searchTab === 'nationalID' ? 'National ID' : searchTab}...`}
+              placeholder={searchTab === 'nationalID' ? t('receptionist.searchByIdPlaceholder') : searchTab === 'phone' ? t('receptionist.searchByPhonePlaceholder') : t('receptionist.searchByNamePlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               autoComplete="off"

@@ -69,7 +69,7 @@ const DoctorPriorityCases = () => {
                   </div>
                   <div className="priority-actions">
                     <span className="severity-badge">
-                      {caseItem.severity || 'High'}
+                      {caseItem.severity ? t(`common.${caseItem.severity.toLowerCase()}`) : t('common.high')}
                     </span>
                   </div>
                 </div>
