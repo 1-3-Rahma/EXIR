@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 
+const IV_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1').replace(/\/api\/v1$/, '/api');
+
 const VALVE_OPTIONS = [5, 6, 7];
 
 const DEFAULT_STEPS = [
@@ -70,7 +72,7 @@ const SequentialForm = ({ onConfigured, patientId }) => {
             (s.delayMinutes === '' ? 0 : parseInt(s.delayMinutes, 10)) * 60,
         })),
       };
-      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1'}/iv/sequential`, {
+      const res = await fetch(`${IV_BASE}/iv/sequential`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
