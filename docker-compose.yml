@@ -37,14 +37,21 @@
 
 
 
+# Production-style images. Rebuild after code changes:
+#   docker compose up --build
+# For live reload while editing, use docker-compose.dev.yml instead.
 version: "3.9"
 services:
   backend:
     build: ./backend
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
     ports:
       - "5000:5000"
     env_file: ./backend/.env
     environment:
+      - FRONTEND_URL=http://localhost
       - AI_SERVICE_URL=http://ai-service:8000
 
   ai-service:
@@ -53,7 +60,11 @@ services:
       - "8000:8000"
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        # Relative URL: browser hits nginx, nginx proxies /api to backend.
+        REACT_APP_API_URL: /api/v1
     ports:
       - "80:80"
     depends_on:

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import { patientAPI, medicalRecordAPI } from '../../services/api';
 import {
@@ -9,6 +10,7 @@ import {
 } from 'react-icons/fi';
 
 const PatientHistory = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('visits');
   const [history, setHistory] = useState({
     visits: [],
@@ -144,8 +146,8 @@ const PatientHistory = () => {
       {history.visits.length === 0 ? (
         <div className="empty-state">
           <FiActivity className="empty-icon" />
-          <h3>No Visit History</h3>
-          <p>Your visit history will appear here</p>
+          <h3>{t('history.noVisitHistory')}</h3>
+          <p>{t('history.visitHistoryWillAppear')}</p>
         </div>
       ) : (
         history.visits.map((visit) => (
@@ -165,7 +167,7 @@ const PatientHistory = () => {
               </div>
               <div className="history-summary">
                 <span className="visit-title">
-                  {visit.title || `${visit.reason.charAt(0).toUpperCase() + visit.reason.slice(1)} Visit`}
+                  {visit.title || t('history.generalVisit')}
                 </span>
                 <div className="visit-meta">
                   {visit.supervisingDoctor && (
@@ -179,7 +181,7 @@ const PatientHistory = () => {
                 </div>
               </div>
               <span className={`status-badge ${getStatusClass(visit.status)}`}>
-                {visit.status === 'admitted' ? 'Active' : 'Discharged'}
+                {visit.status === 'admitted' ? t('history.active') : t('history.discharged')}
               </span>
               {expandedId === visit._id ? <FiChevronUp /> : <FiChevronDown />}
             </div>
@@ -190,35 +192,35 @@ const PatientHistory = () => {
                 <div className="visit-info-section">
                   <div className="detail-row">
                     <div className="detail-section">
-                      <h4>Visit Title</h4>
-                      <p>{visit.title || 'General Visit'}</p>
+                      <h4>{t('history.visitTitle')}</h4>
+                      <p>{visit.title || t('history.generalVisit')}</p>
                     </div>
                     <div className="detail-section">
-                      <h4>Reason</h4>
+                      <h4>{t('history.reason')}</h4>
                       <span className={`reason-badge large ${getReasonBadgeClass(visit.reason)}`}>
                         {visit.reason}
                       </span>
                     </div>
                     <div className="detail-section">
-                      <h4>Hospital</h4>
+                      <h4>{t('history.hospital')}</h4>
                       <p><FiMapPin className="inline-icon" /> {visit.hospitalName || 'EXIR Medical Center'}</p>
                     </div>
                   </div>
 
                   <div className="detail-row">
                     <div className="detail-section">
-                      <h4>Admission Date</h4>
+                      <h4>{t('history.admissionDate')}</h4>
                       <p>{formatDateTime(visit.admissionDate)}</p>
                     </div>
                     {visit.dischargeDate && (
                       <div className="detail-section">
-                        <h4>Discharge Date</h4>
+                        <h4>{t('history.dischargeDate')}</h4>
                         <p>{formatDateTime(visit.dischargeDate)}</p>
                       </div>
                     )}
                     {visit.supervisingDoctor && (
                       <div className="detail-section">
-                        <h4>Supervising Doctor</h4>
+                        <h4>{t('history.supervisingDoctor')}</h4>
                         <p>Dr. {visit.supervisingDoctor.fullName}</p>
                         <span className="sub-info">{visit.supervisingDoctor.specialization}</span>
                       </div>
@@ -227,7 +229,7 @@ const PatientHistory = () => {
 
                   {visit.description && (
                     <div className="detail-section">
-                      <h4>Description</h4>
+                      <h4>{t('history.description')}</h4>
                       <p className="description-text">{visit.description}</p>
                     </div>
                   )}
@@ -236,7 +238,7 @@ const PatientHistory = () => {
                 {/* Medical Records Section */}
                 {visit.medicalRecords && visit.medicalRecords.length > 0 && (
                   <div className="records-section">
-                    <h4><FiFileText /> Test Results & Documents</h4>
+                    <h4><FiFileText /> {t('history.testResultsDocs')}</h4>
                     <div className="records-grid">
                       {visit.medicalRecords.map((record) => (
                         <div key={record._id} className="record-card">
@@ -265,7 +267,7 @@ const PatientHistory = () => {
                               handleDownload(record);
                             }}
                           >
-                            <FiDownload /> Download
+                            <FiDownload /> {t('common.download')}
                           </button>
                         </div>
                       ))}
@@ -276,24 +278,24 @@ const PatientHistory = () => {
                 {/* Billing Section */}
                 {visit.billing && (
                   <div className="billing-section">
-                    <h4><FiDollarSign /> Billing Information</h4>
+                    <h4><FiDollarSign /> {t('history.billingInfo')}</h4>
                     <div className="billing-grid">
                       <div className="billing-item">
-                        <span className="label">Total Amount</span>
+                        <span className="label">{t('billing.totalAmount')}</span>
                         <span className="value">{visit.billing.totalAmount} EGP</span>
                       </div>
                       <div className="billing-item">
-                        <span className="label">Paid Amount</span>
+                        <span className="label">{t('billing.paid')} {t('billing.amount')}</span>
                         <span className="value success">{visit.billing.paidAmount} EGP</span>
                       </div>
                       <div className="billing-item">
-                        <span className="label">Due Amount</span>
+                        <span className="label">{t('billing.due')} {t('billing.amount')}</span>
                         <span className={`value ${visit.billing.dueAmount > 0 ? 'danger' : 'success'}`}>
                           {visit.billing.dueAmount} EGP
                         </span>
                       </div>
                       <div className="billing-item">
-                        <span className="label">Status</span>
+                        <span className="label">{t('common.status')}</span>
                         <span className={`status-badge ${getStatusClass(visit.billing.paymentStatus)}`}>
                           {visit.billing.paymentStatus}
                         </span>
@@ -302,12 +304,12 @@ const PatientHistory = () => {
 
                     {visit.billing.items && visit.billing.items.length > 0 && (
                       <div className="billing-items">
-                        <h5>Billing Items</h5>
+                        <h5>{t('history.billingItems')}</h5>
                         <table>
                           <thead>
                             <tr>
-                              <th>Description</th>
-                              <th>Amount</th>
+                              <th>{t('history.billingItemsDescription')}</th>
+                              <th>{t('history.billingAmount')}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -336,8 +338,8 @@ const PatientHistory = () => {
       {history.appointments.length === 0 ? (
         <div className="empty-state">
           <FiCalendar className="empty-icon" />
-          <h3>No Appointments</h3>
-          <p>Your appointment history will appear here</p>
+          <h3>{t('history.noAppointments')}</h3>
+          <p>{t('history.appointmentHistoryWillAppear')}</p>
         </div>
       ) : (
         history.appointments.map((apt) => (
@@ -366,26 +368,26 @@ const PatientHistory = () => {
               <div className="history-details">
                 <div className="detail-row">
                   <div className="detail-section">
-                    <h4>Doctor</h4>
+                    <h4>{t('history.doctor')}</h4>
                     <p>{apt.doctorId?.fullName || apt.doctorName}</p>
                   </div>
                   <div className="detail-section">
-                    <h4>Specialization</h4>
+                    <h4>{t('history.specialization')}</h4>
                     <p>{apt.doctorId?.specialization || apt.department}</p>
                   </div>
                   <div className="detail-section">
-                    <h4>Department</h4>
+                    <h4>{t('history.department')}</h4>
                     <p>{apt.department}</p>
                   </div>
                 </div>
 
                 <div className="detail-section notes-section">
-                  <h4><FiClipboard /> Doctor's Notes</h4>
+                  <h4><FiClipboard /> {t('history.doctorsNotes')}</h4>
                   <div className="notes-content">
                     {apt.notes ? (
                       <p>{apt.notes}</p>
                     ) : (
-                      <p className="no-notes">No notes available for this appointment</p>
+                      <p className="no-notes">{t('history.noNotesAvailable')}</p>
                     )}
                   </div>
                 </div>
@@ -402,8 +404,8 @@ const PatientHistory = () => {
       {history.cases.length === 0 ? (
         <div className="empty-state">
           <FiFileText className="empty-icon" />
-          <h3>No Medical Cases</h3>
-          <p>Your medical cases will appear here</p>
+          <h3>{t('history.noMedicalCases')}</h3>
+          <p>{t('history.medicalCasesWillAppear')}</p>
         </div>
       ) : (
         history.cases.map((caseItem) => (
@@ -434,19 +436,19 @@ const PatientHistory = () => {
               <div className="history-details">
                 <div className="detail-row">
                   <div className="detail-section">
-                    <h4>Doctor</h4>
-                    <p>Dr. {caseItem.doctor?.fullName || 'Unknown'}</p>
+                    <h4>{t('history.doctor')}</h4>
+                    <p>Dr. {caseItem.doctor?.fullName || t('common.unknown')}</p>
                     <span className="sub-info">{caseItem.doctor?.specialization}</span>
                   </div>
                   <div className="detail-section">
-                    <h4>Patient Status</h4>
+                    <h4>{t('history.patientStatus')}</h4>
                     <span className={`status-badge ${caseItem.patientStatus === 'critical' ? 'danger' : 'success'}`}>
                       {caseItem.patientStatus}
                     </span>
                   </div>
                   {caseItem.closedAt && (
                     <div className="detail-section">
-                      <h4>Closed At</h4>
+                      <h4>{t('history.closedAt')}</h4>
                       <p>{formatDateTime(caseItem.closedAt)}</p>
                     </div>
                   )}
@@ -464,7 +466,7 @@ const PatientHistory = () => {
 
                 {caseItem.notes && (
                   <div className="detail-section notes-section">
-                    <h4><FiClipboard /> Doctor's Notes</h4>
+                    <h4><FiClipboard /> {t('history.doctorsNotes')}</h4>
                     <div className="notes-content">
                       <p>{caseItem.notes}</p>
                     </div>
@@ -473,7 +475,7 @@ const PatientHistory = () => {
 
                 {caseItem.medications && caseItem.medications.length > 0 && (
                   <div className="medications-section">
-                    <h4><FiHeart /> Medications</h4>
+                    <h4><FiHeart /> {t('history.medications')}</h4>
                     <div className="medications-grid">
                       {caseItem.medications.map((med, idx) => (
                         <div key={idx} className="medication-card">
@@ -501,8 +503,8 @@ const PatientHistory = () => {
   return (
     <Layout appName="Patient View" role="patient">
       <div className="page-header">
-        <h1>Medical History</h1>
-        <p>View your complete medical history, visits, and billing</p>
+        <h1>{t('history.title')}</h1>
+        <p>{t('history.viewComplete')}</p>
       </div>
 
       <div className="tabs">
@@ -510,19 +512,19 @@ const PatientHistory = () => {
           className={`tab ${activeTab === 'visits' ? 'active' : ''}`}
           onClick={() => setActiveTab('visits')}
         >
-          <FiActivity /> Visits ({history.visits.length})
+          <FiActivity /> {t('history.visits')} ({history.visits.length})
         </button>
         <button
           className={`tab ${activeTab === 'appointments' ? 'active' : ''}`}
           onClick={() => setActiveTab('appointments')}
         >
-          <FiCalendar /> Appointments ({history.appointments.length})
+          <FiCalendar /> {t('history.appointments')} ({history.appointments.length})
         </button>
         <button
           className={`tab ${activeTab === 'cases' ? 'active' : ''}`}
           onClick={() => setActiveTab('cases')}
         >
-          <FiFileText /> Medical Cases ({history.cases.length})
+          <FiFileText /> {t('history.medicalCases')} ({history.cases.length})
         </button>
       </div>
 
@@ -531,7 +533,7 @@ const PatientHistory = () => {
           {loading ? (
             <div className="loading-state">
               <div className="spinner"></div>
-              <p>Loading medical history...</p>
+              <p>{t('history.loadingHistory')}</p>
             </div>
           ) : (
             <>

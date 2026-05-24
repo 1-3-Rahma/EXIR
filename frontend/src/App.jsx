@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { connectSocket } from './services/socket';
+import { useTranslation } from 'react-i18next';
 
 import Login from './pages/Login';
 import NurseDashboard from './pages/nurse/NurseDashboard';
@@ -43,6 +44,7 @@ import PrivateRoute from './components/common/PrivateRoute';
 
 function App() {
   const { user, loading } = useAuth();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (user?.role === 'nurse' || user?.role === 'doctor') {
@@ -58,7 +60,7 @@ function App() {
     return (
       <div className="loading-screen">
         <div className="loader"></div>
-        <p>Loading...</p>
+        <p>{t('loading')}</p>
       </div>
     );
   }

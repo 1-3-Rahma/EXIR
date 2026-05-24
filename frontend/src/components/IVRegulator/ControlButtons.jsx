@@ -50,7 +50,7 @@ const ControlButtons = ({ sessionStatus, mode, configured, onStatusChange, onNew
     remainingRef.current = 0;
     startedAtRef.current = null;
     try {
-      await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1'}/iv/finish`, {
+      await fetch(`${process.env.REACT_APP_API_URL || '/api/v1'}/iv/finish`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ patientId: patientId || null }),
@@ -92,7 +92,7 @@ const ControlButtons = ({ sessionStatus, mode, configured, onStatusChange, onNew
     setLoading(action);
     setError(null);
     try {
-      const res  = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1'}/iv/${action}`, {
+      const res  = await fetch(`${process.env.REACT_APP_API_URL || '/api/v1'}/iv/${action}`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ patientId: patientId || null }),

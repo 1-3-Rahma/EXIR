@@ -1,0 +1,31 @@
+# Development: live code reload. Use:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+version: "3.9"
+services:
+  backend:
+    command: npx nodemon server.js
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  ai-service:
+    volumes:
+      - ./ai-service:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      REACT_APP_API_URL: /api/v1
+      REACT_APP_PROXY_TARGET: http://backend:5000
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+    stdin_open: true
+    tty: true

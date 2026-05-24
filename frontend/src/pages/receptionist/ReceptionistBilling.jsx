@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import { receptionistAPI } from '../../services/api';
 import {
@@ -7,6 +8,7 @@ import {
 } from 'react-icons/fi';
 
 const ReceptionistBilling = () => {
+  const { t } = useTranslation();
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -50,7 +52,7 @@ const ReceptionistBilling = () => {
       setBillingDetails(response.data);
     } catch (error) {
       console.error('Error fetching billing details:', error);
-      alert('Failed to load billing details');
+      alert(t('billing.loadingBillingDetails'));
     }
   };
 
@@ -63,7 +65,7 @@ const ReceptionistBilling = () => {
   const handleCheckout = async () => {
     if (!billingDetails?.canCheckout) return;
 
-    if (!window.confirm('Are you sure you want to checkout this patient?')) return;
+    if (!window.confirm(t('billing.checkoutConfirm'))) return;
 
     setProcessing(true);
     try {
@@ -74,7 +76,7 @@ const ReceptionistBilling = () => {
       setBillingDetails(response.data);
       loadPatients(searchTerm);
 
-      alert('Patient checked out successfully! Visit has been added to visit history.');
+      alert(t('billing.checkoutSuccess'));
     } catch (error) {
       console.error('Error checking out patient:', error);
       alert(error.response?.data?.message || 'Failed to checkout patient');
@@ -86,7 +88,7 @@ const ReceptionistBilling = () => {
   const handleCheckIn = async () => {
     if (billingDetails?.hasActiveVisit) return;
 
-    if (!window.confirm('Start a new visit for this patient?')) return;
+    if (!window.confirm(t('billing.checkInConfirm'))) return;
 
     setProcessing(true);
     try {
@@ -97,7 +99,7 @@ const ReceptionistBilling = () => {
       setBillingDetails(response.data);
       loadPatients(searchTerm);
 
-      alert('Patient checked in successfully! A new visit has been started.');
+      alert(t('billing.checkInSuccess'));
     } catch (error) {
       console.error('Error checking in patient:', error);
       alert(error.response?.data?.message || 'Failed to check in patient');
@@ -127,8 +129,8 @@ const ReceptionistBilling = () => {
   return (
     <Layout appName="MedHub" role="receptionist">
       <div className="page-header">
-        <h1>Billing Management</h1>
-        <p>View patient billing details and manage checkouts</p>
+        <h1>{t('billing.title')}</h1>
+        <p>{t('billing.viewDetails')}</p>
       </div>
 
       <div className="search-section">
@@ -136,43 +138,43 @@ const ReceptionistBilling = () => {
           <FiSearch />
           <input
             type="text"
-            placeholder="Search by name, ID, or phone..."
+            placeholder={t('billing.searchPlaceholder')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyDown={handleKeyDown}
           />
         </div>
         <button className="search-btn" onClick={handleSearch} disabled={loading}>
-          {loading ? 'Searching...' : 'Search'}
+          {loading ? t('common.searching') : t('common.search')}
         </button>
       </div>
 
       <div className="card">
         <div className="card-header">
-          <h2>Patients</h2>
-          <span className="count-badge">{patients.length} patients</span>
+          <h2>{t('billing.patients')}</h2>
+          <span className="count-badge">{patients.length} {t('billing.patients').toLowerCase()}</span>
         </div>
         <div className="card-body">
           {loading ? (
-            <div className="loading-state">Loading patients...</div>
+            <div className="loading-state">{t('billing.loadingPatients')}</div>
           ) : patients.length === 0 ? (
             <div className="empty-state">
               <FiDollarSign className="empty-icon" />
-              <h3>No Patients Found</h3>
-              <p>No patients with billing records found</p>
+              <h3>{t('billing.noPatients')}</h3>
+              <p>{t('billing.noPatientsDesc')}</p>
             </div>
           ) : (
             <div className="patients-table">
               <table>
                 <thead>
                   <tr>
-                    <th>Patient</th>
-                    <th>National ID</th>
-                    <th>Total</th>
-                    <th>Paid</th>
-                    <th>Due</th>
-                    <th>Status</th>
-                    <th>Visit</th>
+                    <th>{t('billing.patientName')}</th>
+                    <th>{t('patients.nationalId')}</th>
+                    <th>{t('billing.total')}</th>
+                    <th>{t('billing.paid')}</th>
+                    <th>{t('billing.due')}</th>
+                    <th>{t('billing.paymentStatus')}</th>
+                    <th>{t('billing.visit')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -203,9 +205,9 @@ const ReceptionistBilling = () => {
                       </td>
                       <td>
                         {patient.hasActiveVisit ? (
-                          <span className="visit-badge active">Active</span>
+                          <span className="visit-badge active">{t('billing.activeVisit')}</span>
                         ) : (
-                          <span className="visit-badge">No Visit</span>
+                          <span className="visit-badge">{t('billing.noVisit')}</span>
                         )}
                       </td>
                     </tr>
@@ -236,7 +238,7 @@ const ReceptionistBilling = () => {
 
             <div className="modal-body">
               {!billingDetails ? (
-                <div className="loading-state">Loading billing details...</div>
+                <div className="loading-state">{t('billing.loadingBillingDetails')}</div>
               ) : (
                 <>
                   {/* Summary Cards */}
@@ -244,21 +246,21 @@ const ReceptionistBilling = () => {
                     <div className="summary-card">
                       <div className="summary-icon blue"><FiDollarSign /></div>
                       <div className="summary-info">
-                        <span className="label">Total Amount</span>
+                        <span className="label">{t('billing.totalAmount')}</span>
                         <span className="value">${billingDetails.summary.totalAmount?.toLocaleString() || '0'}</span>
                       </div>
                     </div>
                     <div className="summary-card">
                       <div className="summary-icon green"><FiCheckCircle /></div>
                       <div className="summary-info">
-                        <span className="label">Paid Amount</span>
+                        <span className="label">{t('billing.paid')}</span>
                         <span className="value">${billingDetails.summary.paidAmount?.toLocaleString() || '0'}</span>
                       </div>
                     </div>
                     <div className="summary-card">
                       <div className="summary-icon red"><FiAlertCircle /></div>
                       <div className="summary-info">
-                        <span className="label">Due Amount</span>
+                        <span className="label">{t('billing.due')}</span>
                         <span className="value">${billingDetails.summary.dueAmount?.toLocaleString() || '0'}</span>
                       </div>
                     </div>
@@ -266,9 +268,9 @@ const ReceptionistBilling = () => {
 
                   {/* Billing Records */}
                   <div className="billing-records">
-                    <h3><FiCalendar /> Billing Records</h3>
+                    <h3><FiCalendar /> {t('billing.billingRecords')}</h3>
                     {billingDetails.billingRecords.length === 0 ? (
-                      <p className="no-records">No billing records found</p>
+                      <p className="no-records">{t('billing.noBillingRecords')}</p>
                     ) : (
                       <div className="records-list">
                         {billingDetails.billingRecords.map((record) => (
@@ -284,21 +286,21 @@ const ReceptionistBilling = () => {
                             </div>
                             <div className="record-amounts">
                               <div className="amount-item">
-                                <span className="label">Total</span>
+                                <span className="label">{t('billing.total')}</span>
                                 <span className="value">${record.totalAmount?.toLocaleString() || '0'}</span>
                               </div>
                               <div className="amount-item">
-                                <span className="label">Paid</span>
+                                <span className="label">{t('billing.paid')}</span>
                                 <span className="value success">${record.paidAmount?.toLocaleString() || '0'}</span>
                               </div>
                               <div className="amount-item">
-                                <span className="label">Due</span>
+                                <span className="label">{t('billing.due')}</span>
                                 <span className="value danger">${record.dueAmount?.toLocaleString() || '0'}</span>
                               </div>
                             </div>
                             {record.items && record.items.length > 0 && (
                               <div className="record-items">
-                                <span className="items-label">Items:</span>
+                                <span className="items-label">{t('billing.itemsLabel')}</span>
                                 <ul>
                                   {record.items.map((item, idx) => (
                                     <li key={idx}>
@@ -321,10 +323,10 @@ const ReceptionistBilling = () => {
                         {billingDetails.hasActiveVisit
                           ? billingDetails.canCheckout
                             ? billingDetails.summary.totalAmount === 0
-                              ? 'No billing records. Patient can be checked out.'
-                              : 'All bills are paid. Patient can be checked out.'
-                            : 'Patient has outstanding balance. Contact Financial Management for payment processing.'
-                          : 'No active visit for this patient. Check in to start a new visit.'}
+                              ? t('billing.canCheckoutNoBills')
+                              : t('billing.canCheckoutPaid')
+                            : t('billing.cannotCheckout')
+                          : t('billing.noActiveVisit')}
                       </p>
                     </div>
                     <div className="checkout-actions">
@@ -335,7 +337,7 @@ const ReceptionistBilling = () => {
                           disabled={!billingDetails.canCheckout || processing}
                         >
                           <FiLogOut />
-                          {processing ? 'Processing...' : 'Checkout Patient'}
+                          {processing ? t('common.processing') : t('billing.checkoutPatient')}
                         </button>
                       ) : (
                         <button
@@ -344,7 +346,7 @@ const ReceptionistBilling = () => {
                           disabled={processing}
                         >
                           <FiLogIn />
-                          {processing ? 'Processing...' : 'Check-in Patient'}
+                          {processing ? t('common.processing') : t('billing.checkInPatient')}
                         </button>
                       )}
                     </div>

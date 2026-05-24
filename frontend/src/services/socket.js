@@ -1,8 +1,13 @@
 import { io } from 'socket.io-client';
 
 const getSocketUrl = () => {
-  const base = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
-  return base.replace(/\/api\/v1\/?$/, '') || 'http://localhost:5000';
+  const env = process.env.REACT_APP_API_URL;
+  if (!env) return '';
+  // Relative API URL → same origin; dev server (setupProxy) or nginx proxies /socket.io.
+  if (env.startsWith('/')) return '';
+  // Avoid cross-origin ws to :5000 in dev (conflicts with ESP32 raw ws on same port).
+  if (process.env.NODE_ENV === 'development') return '';
+  return env.replace(/\/api\/v1\/?$/, '') || env;
 };
 
 const socketRef = { current: null };
@@ -16,10 +21,15 @@ const socketRef = { current: null };
 export function connectSocket(token) {
   if (socketRef.current?.connected) return () => socketRef.current.disconnect();
   const url = getSocketUrl();
-  const s = io(url, {
+  // If url is empty, pass no URL so socket.io connects to current origin.
+  const s = url ? io(url, {
     path: '/socket.io',
     auth: { token },
-    transports: ['websocket', 'polling']
+    transports: ['polling', 'websocket']
+  }) : io({
+    path: '/socket.io',
+    auth: { token },
+    transports: ['polling', 'websocket']
   });
   socketRef.current = s;
   s.on('connect', () => {

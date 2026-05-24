@@ -1,10 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/common/Layout';
 import { visitAPI } from '../../services/api';
 import { FiSearch, FiClock, FiUser, FiCalendar, FiPhone, FiCreditCard } from 'react-icons/fi';
 
 const ReceptionistVisits = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [allVisits, setAllVisits] = useState([]);
@@ -87,7 +89,7 @@ const ReceptionistVisits = () => {
   return (
     <Layout appName="MedHub" role="receptionist">
       <div className="page-header">
-        <h1>Active Visits</h1>
+        <h1>{t('visits.title')}</h1>
         <p>Currently admitted patients in the hospital</p>
       </div>
 

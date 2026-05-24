@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { useTranslation } from 'react-i18next';
 import { notificationAPI } from '../../services/api';
 import {
   FiGrid, FiUsers, FiActivity, FiAlertTriangle, FiMessageSquare,
   FiUser, FiLogOut, FiFileText, FiDollarSign,
-  FiCalendar, FiClipboard, FiHeart, FiFolder, FiClock, FiPackage, FiX
+  FiCalendar, FiClipboard, FiHeart, FiFolder, FiClock, FiPackage, FiX,
+  FiGlobe
 } from 'react-icons/fi';
 
 const Sidebar = ({ appName, role, isOpen, onClose }) => {
   const { user, logout } = useAuth();
+  const { toggleLanguage, language } = useLanguage();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -39,7 +44,6 @@ const Sidebar = ({ appName, role, isOpen, onClose }) => {
     navigate('/login');
   };
 
-  // Close sidebar on mobile after navigating
   const handleNavClick = () => {
     if (onClose) onClose();
   };
@@ -48,37 +52,37 @@ const Sidebar = ({ appName, role, isOpen, onClose }) => {
     switch (role) {
       case 'nurse':
         return [
-          { path: '/nurse', icon: FiGrid, label: 'Dashboard', exact: true },
-          { path: '/nurse/patients', icon: FiUsers, label: 'Patients' },
-          { path: '/nurse/vitals', icon: FiActivity, label: 'Vitals' },
-          { path: '/nurse/medications', icon: FiPackage, label: 'Medications' },
-          { path: '/nurse/tasks', icon: FiClipboard, label: 'Tasks' },
-          { path: '/nurse/messages', icon: FiMessageSquare, label: 'Messages' }
+          { path: '/nurse', icon: FiGrid, label: t('nav.dashboard'), exact: true },
+          { path: '/nurse/patients', icon: FiUsers, label: t('nav.patients') },
+          { path: '/nurse/vitals', icon: FiActivity, label: t('nav.vitals') },
+          { path: '/nurse/medications', icon: FiPackage, label: t('nav.medications') },
+          { path: '/nurse/tasks', icon: FiClipboard, label: t('nav.tasks') },
+          { path: '/nurse/messages', icon: FiMessageSquare, label: t('nav.messages') }
         ];
       case 'doctor':
         return [
-          { path: '/doctor', icon: FiGrid, label: 'Dashboard', exact: true },
-          { path: '/doctor/nurses', icon: FiUsers, label: 'Nurses' },
-          { path: '/doctor/patients', icon: FiHeart, label: 'Patients' },
-          { path: '/doctor/priority-cases', icon: FiAlertTriangle, label: 'Priority Cases' },
-          { path: '/doctor/tasks', icon: FiClipboard, label: 'Tasks' },
-          { path: '/doctor/messages', icon: FiMessageSquare, label: 'Messages' }
+          { path: '/doctor', icon: FiGrid, label: t('nav.dashboard'), exact: true },
+          { path: '/doctor/nurses', icon: FiUsers, label: t('nav.nurses') },
+          { path: '/doctor/patients', icon: FiHeart, label: t('nav.patients') },
+          { path: '/doctor/priority-cases', icon: FiAlertTriangle, label: t('nav.priorityCases') },
+          { path: '/doctor/tasks', icon: FiClipboard, label: t('nav.tasks') },
+          { path: '/doctor/messages', icon: FiMessageSquare, label: t('nav.messages') }
         ];
       case 'patient':
         return [
-          { path: '/patient', icon: FiGrid, label: 'Dashboard', exact: true },
-          { path: '/patient/history', icon: FiFileText, label: 'History' },
-          { path: '/patient/records', icon: FiFolder, label: 'Medical Records' },
-          { path: '/patient/medications', icon: FiHeart, label: 'Medications' }
+          { path: '/patient', icon: FiGrid, label: t('nav.dashboard'), exact: true },
+          { path: '/patient/history', icon: FiFileText, label: t('nav.history') },
+          { path: '/patient/records', icon: FiFolder, label: t('nav.medicalRecords') },
+          { path: '/patient/medications', icon: FiHeart, label: t('nav.medications') }
         ];
       case 'receptionist':
         return [
-          { path: '/receptionist', icon: FiGrid, label: 'Dashboard', exact: true },
-          { path: '/receptionist/patients', icon: FiUsers, label: 'Patients' },
-          { path: '/receptionist/billing', icon: FiDollarSign, label: 'Billing' },
-          { path: '/receptionist/visits', icon: FiClock, label: 'Visits' },
-          { path: '/receptionist/appointments', icon: FiCalendar, label: 'Appointments' },
-          { path: '/receptionist/documents', icon: FiFolder, label: 'Documents' }
+          { path: '/receptionist', icon: FiGrid, label: t('nav.dashboard'), exact: true },
+          { path: '/receptionist/patients', icon: FiUsers, label: t('nav.patients') },
+          { path: '/receptionist/billing', icon: FiDollarSign, label: t('nav.billing') },
+          { path: '/receptionist/visits', icon: FiClock, label: t('nav.visits') },
+          { path: '/receptionist/appointments', icon: FiCalendar, label: t('nav.appointments') },
+          { path: '/receptionist/documents', icon: FiFolder, label: t('nav.documents') }
         ];
       default:
         return [];
@@ -90,11 +94,11 @@ const Sidebar = ({ appName, role, isOpen, onClose }) => {
   const getUserSubtitle = () => {
     switch (role) {
       case 'nurse':
-        return `${user?.ward || 'ICU Ward'} - ${user?.shift || 'Shift 1'}`;
+        return `${user?.ward || t('sidebar.icuWard')} - ${user?.shift || 'Shift 1'}`;
       case 'doctor':
-        return user?.specialization || 'Cardiology';
+        return user?.specialization || t('sidebar.cardiology');
       case 'receptionist':
-        return 'Reception Desk';
+        return t('sidebar.receptionDesk');
       default:
         return '';
     }
@@ -107,10 +111,9 @@ const Sidebar = ({ appName, role, isOpen, onClose }) => {
           <span className="logo-icon">{appName.charAt(0)}</span>
           <div className="logo-text">
             <h1>{appName}</h1>
-            <span>Healthcare Management</span>
+            <span>{t('sidebar.healthcareManagement')}</span>
           </div>
         </div>
-        {/* Close button — only visible on mobile */}
         <button className="sidebar-close-btn" onClick={onClose} aria-label="Close menu">
           <FiX size={20} />
         </button>
@@ -121,7 +124,7 @@ const Sidebar = ({ appName, role, isOpen, onClose }) => {
           {user?.fullName?.charAt(0) || 'U'}
         </div>
         <div className="user-info">
-          <span className="user-name">{user?.fullName || 'User'}</span>
+          <span className="user-name">{user?.fullName || t('common.unknown')}</span>
           <span className="user-role">{getUserSubtitle()}</span>
         </div>
         {(role === 'doctor' || role === 'nurse') && unreadCount > 0 && (
@@ -152,12 +155,18 @@ const Sidebar = ({ appName, role, isOpen, onClose }) => {
             onClick={handleNavClick}
           >
             <FiUser className="nav-icon" />
-            <span>Profile</span>
+            <span>{t('nav.profile')}</span>
           </NavLink>
         )}
+
+        <button onClick={toggleLanguage} className="nav-item lang-toggle-btn">
+          <FiGlobe className="nav-icon" />
+          <span>{t('lang.toggle')}</span>
+        </button>
+
         <button onClick={handleLogout} className="nav-item logout-btn">
           <FiLogOut className="nav-icon" />
-          <span>Logout</span>
+          <span>{t('nav.logout')}</span>
         </button>
       </div>
     </aside>

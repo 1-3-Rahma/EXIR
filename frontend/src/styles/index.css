@@ -45,6 +45,213 @@ body {
   line-height: 1.5;
 }
 
+/* Arabic RTL support */
+body.rtl {
+  font-family: 'Cairo', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  direction: rtl;
+  text-align: right;
+}
+
+/* ============================================================
+   RTL (Arabic) layout adjustments
+   ============================================================ */
+
+/* Sidebar — desktop: fixed on the RIGHT */
+body.rtl .sidebar {
+  right: 0;
+  left: auto;
+  position: fixed;
+}
+
+/* Main content — offset from the right-side sidebar */
+body.rtl .main-content {
+  margin-right: var(--sidebar-width);
+  margin-left: 0;
+}
+
+/* Sidebar internals */
+body.rtl .sidebar-header {
+  flex-direction: row-reverse;
+}
+
+body.rtl .sidebar-logo {
+  flex-direction: row-reverse;
+}
+
+body.rtl .sidebar-user {
+  flex-direction: row-reverse;
+}
+
+/* Notification badge flips to the left in RTL */
+body.rtl .notification-badge {
+  right: auto;
+  left: 1.25rem;
+}
+
+/* Nav items: icon on right, text on left */
+body.rtl .nav-item {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+body.rtl .nav-icon {
+  margin-right: 0;
+  margin-left: 0;
+}
+
+body.rtl .sidebar-close-btn {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+/* Search / form inputs */
+body.rtl .search-icon {
+  left: auto;
+  right: 1rem;
+}
+
+body.rtl .search-box input,
+body.rtl .search-input-wrapper input {
+  padding-left: 1rem;
+  padding-right: 2.75rem;
+  text-align: right;
+}
+
+body.rtl .input-icon {
+  left: auto;
+  right: 1rem;
+}
+
+body.rtl .input-wrapper input,
+body.rtl .form-input,
+body.rtl select,
+body.rtl textarea {
+  padding-left: 1rem;
+  padding-right: 1rem;
+  text-align: right;
+  direction: rtl;
+}
+
+body.rtl .toggle-password {
+  left: 0.75rem;
+  right: auto;
+}
+
+/* Mobile topbar */
+body.rtl .mobile-topbar {
+  flex-direction: row-reverse;
+}
+
+/* Cards and sections */
+body.rtl .stat-card,
+body.rtl .stat-card-new {
+  flex-direction: row-reverse;
+}
+
+body.rtl .card-header,
+body.rtl .section-header,
+body.rtl .modal-header,
+body.rtl .notif-modal-header {
+  flex-direction: row-reverse;
+}
+
+body.rtl .modal-actions {
+  flex-direction: row-reverse;
+}
+
+body.rtl .filter-bar {
+  flex-direction: row-reverse;
+}
+
+body.rtl .unread-dot {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+/* Info rows (key: value) */
+body.rtl .info-row {
+  flex-direction: row-reverse;
+}
+
+body.rtl .info-row .value {
+  margin-left: 0;
+  margin-right: auto;
+  text-align: left;
+}
+
+/* Badges and tags */
+body.rtl .room-badge,
+body.rtl .source-badge,
+body.rtl .status-badge {
+  margin-left: 0;
+  margin-right: 0.5rem;
+}
+
+/* ── Language toggle button in sidebar ── */
+.lang-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* ── Language toggle button on Login page ── */
+.login-lang-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+  border-radius: 20px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  z-index: 10;
+}
+
+.login-lang-btn:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+body.rtl .login-lang-btn {
+  right: auto;
+  left: 1rem;
+}
+
+/* ── Mobile sidebar: slides in from the RIGHT in RTL ── */
+@media (max-width: 768px) {
+  body.rtl .sidebar {
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  body.rtl .sidebar.open {
+    transform: translateX(0);
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.35);
+  }
+
+  body.rtl .main-content {
+    margin-right: 0;
+  }
+}
+
+/* ── Desktop sidebar: always visible on the right ── */
+@media (min-width: 769px) {
+  body.rtl .sidebar {
+    right: 0;
+    left: auto;
+    transform: none;
+  }
+}
+
 /* Loading Screen */
 .loading-screen {
   display: flex;
@@ -566,6 +773,7 @@ body {
   width: 100%;
   max-width: 420px;
   box-shadow: var(--shadow-lg);
+  position: relative;
 }
 
 .login-header {

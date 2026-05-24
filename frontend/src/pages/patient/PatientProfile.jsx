@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Layout from '../../components/common/Layout';
 import { useAuth } from '../../context/AuthContext';
 import { patientAPI } from '../../services/api';
@@ -8,6 +9,7 @@ import {
 } from 'react-icons/fi';
 
 const PatientProfile = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -45,7 +47,7 @@ const PatientProfile = () => {
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
-    return `${age} years`;
+    return `${age} ${t('common.years')}`;
   };
 
   if (loading) {
@@ -53,7 +55,7 @@ const PatientProfile = () => {
       <Layout appName="Patient View" role="patient">
         <div className="loading-container">
           <div className="spinner"></div>
-          <p>Loading profile...</p>
+          <p>{t('profile.loadingProfile')}</p>
         </div>
         <style>{`
           .loading-container {
@@ -84,8 +86,8 @@ const PatientProfile = () => {
   return (
     <Layout appName="Patient View" role="patient">
       <div className="page-header">
-        <h1>My Profile</h1>
-        <p>View your personal and medical information</p>
+        <h1>{t('profile.title')}</h1>
+        <p>{t('profile.viewPersonalMedical')}</p>
       </div>
 
       <div className="profile-layout">
@@ -96,7 +98,7 @@ const PatientProfile = () => {
               {profile?.fullName?.charAt(0) || user?.fullName?.charAt(0) || 'P'}
             </div>
             <div className="profile-name">
-              <h2>{profile?.fullName || user?.fullName || 'Patient'}</h2>
+              <h2>{profile?.fullName || user?.fullName || t('nav.patients')}</h2>
               <span className="profile-id">
                 <FiCreditCard /> {profile?.nationalID || 'N/A'}
               </span>
@@ -108,14 +110,14 @@ const PatientProfile = () => {
               <FiActivity className="stat-icon" />
               <div className="stat-info">
                 <span className="stat-value">{profile?.totalVisits || 0}</span>
-                <span className="stat-label">Total Visits</span>
+                <span className="stat-label">{t('profile.totalVisits')}</span>
               </div>
             </div>
             <div className="stat-item">
               <FiClock className="stat-icon" />
               <div className="stat-info">
                 <span className="stat-value">{profile?.lastVisitDate ? formatDate(profile.lastVisitDate) : 'N/A'}</span>
-                <span className="stat-label">Last Visit</span>
+                <span className="stat-label">{t('profile.lastVisit')}</span>
               </div>
             </div>
           </div>
@@ -124,32 +126,32 @@ const PatientProfile = () => {
         {/* Personal Information */}
         <div className="card info-card">
           <div className="card-header">
-            <h3><FiUser /> Personal Information</h3>
+            <h3><FiUser /> {t('profile.personalInfo')}</h3>
           </div>
           <div className="card-body">
             <div className="info-grid">
               <div className="info-item">
-                <span className="info-label">Full Name</span>
-                <span className="info-value">{profile?.fullName || 'N/A'}</span>
+                <span className="info-label">{t('profile.fullName')}</span>
+                <span className="info-value">{profile?.fullName || t('common.na')}</span>
               </div>
               <div className="info-item">
-                <span className="info-label">National ID</span>
-                <span className="info-value">{profile?.nationalID || 'N/A'}</span>
+                <span className="info-label">{t('patients.nationalId')}</span>
+                <span className="info-value">{profile?.nationalID || t('common.na')}</span>
               </div>
               <div className="info-item">
-                <span className="info-label">Date of Birth</span>
+                <span className="info-label">{t('profile.dateOfBirth')}</span>
                 <span className="info-value">
                   <FiCalendar className="info-icon" />
                   {formatDate(profile?.dateOfBirth)}
                 </span>
               </div>
               <div className="info-item">
-                <span className="info-label">Age</span>
+                <span className="info-label">{t('common.age')}</span>
                 <span className="info-value">{calculateAge(profile?.dateOfBirth)}</span>
               </div>
               <div className="info-item">
-                <span className="info-label">Gender</span>
-                <span className="info-value capitalize">{profile?.gender || 'N/A'}</span>
+                <span className="info-label">{t('common.gender')}</span>
+                <span className="info-value capitalize">{profile?.gender || t('common.na')}</span>
               </div>
             </div>
           </div>
@@ -158,29 +160,29 @@ const PatientProfile = () => {
         {/* Contact Information */}
         <div className="card info-card">
           <div className="card-header">
-            <h3><FiPhone /> Contact Information</h3>
+            <h3><FiPhone /> {t('profile.contactInfo')}</h3>
           </div>
           <div className="card-body">
             <div className="info-grid">
               <div className="info-item">
-                <span className="info-label">Phone Number</span>
+                <span className="info-label">{t('profile.phoneNumber')}</span>
                 <span className="info-value">
                   <FiPhone className="info-icon" />
-                  {profile?.phone || 'N/A'}
+                  {profile?.phone || t('common.na')}
                 </span>
               </div>
               <div className="info-item">
-                <span className="info-label">Email</span>
+                <span className="info-label">{t('common.email')}</span>
                 <span className="info-value">
                   <FiMail className="info-icon" />
-                  {profile?.email || 'N/A'}
+                  {profile?.email || t('common.na')}
                 </span>
               </div>
               <div className="info-item full-width">
-                <span className="info-label">Address</span>
+                <span className="info-label">{t('common.address')}</span>
                 <span className="info-value">
                   <FiMapPin className="info-icon" />
-                  {profile?.address || 'N/A'}
+                  {profile?.address || t('common.na')}
                 </span>
               </div>
             </div>
@@ -190,23 +192,23 @@ const PatientProfile = () => {
         {/* Emergency Contact */}
         <div className="card info-card">
           <div className="card-header">
-            <h3><FiAlertCircle /> Emergency Contact</h3>
+            <h3><FiAlertCircle /> {t('profile.emergencyContact')}</h3>
           </div>
           <div className="card-body">
             <div className="info-grid">
               <div className="info-item">
-                <span className="info-label">Contact Name</span>
-                <span className="info-value">{profile?.emergencyContactName || 'N/A'}</span>
+                <span className="info-label">{t('profile.contactName')}</span>
+                <span className="info-value">{profile?.emergencyContactName || t('common.na')}</span>
               </div>
               <div className="info-item">
-                <span className="info-label">Relationship</span>
-                <span className="info-value">{profile?.emergencyContactRelation || 'N/A'}</span>
+                <span className="info-label">{t('profile.relationship')}</span>
+                <span className="info-value">{profile?.emergencyContactRelation || t('common.na')}</span>
               </div>
               <div className="info-item">
-                <span className="info-label">Phone Number</span>
+                <span className="info-label">{t('profile.phoneNumber')}</span>
                 <span className="info-value">
                   <FiPhone className="info-icon" />
-                  {profile?.emergencyContactPhone || 'N/A'}
+                  {profile?.emergencyContactPhone || t('common.na')}
                 </span>
               </div>
             </div>
@@ -216,21 +218,21 @@ const PatientProfile = () => {
         {/* Account Status */}
         <div className="card info-card">
           <div className="card-header">
-            <h3><FiCheckCircle /> Account Status</h3>
+            <h3><FiCheckCircle /> {t('profile.accountStatus')}</h3>
           </div>
           <div className="card-body">
             <div className="status-info">
               <div className="status-badge active">
                 <FiCheckCircle />
-                <span>Active Patient</span>
+                <span>{t('profile.activePatient')}</span>
               </div>
               <p className="status-text">
-                Your account is active and you have access to all patient services.
+                {t('profile.accountActiveDesc')}
               </p>
             </div>
             <div className="info-grid">
               <div className="info-item">
-                <span className="info-label">Registered On</span>
+                <span className="info-label">{t('profile.registeredOn')}</span>
                 <span className="info-value">{formatDate(profile?.createdAt)}</span>
               </div>
             </div>
