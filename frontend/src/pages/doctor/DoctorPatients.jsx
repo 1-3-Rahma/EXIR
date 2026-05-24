@@ -5,10 +5,14 @@ import { useAuth } from '../../context/AuthContext';
 import { doctorAPI } from '../../services/api';
 import { FiUser, FiActivity, FiHeart, FiThermometer, FiWind, FiCheckCircle, FiAlertCircle, FiSearch, FiClock, FiMessageSquare } from 'react-icons/fi';
 
+<<<<<<< HEAD
 const getPatientCase = (patient) => {
+=======
+const getPatientCase = (patient, t) => {
+>>>>>>> d0110f5f9b0263c779892c3a1a44d933dea45ad0
   const rl = patient.latestVital?.riskLevel;
   if (rl) return rl;
-  return patient.patientStatus === 'critical' ? 'Critical' : 'Normal';
+  return patient.patientStatus === 'critical' ? t('common.critical') : t('common.stable');
 };
 
 const getCaseClass = (caseLevel) => {
@@ -125,6 +129,7 @@ const DoctorPatients = () => {
 
   const latestVital = vitals.length > 0 ? vitals[0] : null;
   const formatVitalTime = (date) => date ? new Date(date).toLocaleString() : '—';
+  const getCase = (patient) => getPatientCase(patient, t);
 
   return (
     <Layout appName="Doctor's Hospital" role="doctor">
@@ -175,7 +180,7 @@ const DoctorPatients = () => {
                 <tbody>
                   {patients.map((patient) => {
                     const ready = isAppointmentReady(patient);
-                    const patientCase = getPatientCase(patient);
+                    const patientCase = getCase(patient);
                     const caseClass = getCaseClass(patientCase);
                     return (
                     <tr key={patient._id} className={!ready ? 'row-inactive' : ''}>
@@ -482,7 +487,7 @@ const DoctorPatients = () => {
                   {comments.map((c) => (
                     <div key={c._id} className="comment-item">
                       <div className="comment-meta">
-                        <span className="comment-author">{c.authorId?.fullName || 'Nurse'}</span>
+                        <span className="comment-author">{c.authorId?.fullName || t('login.nurse')}</span>
                         <span className="comment-time">{new Date(c.createdAt).toLocaleString()}</span>
                       </div>
                       <p className="comment-text">{c.commentText}</p>

@@ -108,7 +108,25 @@ const DoctorTasks = () => {
     return task.status === filter;
   });
 
-  const categories = ['Medication', 'Treatment', 'Documentation', 'Communication', 'Vitals', 'Assessment', 'Other'];
+  const categories = [
+    { value: 'Medication', label: t('tasks.catMedication') },
+    { value: 'Treatment', label: t('tasks.catTreatment') },
+    { value: 'Documentation', label: t('tasks.catDocumentation') },
+    { value: 'Communication', label: t('tasks.catCommunication') },
+    { value: 'Vitals', label: t('tasks.catVitals') },
+    { value: 'Assessment', label: t('tasks.catAssessment') },
+    { value: 'Other', label: t('tasks.catOther') }
+  ];
+
+  const getPriorityLabel = (priority) => {
+    const map = { high: t('common.high'), medium: t('common.medium'), low: t('common.low') };
+    return map[priority] || priority;
+  };
+
+  const getCategoryLabel = (cat) => {
+    const found = categories.find(c => c.value === cat);
+    return found ? found.label : cat;
+  };
 
   return (
     <Layout appName="EXIR" role="doctor">
@@ -199,9 +217,9 @@ const DoctorTasks = () => {
                     <h3 className={task.status === 'completed' ? 'completed' : ''}>{task.title}</h3>
                     <div className="task-badges">
                       <span className="priority-badge" style={{ background: getPriorityColor(task.priority) }}>
-                        {task.priority}
+                        {getPriorityLabel(task.priority)}
                       </span>
-                      <span className="category-badge">{task.category}</span>
+                      <span className="category-badge">{getCategoryLabel(task.category)}</span>
                     </div>
                   </div>
                   <div className="task-details">
@@ -255,7 +273,7 @@ const DoctorTasks = () => {
                   <label>{t('tasks.category')}</label>
                   <select name="category" value={newTask.category} onChange={handleInputChange}>
                     {categories.map((c) => (
-                      <option key={c} value={c}>{c}</option>
+                      <option key={c.value} value={c.value}>{c.label}</option>
                     ))}
                   </select>
                 </div>

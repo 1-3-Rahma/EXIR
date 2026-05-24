@@ -47,7 +47,7 @@ const NurseVitals = () => {
     const now = new Date();
     const diff = now - new Date(date);
     const minutes = Math.floor(diff / 60000);
-    return `Updated ${minutes} min ago`;
+    return t('vitals.updatedAgo', { count: minutes });
   };
 
   const normalizeStatus = (status) => String(status || '').toLowerCase();
@@ -167,7 +167,7 @@ const NurseVitals = () => {
           <p>{t('vitals.noPatients')}</p>
           {/* Show normal ranges reference when no data */}
           <div className="empty-reference-card">
-            <h3 className="reference-title">Normal Vital Ranges Reference</h3>
+            <h3 className="reference-title">{t('vitals.normalRangesRef')}</h3>
             <div className="empty-ranges-grid">
               {normalRangesDisplay().map((item, index) => (
                 <div key={index} className="empty-range-item">
@@ -191,11 +191,11 @@ const NurseVitals = () => {
           {/* Normal Vital Ranges Reference */}
           <div className="reference-card">
               <div className="reference-header">
-                <h3>Normal Vital Ranges Reference</h3>
+                <h3>{t('vitals.normalRangesRef')}</h3>
                 <div className="legend">
-                  <span className="legend-item normal"><span className="dot"></span> Normal</span>
-                  <span className="legend-item warning"><span className="dot"></span> Warning</span>
-                  <span className="legend-item critical"><span className="dot"></span> Critical</span>
+                  <span className="legend-item normal"><span className="dot"></span> {t('vitals.normalLegend')}</span>
+                  <span className="legend-item warning"><span className="dot"></span> {t('vitals.warningLegend')}</span>
+                  <span className="legend-item critical"><span className="dot"></span> {t('vitals.criticalLegend')}</span>
                 </div>
               </div>
 
@@ -255,7 +255,7 @@ const NurseVitals = () => {
                       {patient.vitals.bp.systolic}/{patient.vitals.bp.diastolic}
                     </span>
                     <span className="vital-unit">mmHg</span>
-                    <span className="normal-range">Normal: 90-120/60-80</span>
+                    <span className="normal-range">{t('vitals.normalRangeLabel')} 90-120/60-80</span>
                   </div>
 
                   {/* Heart Rate */}
@@ -272,7 +272,7 @@ const NurseVitals = () => {
                       {patient.vitals.hr.value}
                     </span>
                     <span className="vital-unit">bpm</span>
-                    <span className="normal-range">Normal: 60-100</span>
+                    <span className="normal-range">{t('vitals.normalRangeLabel')} 60-100</span>
                   </div>
 
                   {/* Temperature */}
@@ -289,7 +289,7 @@ const NurseVitals = () => {
                       {patient.vitals.temp.value}
                     </span>
                     <span className="vital-unit">°C</span>
-                    <span className="normal-range">Normal: 36.1°C - 37.2°C</span>
+                    <span className="normal-range">{t('vitals.normalRangeLabel')} 36.1°C - 37.2°C</span>
                   </div>
 
                   {/* O2 Saturation */}
@@ -301,12 +301,12 @@ const NurseVitals = () => {
                       )}
                       {getTrendIcon(patient.vitals.o2.trend)}
                     </div>
-                    <span className="vital-label">O₂ Saturation</span>
+                    <span className="vital-label">{t('vitals.o2Saturation')}</span>
                     <span className="vital-value" style={{ color: getStatusColor(patient.vitals.o2.status) }}>
                       {patient.vitals.o2.value}
                     </span>
                     <span className="vital-unit">%</span>
-                    <span className="normal-range">Normal: 95-100</span>
+                    <span className="normal-range">{t('vitals.normalRangeLabel')} 95-100</span>
                   </div>
 
                 </div>
@@ -321,7 +321,7 @@ const NurseVitals = () => {
                       <strong>{patient.alert.message}</strong>
                       <p>{patient.alert.action}</p>
                     </div>
-                    <button className="respond-btn">Respond</button>
+                    <button className="respond-btn">{t('vitals.respond')}</button>
                   </div>
                 )}
               </div>
