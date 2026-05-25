@@ -10,8 +10,6 @@ const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
 dotenv.config();
 
-connectDB();
-
 const app = express();
 const server = http.createServer(app);
 
@@ -119,8 +117,9 @@ app.set('io', io);
 // Start ESP32 WiFi WebSocket server (must be called after server is created)
 require('./services/esp32Service').init(server);
 
-server.listen(PORT, () => {
-  console.log(`
+connectDB().then(() => {
+  server.listen(PORT, () => {
+    console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
 ║   EXIR Healthcare API Server                              ║
@@ -131,7 +130,8 @@ server.listen(PORT, () => {
 ║   WebSocket: /socket.io                                    ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
-  `);
+    `);
+  });
 });
 
 module.exports = { app, server, io };

@@ -4,7 +4,7 @@
 // ── Home WiFi ────────────────────────────────────────────────────────────────
 #define WIFI_SSID     "WE_A93DAC"
 #define WIFI_PASSWORD "n9v63421"
-#define SERVER_HOST   "192.168.1.18"
+#define SERVER_HOST   "192.168.1.9"
 
 // ── Mobile Hotspot ───────────────────────────────────────────────────────────
 

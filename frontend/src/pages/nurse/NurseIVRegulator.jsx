@@ -68,10 +68,9 @@ const NurseIVRegulator = () => {
 
   // Immediately restore this patient's session state on mount/patientId change
   useEffect(() => {
-    const base = process.env.REACT_APP_API_URL || '/api/v1';
     const url = patientId
-      ? `${base}/iv/status?patientId=${encodeURIComponent(patientId)}`
-      : `${base}/iv/status`;
+      ? `/api/iv/status?patientId=${encodeURIComponent(patientId)}`
+      : `/api/iv/status`;
     fetch(url)
       .then((r) => r.json())
       .then((data) => { if (data.success) handleExternalStatus(data); })

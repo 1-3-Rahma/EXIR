@@ -59,7 +59,7 @@ const ParallelForm = ({ onConfigured, patientId }) => {
           flowRateMlMin: p.flowRateMlMin === '' ? 0 : parseFloat(p.flowRateMlMin),
         })),
       };
-      const res = await fetch(`${process.env.REACT_APP_API_URL || '/api/v1'}/iv/parallel`, {
+      const res = await fetch(`/api/iv/parallel`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

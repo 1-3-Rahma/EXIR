@@ -73,7 +73,12 @@ const NursePatients = () => {
   const normalizeStatus = (status) => String(status || '').toLowerCase();
 
   const isPatientCritical = (patient) =>
-    patient.latestVitals?.riskLevel === 'Critical' || patient.latestVitals?.isCritical === true;
+    normalizeStatus(patient.latestVitals?.riskLevel) === 'critical' || patient.latestVitals?.isCritical === true;
+
+  const isPatientStable = (patient) => {
+    const status = normalizeStatus(patient.status);
+    return status === 'stable' || status === 'normal';
+  };
 
   const formatConfidence = (score) => {
     if (score === undefined || score === null || Number.isNaN(Number(score))) return 'N/A';
@@ -138,7 +143,8 @@ const NursePatients = () => {
       case 'critical': return { bg: '#fee2e2', border: '#ef4444', text: '#dc2626' };
       case 'abnormal':
       case 'moderate': return { bg: '#fef3c7', border: '#f59e0b', text: '#d97706' };
-      case 'stable': return { bg: '#dcfce7', border: '#22c55e', text: '#16a34a' };
+      case 'stable':
+      case 'normal': return { bg: '#dcfce7', border: '#22c55e', text: '#16a34a' };
       default: return { bg: '#f1f5f9', border: '#94a3b8', text: '#64748b' };
     }
   };
@@ -147,7 +153,7 @@ const NursePatients = () => {
     const matchesSearch = patient.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          patient.room?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' ||
-      (statusFilter === 'critical' ? isPatientCritical(patient) : normalizeStatus(patient.status) === statusFilter);
+      (statusFilter === 'critical' ? isPatientCritical(patient) : isPatientStable(patient));
     return matchesSearch && matchesStatus;
   });
 
@@ -278,7 +284,7 @@ const NursePatients = () => {
           {t('common.critical')} ({patients.filter(isPatientCritical).length})
         </button>
         <button className={`pill stable ${statusFilter === 'stable' ? 'active' : ''}`} onClick={() => setStatusFilter('stable')}>
-          {t('common.stable')} ({patients.filter(p => normalizeStatus(p.status) === 'stable').length})
+          {t('common.stable')} ({patients.filter(isPatientStable).length})
         </button>
       </div>
 
