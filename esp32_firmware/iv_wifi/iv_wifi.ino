@@ -20,7 +20,7 @@
 #include <WebSocketsClient.h>
 
 #include "wifi_config.h"
-const int   SERVER_PORT = 5000;
+const int   SERVER_PORT = 443;
 const char* SERVER_PATH = "/esp32";
 
 // ---------------------------------------------------------------------------
@@ -192,14 +192,14 @@ void handleWiFi() {
                       WiFi.localIP().toString().c_str(), WiFi.RSSI());
         // Start (or restart) the WebSocket client
         if (!wsStarted) {
-          webSocket.begin(SERVER_HOST, SERVER_PORT, SERVER_PATH);
+          webSocket.beginSSL(SERVER_HOST, SERVER_PORT, SERVER_PATH);
           webSocket.onEvent(webSocketEvent);
           webSocket.setReconnectInterval(3000);
           // Heartbeat: ping every 15 s, expect pong within 5 s, disconnect after 2 misses
           webSocket.enableHeartbeat(15000, 5000, 2);
           wsStarted = true;
         } else {
-          webSocket.begin(SERVER_HOST, SERVER_PORT, SERVER_PATH);
+          webSocket.beginSSL(SERVER_HOST, SERVER_PORT, SERVER_PATH);
         }
       } else if (millis() - wifiAttemptMs > WIFI_CONNECT_TIMEOUT_MS) {
         Serial.printf("[WiFi] Timeout — retrying in %d s\n", WIFI_RETRY_DELAY_MS / 1000);
