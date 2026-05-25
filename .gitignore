@@ -62,4 +62,9 @@ venv,/
 **/.env
 **/.env.*
 
+# ====================
+# ESP32 WiFi credentials (secrets — never commit)
+# ====================
+esp32_firmware/**/wifi_config.h
+
 
