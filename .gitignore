@@ -54,4 +54,12 @@ venv/
 venv,/
 .venv/
 
+# ====================
+# Environment variables (secrets — never commit)
+# ====================
+.env
+.env.*
+**/.env
+**/.env.*
+
 
