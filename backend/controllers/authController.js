@@ -3,14 +3,13 @@ const Patient = require('../models/Patient');
 const generateToken = require('../utils/generateToken');
 const { generateOTP, verifyOTP } = require('../utils/generateOTP');
 
-const getATClient = () => {
-  if (!process.env.AT_API_KEY || !process.env.AT_USERNAME) return null;
-  const AfricasTalking = require('africastalking');
-  return AfricasTalking({ apiKey: process.env.AT_API_KEY, username: process.env.AT_USERNAME });
+const getTwilioClient = () => {
+  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) return null;
+  return require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 };
 
 const sendOTPSms = async (phone, code) => {
-  const client = getATClient();
+  const client = getTwilioClient();
 
   if (!client) {
     console.log('========================================');
@@ -19,10 +18,10 @@ const sendOTPSms = async (phone, code) => {
     return;
   }
 
-  await client.SMS.send({
-    to: [phone],
-    message: `Your EXIR Healthcare login code is: ${code}. Valid for 5 minutes.`,
-    from: 'EXIR'
+  await client.messages.create({
+    body: `Your EXIR Healthcare login code is: ${code}. Valid for 5 minutes.`,
+    from: process.env.TWILIO_PHONE_NUMBER,
+    to: phone
   });
 };
 
