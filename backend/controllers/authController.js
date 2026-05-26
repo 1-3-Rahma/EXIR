@@ -2,26 +2,23 @@ const User = require('../models/User');
 const Patient = require('../models/Patient');
 const generateToken = require('../utils/generateToken');
 const { generateOTP, verifyOTP } = require('../utils/generateOTP');
-
-const getTwilioClient = () => {
-  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) return null;
-  return require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-};
+const axios = require('axios');
 
 const sendOTPSms = async (phone, code) => {
-  const client = getTwilioClient();
-
-  if (!client) {
+  if (!process.env.TERMII_API_KEY) {
     console.log('========================================');
     console.log(`OTP for ${phone}: ${code}`);
     console.log('========================================');
     return;
   }
 
-  await client.messages.create({
-    body: `Your EXIR Healthcare login code is: ${code}. Valid for 5 minutes.`,
-    from: process.env.TWILIO_PHONE_NUMBER,
-    to: phone
+  await axios.post('https://api.ng.termii.com/api/sms/send', {
+    api_key: process.env.TERMII_API_KEY,
+    to: phone,
+    from: 'N-Alert',
+    sms: `Your EXIR Healthcare login code is: ${code}. Valid for 5 minutes.`,
+    type: 'plain',
+    channel: 'dnd'
   });
 };
 
