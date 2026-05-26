@@ -5,21 +5,24 @@ const { generateOTP, verifyOTP } = require('../utils/generateOTP');
 const axios = require('axios');
 
 const sendOTPSms = async (phone, code) => {
-  if (!process.env.TERMII_API_KEY) {
-    console.log('========================================');
-    console.log(`OTP for ${phone}: ${code}`);
-    console.log('========================================');
-    return;
-  }
+  console.log('========================================');
+  console.log(`OTP for ${phone}: ${code}`);
+  console.log('========================================');
 
-  await axios.post('https://api.ng.termii.com/api/sms/send', {
-    api_key: process.env.TERMII_API_KEY,
-    to: phone,
-    from: 'N-Alert',
-    sms: `Your EXIR Healthcare login code is: ${code}. Valid for 5 minutes.`,
-    type: 'plain',
-    channel: 'dnd'
-  });
+  if (!process.env.TERMII_API_KEY) return;
+
+  try {
+    await axios.post('https://api.ng.termii.com/api/sms/send', {
+      api_key: process.env.TERMII_API_KEY,
+      to: phone,
+      from: 'N-Alert',
+      sms: `Your EXIR Healthcare login code is: ${code}. Valid for 5 minutes.`,
+      type: 'plain',
+      channel: 'dnd'
+    });
+  } catch (err) {
+    console.error('[Termii] SMS failed:', err.response?.data || err.message);
+  }
 };
 
 // @desc    Login for all roles (doctor, nurse, receptionist)
