@@ -57,10 +57,9 @@ venv,/
 # ====================
 # Environment variables (secrets — never commit)
 # ====================
-.env
-.env.*
-**/.env
-**/.env.*
+backend/.env
+**/.env.local
+**/.env.*.local
 
 # ====================
 # ESP32 WiFi credentials (secrets — never commit)
