@@ -15,10 +15,10 @@ const sendOTPSms = async (phone, code) => {
     await axios.post('https://api.ng.termii.com/api/sms/send', {
       api_key: process.env.TERMII_API_KEY,
       to: phone,
-      from: process.env.TERMII_SENDER_ID || 'Termii',
+      from: process.env.TERMII_SENDER_ID || 'N-Alert',
       sms: `Your EXIR Healthcare login code is: ${code}. Valid for 5 minutes.`,
       type: 'plain',
-      channel: 'generic'
+      channel: 'dnd'
     });
   } catch (err) {
     console.error('[Termii] SMS failed:', err.response?.data || err.message);
