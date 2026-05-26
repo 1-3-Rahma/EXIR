@@ -3,21 +3,26 @@ const Patient = require('../models/Patient');
 const generateToken = require('../utils/generateToken');
 const { generateOTP, verifyOTP } = require('../utils/generateOTP');
 
-const twilioClient = (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)
-  ? require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
-  : null;
+const getATClient = () => {
+  if (!process.env.AT_API_KEY || !process.env.AT_USERNAME) return null;
+  const AfricasTalking = require('africastalking');
+  return AfricasTalking({ apiKey: process.env.AT_API_KEY, username: process.env.AT_USERNAME });
+};
 
 const sendOTPSms = async (phone, code) => {
-  if (!twilioClient || !process.env.TWILIO_PHONE_NUMBER) {
+  const client = getATClient();
+
+  if (!client) {
     console.log('========================================');
     console.log(`OTP for ${phone}: ${code}`);
     console.log('========================================');
     return;
   }
-  await twilioClient.messages.create({
-    body: `Your EXIR Healthcare login code is: ${code}. Valid for 5 minutes.`,
-    from: process.env.TWILIO_PHONE_NUMBER,
-    to: phone
+
+  await client.SMS.send({
+    to: [phone],
+    message: `Your EXIR Healthcare login code is: ${code}. Valid for 5 minutes.`,
+    from: 'EXIR'
   });
 };
 
