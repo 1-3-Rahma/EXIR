@@ -3,6 +3,24 @@ const Patient = require('../models/Patient');
 const generateToken = require('../utils/generateToken');
 const { generateOTP, verifyOTP } = require('../utils/generateOTP');
 
+const twilioClient = (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)
+  ? require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+  : null;
+
+const sendOTPSms = async (phone, code) => {
+  if (!twilioClient || !process.env.TWILIO_PHONE_NUMBER) {
+    console.log('========================================');
+    console.log(`OTP for ${phone}: ${code}`);
+    console.log('========================================');
+    return;
+  }
+  await twilioClient.messages.create({
+    body: `Your EXIR Healthcare login code is: ${code}. Valid for 5 minutes.`,
+    from: process.env.TWILIO_PHONE_NUMBER,
+    to: phone
+  });
+};
+
 // @desc    Login for all roles (doctor, nurse, receptionist)
 // @route   POST /api/v1/auth/login
 // @access  Public
@@ -122,10 +140,7 @@ const requestOTP = async (req, res) => {
     user.otp = otp;
     await user.save();
 
-    console.log('========================================');
-    console.log(`OTP for ${nationalID}: ${otp.code}`);
-    console.log(`Expires at: ${otp.expiresAt}`);
-    console.log('========================================');
+    await sendOTPSms(phone, otp.code);
 
     res.json({
       message: 'OTP sent successfully',
