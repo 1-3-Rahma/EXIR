@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { IV_API_BASE } from '../../services/api';
 
 /**
  * ControlButtons — mode-aware control panel.
@@ -50,7 +51,7 @@ const ControlButtons = ({ sessionStatus, mode, configured, onStatusChange, onNew
     remainingRef.current = 0;
     startedAtRef.current = null;
     try {
-      await fetch(`/api/iv/finish`, {
+      await fetch(`${IV_API_BASE}/finish`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ patientId: patientId || null }),
@@ -92,7 +93,7 @@ const ControlButtons = ({ sessionStatus, mode, configured, onStatusChange, onNew
     setLoading(action);
     setError(null);
     try {
-      const res  = await fetch(`/api/iv/${action}`, {
+      const res  = await fetch(`${IV_API_BASE}/${action}`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ patientId: patientId || null }),

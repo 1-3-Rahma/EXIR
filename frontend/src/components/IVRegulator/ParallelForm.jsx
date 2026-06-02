@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { IV_API_BASE } from '../../services/api';
 
 const DEFAULT_PUMPS = [
   { pump: 1, flowRateMlMin: '' },
@@ -59,7 +60,7 @@ const ParallelForm = ({ onConfigured, patientId }) => {
           flowRateMlMin: p.flowRateMlMin === '' ? 0 : parseFloat(p.flowRateMlMin),
         })),
       };
-      const res = await fetch(`/api/iv/parallel`, {
+      const res = await fetch(`${IV_API_BASE}/parallel`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

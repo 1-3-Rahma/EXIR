@@ -1,5 +1,13 @@
 import axios from 'axios';
 
+// IV routes live at /api/iv (not /api/v1/iv). In dev the proxy handles the
+// relative path; in production we strip /v1 from the API URL to get the base.
+export const IV_API_BASE = (() => {
+  const base = process.env.REACT_APP_API_URL || '';
+  if (!base) return '/api/iv';
+  return base.replace(/\/v1$/, '') + '/iv';
+})();
+
 const api = axios.create({
   // Use relative API path when served from the frontend container so nginx
   // can proxy /api to the backend service. Fall back to the env var if set.

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { IV_API_BASE } from '../../services/api';
 
 const VALVE_OPTIONS = [5, 6, 7];
 
@@ -70,7 +71,7 @@ const SequentialForm = ({ onConfigured, patientId }) => {
             (s.delayMinutes === '' ? 0 : parseInt(s.delayMinutes, 10)) * 60,
         })),
       };
-      const res = await fetch(`/api/iv/sequential`, {
+      const res = await fetch(`${IV_API_BASE}/sequential`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

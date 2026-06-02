@@ -1,6 +1,7 @@
 ﻿import React, { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useLocation } from 'react-router-dom';
+import { IV_API_BASE } from '../../services/api';
 import ModeSelector from '../../components/IVRegulator/ModeSelector';
 import ParallelForm from '../../components/IVRegulator/ParallelForm';
 import SequentialForm from '../../components/IVRegulator/SequentialForm';
@@ -69,8 +70,8 @@ const NurseIVRegulator = () => {
   // Immediately restore this patient's session state on mount/patientId change
   useEffect(() => {
     const url = patientId
-      ? `/api/iv/status?patientId=${encodeURIComponent(patientId)}`
-      : `/api/iv/status`;
+      ? `${IV_API_BASE}/status?patientId=${encodeURIComponent(patientId)}`
+      : `${IV_API_BASE}/status`;
     fetch(url)
       .then((r) => r.json())
       .then((data) => { if (data.success) handleExternalStatus(data); })
