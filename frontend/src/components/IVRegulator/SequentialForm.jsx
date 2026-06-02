@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
+<<<<<<< HEAD
 import { IV_API_BASE } from '../../services/api';
+=======
+import { IV_BASE_URL } from '../../services/api';
+>>>>>>> 851cb544ab9fb44341a3f6d8abcfe6d9c0a2175a
 
 const VALVE_OPTIONS = [5, 6, 7];
 
@@ -71,7 +75,11 @@ const SequentialForm = ({ onConfigured, patientId }) => {
             (s.delayMinutes === '' ? 0 : parseInt(s.delayMinutes, 10)) * 60,
         })),
       };
+<<<<<<< HEAD
       const res = await fetch(`${IV_API_BASE}/sequential`, {
+=======
+      const res = await fetch(`${IV_BASE_URL}/sequential`, {
+>>>>>>> 851cb544ab9fb44341a3f6d8abcfe6d9c0a2175a
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
