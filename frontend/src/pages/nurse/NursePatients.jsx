@@ -80,6 +80,11 @@ const NursePatients = () => {
     return status === 'stable' || status === 'normal';
   };
 
+  const isPatientAbnormal = (patient) => {
+    const status = normalizeStatus(patient.status);
+    return status === 'abnormal' || status === 'moderate' || status === 'warning';
+  };
+
   const formatConfidence = (score) => {
     if (score === undefined || score === null || Number.isNaN(Number(score))) return 'N/A';
     const numericScore = Number(score);
@@ -149,11 +154,21 @@ const NursePatients = () => {
     }
   };
 
+  const getStatusLabel = (status) => {
+    const normalizedStatus = normalizeStatus(status);
+    if (normalizedStatus === 'stable' || normalizedStatus === 'normal') return t('vitals.normal');
+    if (normalizedStatus === 'critical') return t('common.critical');
+    if (normalizedStatus === 'abnormal' || normalizedStatus === 'moderate' || normalizedStatus === 'warning') return t('common.abnormal');
+    return status;
+  };
+
   const filteredPatients = patients.filter(patient => {
     const matchesSearch = patient.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          patient.room?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' ||
-      (statusFilter === 'critical' ? isPatientCritical(patient) : isPatientStable(patient));
+      (statusFilter === 'critical' && isPatientCritical(patient)) ||
+      (statusFilter === 'abnormal' && isPatientAbnormal(patient)) ||
+      (statusFilter === 'stable' && isPatientStable(patient));
     return matchesSearch && matchesStatus;
   });
 
@@ -283,8 +298,11 @@ const NursePatients = () => {
         <button className={`pill critical ${statusFilter === 'critical' ? 'active' : ''}`} onClick={() => setStatusFilter('critical')}>
           {t('common.critical')} ({patients.filter(isPatientCritical).length})
         </button>
+        <button className={`pill abnormal ${statusFilter === 'abnormal' ? 'active' : ''}`} onClick={() => setStatusFilter('abnormal')}>
+          {t('common.abnormal')} ({patients.filter(isPatientAbnormal).length})
+        </button>
         <button className={`pill stable ${statusFilter === 'stable' ? 'active' : ''}`} onClick={() => setStatusFilter('stable')}>
-          {t('common.stable')} ({patients.filter(isPatientStable).length})
+          {t('vitals.normal')} ({patients.filter(isPatientStable).length})
         </button>
       </div>
 
@@ -316,7 +334,7 @@ const NursePatients = () => {
                     <span className="patient-meta">{patient.age}y · {patient.gender}</span>
                   </div>
                   <span className="status-badge" style={{ background: statusColors.text }}>
-                    {patient.status}
+                    {getStatusLabel(patient.status)}
                   </span>
                 </div>
 
@@ -456,6 +474,7 @@ const NursePatients = () => {
         .pill:hover { border-color: #94a3b8; }
         .pill.active { background: #1e3a5f; color: white; border-color: #1e3a5f; }
         .pill.critical.active { background: #ef4444; border-color: #ef4444; }
+        .pill.abnormal.active { background: #f59e0b; border-color: #f59e0b; }
         .pill.stable.active { background: #22c55e; border-color: #22c55e; }
         .results-count { color: #64748b; font-size: 0.9rem; margin-bottom: 1rem; }
         .patients-grid {
