@@ -41,7 +41,9 @@ function init(httpServer) {
   // HTTP server can break Socket.io (/socket.io) with "Invalid frame header".
   wss = new WebSocket.Server({ noServer: true });
 
-  httpServer.on('upgrade', (request, socket, head) => {
+  // prependListener ensures this runs BEFORE Socket.io's upgrade handler,
+  // which destroys any upgrade request whose path doesn't match /socket.io.
+  httpServer.prependListener('upgrade', (request, socket, head) => {
     const pathname = new URL(request.url, 'http://localhost').pathname;
     if (pathname !== '/esp32') return;
     wss.handleUpgrade(request, socket, head, (ws) => {
