@@ -8,6 +8,7 @@ import ControlButtons from '../../components/IVRegulator/ControlButtons';
 import StatusDisplay from '../../components/IVRegulator/StatusDisplay';
 import ConnectionPanel from '../../components/IVRegulator/ConnectionPanel';
 import Layout from '../../components/common/Layout';
+import { IV_BASE_URL } from '../../services/api';
 
 const NurseIVRegulator = () => {
   const { t } = useTranslation();
@@ -69,8 +70,8 @@ const NurseIVRegulator = () => {
   // Immediately restore this patient's session state on mount/patientId change
   useEffect(() => {
     const url = patientId
-      ? `/api/iv/status?patientId=${encodeURIComponent(patientId)}`
-      : `/api/iv/status`;
+      ? `${IV_BASE_URL}/status?patientId=${encodeURIComponent(patientId)}`
+      : `${IV_BASE_URL}/status`;
     fetch(url)
       .then((r) => r.json())
       .then((data) => { if (data.success) handleExternalStatus(data); })
