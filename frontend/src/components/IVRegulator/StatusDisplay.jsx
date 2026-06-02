@@ -1,9 +1,5 @@
 import React, { useEffect, useState } from 'react';
-<<<<<<< HEAD
-import { IV_API_BASE } from '../../services/api';
-=======
 import { IV_BASE_URL } from '../../services/api';
->>>>>>> 851cb544ab9fb44341a3f6d8abcfe6d9c0a2175a
 
 /**
  * StatusDisplay — polls GET /api/iv/status every 2 seconds and renders a
@@ -33,13 +29,8 @@ const StatusDisplay = ({ onExternalStatusChange, patientId }) => {
     const poll = async () => {
       try {
         const url = patientId
-<<<<<<< HEAD
-          ? `${IV_API_BASE}/status?patientId=${encodeURIComponent(patientId)}`
-          : `${IV_API_BASE}/status`;
-=======
           ? `${IV_BASE_URL}/status?patientId=${encodeURIComponent(patientId)}`
           : `${IV_BASE_URL}/status`;
->>>>>>> 851cb544ab9fb44341a3f6d8abcfe6d9c0a2175a
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();

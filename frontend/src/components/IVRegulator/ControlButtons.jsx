@@ -1,9 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-<<<<<<< HEAD
-import { IV_API_BASE } from '../../services/api';
-=======
 import { IV_BASE_URL } from '../../services/api';
->>>>>>> 851cb544ab9fb44341a3f6d8abcfe6d9c0a2175a
 
 /**
  * ControlButtons — mode-aware control panel.
@@ -55,11 +51,7 @@ const ControlButtons = ({ sessionStatus, mode, configured, onStatusChange, onNew
     remainingRef.current = 0;
     startedAtRef.current = null;
     try {
-<<<<<<< HEAD
-      await fetch(`${IV_API_BASE}/finish`, {
-=======
       await fetch(`${IV_BASE_URL}/finish`, {
->>>>>>> 851cb544ab9fb44341a3f6d8abcfe6d9c0a2175a
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ patientId: patientId || null }),
@@ -101,11 +93,7 @@ const ControlButtons = ({ sessionStatus, mode, configured, onStatusChange, onNew
     setLoading(action);
     setError(null);
     try {
-<<<<<<< HEAD
-      const res  = await fetch(`${IV_API_BASE}/${action}`, {
-=======
       const res  = await fetch(`${IV_BASE_URL}/${action}`, {
->>>>>>> 851cb544ab9fb44341a3f6d8abcfe6d9c0a2175a
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ patientId: patientId || null }),

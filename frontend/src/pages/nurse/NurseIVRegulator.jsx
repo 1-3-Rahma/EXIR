@@ -1,7 +1,7 @@
 ﻿import React, { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useLocation } from 'react-router-dom';
-import { IV_API_BASE } from '../../services/api';
+import { IV_BASE_URL } from '../../services/api';
 import ModeSelector from '../../components/IVRegulator/ModeSelector';
 import ParallelForm from '../../components/IVRegulator/ParallelForm';
 import SequentialForm from '../../components/IVRegulator/SequentialForm';
@@ -9,7 +9,6 @@ import ControlButtons from '../../components/IVRegulator/ControlButtons';
 import StatusDisplay from '../../components/IVRegulator/StatusDisplay';
 import ConnectionPanel from '../../components/IVRegulator/ConnectionPanel';
 import Layout from '../../components/common/Layout';
-import { IV_BASE_URL } from '../../services/api';
 
 const NurseIVRegulator = () => {
   const { t } = useTranslation();
@@ -71,13 +70,8 @@ const NurseIVRegulator = () => {
   // Immediately restore this patient's session state on mount/patientId change
   useEffect(() => {
     const url = patientId
-<<<<<<< HEAD
-      ? `${IV_API_BASE}/status?patientId=${encodeURIComponent(patientId)}`
-      : `${IV_API_BASE}/status`;
-=======
       ? `${IV_BASE_URL}/status?patientId=${encodeURIComponent(patientId)}`
       : `${IV_BASE_URL}/status`;
->>>>>>> 851cb544ab9fb44341a3f6d8abcfe6d9c0a2175a
     fetch(url)
       .then((r) => r.json())
       .then((data) => { if (data.success) handleExternalStatus(data); })
