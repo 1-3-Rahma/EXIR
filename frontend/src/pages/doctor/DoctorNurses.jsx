@@ -6,11 +6,15 @@ import { FiUser, FiClock, FiMapPin, FiActivity, FiPlus, FiMessageSquare, FiChevr
 import { jsPDF } from 'jspdf';
 import { Link, useNavigate } from 'react-router-dom';
 
+<<<<<<< HEAD
 //<<<<<<< HEAD
 //const shiftLabel = (s) => {
 //=======
 const shiftLabel = (s, t) => {
 //>>>>>>> d0110f5f9b0263c779892c3a1a44d933dea45ad0
+=======
+const shiftLabel = (s, t) => {
+>>>>>>> 45f8f4dec51baac5f465935879f9b7d317b7bdef
   if (!s) return '—';
   const map = {
     morning: t('medications.morning'),

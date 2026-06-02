@@ -2,6 +2,44 @@ const User = require('../models/User');
 const Patient = require('../models/Patient');
 const generateToken = require('../utils/generateToken');
 const { generateOTP, verifyOTP } = require('../utils/generateOTP');
+const axios = require('axios');
+
+const toE164 = (phone) => {
+  if (phone.startsWith('+')) return phone;
+  if (phone.startsWith('0')) return '+2' + phone;
+  return '+' + phone;
+};
+
+const sendOTPSms = async (phone, code) => {
+  console.log('========================================');
+  console.log(`OTP for ${phone}: ${code}`);
+  console.log('========================================');
+
+  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) return;
+
+  try {
+    const e164 = toE164(phone);
+    const params = new URLSearchParams({
+      From: process.env.TWILIO_PHONE_NUMBER,
+      To: e164,
+      Body: `Your EXIR Healthcare login code is: ${code}. Valid for 5 minutes.`
+    });
+    await axios.post(
+      `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
+      params.toString(),
+      {
+        auth: {
+          username: process.env.TWILIO_ACCOUNT_SID,
+          password: process.env.TWILIO_AUTH_TOKEN
+        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      }
+    );
+    console.log('[Twilio] OTP sent to', e164);
+  } catch (err) {
+    console.error('[Twilio] SMS failed:', err.response?.data || err.message);
+  }
+};
 
 // @desc    Login for all roles (doctor, nurse, receptionist)
 // @route   POST /api/v1/auth/login
@@ -122,10 +160,7 @@ const requestOTP = async (req, res) => {
     user.otp = otp;
     await user.save();
 
-    console.log('========================================');
-    console.log(`OTP for ${nationalID}: ${otp.code}`);
-    console.log(`Expires at: ${otp.expiresAt}`);
-    console.log('========================================');
+    await sendOTPSms(phone, otp.code);
 
     res.json({
       message: 'OTP sent successfully',

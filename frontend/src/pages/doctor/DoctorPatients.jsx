@@ -5,11 +5,15 @@ import { useAuth } from '../../context/AuthContext';
 import { doctorAPI } from '../../services/api';
 import { FiUser, FiActivity, FiHeart, FiThermometer, FiWind, FiCheckCircle, FiAlertCircle, FiSearch, FiClock, FiMessageSquare } from 'react-icons/fi';
 
+<<<<<<< HEAD
 //<<<<<<< HEAD
 //const getPatientCase = (patient) => {
 //=======
 const getPatientCase = (patient, t) => {
 //>>>>>>> d0110f5f9b0263c779892c3a1a44d933dea45ad0
+=======
+const getPatientCase = (patient, t) => {
+>>>>>>> 45f8f4dec51baac5f465935879f9b7d317b7bdef
   const rl = patient.latestVital?.riskLevel;
   if (rl) return rl;
   return patient.patientStatus === 'critical' ? t('common.critical') : t('common.stable');
