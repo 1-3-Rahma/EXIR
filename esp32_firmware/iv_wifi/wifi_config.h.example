@@ -1,11 +1,11 @@
-// Copy this file to wifi_config.h and fill in your values
-#define WIFI_SSID     "WE_A93DAC"
-#define WIFI_PASSWORD "n9v63421"
+// Copy this file to wifi_config.h and fill in your values.
+// wifi_config.h is gitignored — never commit your real credentials.
 
+#define WIFI_SSID     "YOUR_WIFI_NAME"
+#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
 
-//#define WIFI_SSID     "RA"
-//#define WIFI_PASSWORD "00000000"
-
-
+// Production backend (Railway):
 #define SERVER_HOST   "exir-healthcare.up.railway.app"
 
+// Local development — comment out the line above and use your PC's IP instead:
+// #define SERVER_HOST   "192.168.1.x"
