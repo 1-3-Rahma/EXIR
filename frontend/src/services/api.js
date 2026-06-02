@@ -147,7 +147,9 @@ export default api;
 
 // Base URL for IV regulator endpoints (/api/iv, not /api/v1)
 // In production REACT_APP_API_URL = https://exir-healthcare.up.railway.app/api/v1
-// so we derive the backend origin and append /api/iv.
-export const IV_BASE_URL = process.env.REACT_APP_API_URL
-  ? new URL(process.env.REACT_APP_API_URL).origin + '/api/iv'
+// so we strip /api/v1 and append /api/iv.
+const _rawApiUrl = process.env.REACT_APP_API_URL || '';
+const _apiIndex  = _rawApiUrl.indexOf('/api/');
+export const IV_BASE_URL = _apiIndex !== -1
+  ? _rawApiUrl.slice(0, _apiIndex) + '/api/iv'
   : '/api/iv';
