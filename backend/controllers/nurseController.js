@@ -439,7 +439,7 @@ const getFormattedVitalsOverview = async (req, res) => {
           Vital.findOne({
             patientId: assignment.patientId._id,
             $or: [
-              { source: 'bracelet-bluetooth' },
+              { source: { $in: ['bracelet-bluetooth', 'sensor', 'sensor-simulator'] } },
               { deviceId: { $exists: true, $ne: '' } }
             ]
           }).sort({ createdAt: -1 })
