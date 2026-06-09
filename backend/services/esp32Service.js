@@ -21,17 +21,24 @@ let connectionState = 'disconnected';
 let lastResponse  = null;
 let lastError     = null;
 let espIp         = null;
+let lastConnectedAt    = null;
+let lastDisconnectedAt = null;
+let lastDisconnectCode = null;
+let lastDisconnectReason = null;
 
 // ---------------------------------------------------------------------------
 // init(httpServer)
 // Attaches a WebSocket server to the existing HTTP server on path /esp32.
 // Must be called once, after http.createServer() but before server.listen().
 // ---------------------------------------------------------------------------
-function markDisconnected(ws) {
+function markDisconnected(ws, code = null, reason = null) {
   if (espSocket === ws) {
     espSocket       = null;
     espIp           = null;
     connectionState = 'disconnected';
+    lastDisconnectedAt = new Date().toISOString();
+    lastDisconnectCode = code;
+    lastDisconnectReason = reason || null;
     console.log('[ESP32] WiFi connection closed.');
   }
 }
@@ -77,6 +84,9 @@ function init(httpServer) {
     espIp           = req.socket.remoteAddress;
     connectionState = 'connected';
     lastError       = null;
+    lastConnectedAt = new Date().toISOString();
+    lastDisconnectCode = null;
+    lastDisconnectReason = null;
     console.log(`[ESP32] WiFi connected from ${espIp}`);
 
     ws.on('pong', () => { ws.isAlive = true; });
@@ -87,7 +97,9 @@ function init(httpServer) {
       emitter.emit('message', lastResponse);
     });
 
-    ws.on('close', () => markDisconnected(ws));
+    ws.on('close', (code, reason) => {
+      markDisconnected(ws, code, reason?.toString() || null);
+    });
 
     ws.on('error', (err) => {
       connectionState = 'error';
@@ -108,7 +120,7 @@ function sendCommand(command) {
     if (!espSocket || espSocket.readyState !== WebSocket.OPEN) {
       const reason = lastError || 'ESP32 not connected via WiFi';
       return reject(
-        new Error(`${reason}. Make sure the ESP32 is powered on and on the same WiFi network.`)
+        new Error(`${reason}. Make sure the ESP32 is powered on, has stable power, and has internet access.`)
       );
     }
 
@@ -154,6 +166,10 @@ function getStatus() {
     baudRate:     null,
     lastResponse,
     lastError,
+    lastConnectedAt,
+    lastDisconnectedAt,
+    lastDisconnectCode,
+    lastDisconnectReason,
     ip:           espIp,
     mode:         'wifi',
   };

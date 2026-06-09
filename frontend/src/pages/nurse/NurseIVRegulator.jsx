@@ -63,6 +63,9 @@ const NurseIVRegulator = () => {
         portPath:  statusObj.esp32PortPath,
         baudRate:  statusObj.esp32BaudRate,
         state:     statusObj.esp32State,
+        lastConnectedAt: statusObj.lastConnectedAt,
+        lastDisconnectedAt: statusObj.lastDisconnectedAt,
+        lastDisconnectCode: statusObj.lastDisconnectCode,
       });
     }
   }, []);

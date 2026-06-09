@@ -573,6 +573,10 @@ router.get('/status', async (req, res) => {
       esp32BaudRate:   hw.baudRate,
       lastResponse:    hw.lastResponse,
       lastError:       hw.lastError,
+      lastConnectedAt: hw.lastConnectedAt,
+      lastDisconnectedAt: hw.lastDisconnectedAt,
+      lastDisconnectCode: hw.lastDisconnectCode,
+      lastDisconnectReason: hw.lastDisconnectReason,
       session:         sessionDoc,
     });
   } catch (err) {

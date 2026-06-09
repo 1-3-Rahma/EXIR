@@ -31,7 +31,7 @@ const ConnectionPanel = ({ esp32Status }) => {
             Waiting for ESP32 to connect…
           </p>
           <p className="iv-connection-hint" style={{ margin: 0, fontSize: '0.85rem', color: '#6b7280' }}>
-            Power on the ESP32 and make sure it is connected to the same WiFi network as this computer.
+            Power on the ESP32 and check its power stability, WiFi connection, and internet access.
           </p>
         </div>
       )}

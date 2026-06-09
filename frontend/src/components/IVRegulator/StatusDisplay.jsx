@@ -113,6 +113,16 @@ const StatusDisplay = ({ onExternalStatusChange, patientId }) => {
             </span>
           </div>
         )}
+
+        {!status.esp32Connected && status.lastDisconnectedAt && (
+          <div className="iv-status-row">
+            <span className="iv-status-label">Last disconnected</span>
+            <span className="iv-status-value">
+              {new Date(status.lastDisconnectedAt).toLocaleTimeString()}
+              {status.lastDisconnectCode ? ` (code ${status.lastDisconnectCode})` : ''}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Sequential mode — per-step estimated remaining time */}
@@ -136,7 +146,7 @@ const StatusDisplay = ({ onExternalStatusChange, patientId }) => {
       {/* ESP32 error hint */}
       {!status.esp32Connected && status.lastError && (
         <div className="iv-error-banner iv-error-banner--hw" style={{ marginTop: '1rem' }}>
-          Hardware error: {status.lastError}. Check that the ESP32 is powered on and connected to WiFi.
+          Hardware error: {status.lastError}. Check ESP32 power stability, WiFi, and internet access.
         </div>
       )}
     </div>
