@@ -80,12 +80,6 @@ const formatDate = (dateStr) => {
   return d.toLocaleString();
 };
 
-const formatConfidence = (score) => {
-  if (score == null || Number.isNaN(Number(score))) return 'N/A';
-  const n = Number(score);
-  return n <= 1 ? `${Math.round(n * 100)}%` : `${Math.round(n)}%`;
-};
-
 const getRiskColor = (risk) => {
   const r = String(risk || '').toLowerCase();
   if (r === 'critical') return '#ef4444';
@@ -221,9 +215,6 @@ const NursePatientVitalsHistory = () => {
                 >
                   {t('nurseVitals.aiRisk')} {latest.riskLevel || 'N/A'}
                 </span>
-                <span className="confidence-badge">
-                  {t('nurseVitals.confidence')} {formatConfidence(latest.confidenceScore)}
-                </span>
               </div>
             )}
             <div className="top-cards-grid">
@@ -277,7 +268,6 @@ const NursePatientVitalsHistory = () => {
                     <th>{t('nurseVitals.spo2')}</th>
                     <th>{t('nurseVitals.temperature')}</th>
                     <th>{t('nurseVitals.riskLevel')}</th>
-                    <th>{t('nurseVitals.aiConfidence')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -299,7 +289,6 @@ const NursePatientVitalsHistory = () => {
                           {v.riskLevel || 'N/A'}
                         </span>
                       </td>
-                      <td>{formatConfidence(v.confidenceScore)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -380,11 +369,6 @@ const NursePatientVitalsHistory = () => {
           font-weight: 600;
           margin-right: 0.5rem;
         }
-        .confidence-badge {
-          font-size: 0.8rem;
-          color: #64748b;
-        }
-
         /* Top cards */
         .top-cards-grid {
           display: grid;

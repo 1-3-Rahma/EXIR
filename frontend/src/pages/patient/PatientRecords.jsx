@@ -14,12 +14,6 @@ const formatBP = (bp) => {
   return 'N/A';
 };
 
-const formatConfidence = (score) => {
-  if (score == null || Number.isNaN(Number(score))) return 'N/A';
-  const n = Number(score);
-  return n <= 1 ? `${Math.round(n * 100)}%` : `${Math.round(n)}%`;
-};
-
 const getRiskColor = (risk) => {
   const r = String(risk || '').toLowerCase();
   if (r === 'critical') return '#ef4444';
@@ -170,7 +164,6 @@ const PatientRecords = () => {
                       <th>{t('medicalRecords.temperature')}</th>
                       <th>{t('medicalRecords.bloodPressure')}</th>
                       <th>{t('medicalRecords.riskLevel')}</th>
-                      <th>{t('medicalRecords.aiConfidence')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -189,7 +182,6 @@ const PatientRecords = () => {
                             {v.riskLevel || 'N/A'}
                           </span>
                         </td>
-                        <td>{formatConfidence(v.confidenceScore)}</td>
                       </tr>
                     ))}
                   </tbody>

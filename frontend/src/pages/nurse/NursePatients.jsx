@@ -85,12 +85,6 @@ const NursePatients = () => {
     return status === 'abnormal' || status === 'moderate' || status === 'warning';
   };
 
-  const formatConfidence = (score) => {
-    if (score === undefined || score === null || Number.isNaN(Number(score))) return 'N/A';
-    const numericScore = Number(score);
-    return numericScore <= 1 ? `${Math.round(numericScore * 100)}%` : `${Math.round(numericScore)}%`;
-  };
-
   const fetchPatients = async () => {
     try {
       const [patientsRes, vitalsRes] = await Promise.all([
@@ -364,10 +358,6 @@ const NursePatients = () => {
                     <div className="vital-item">
                       <span className="vital-label">AI Risk</span>
                       <span className="vital-value">{patient.latestVitals?.riskLevel || 'N/A'}</span>
-                    </div>
-                    <div className="vital-item">
-                      <span className="vital-label">AI Conf.</span>
-                      <span className="vital-value">{formatConfidence(patient.latestVitals?.confidenceScore)}</span>
                     </div>
                     <div className="vital-item">
                       <span className="vital-label">BP</span>

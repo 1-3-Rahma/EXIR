@@ -52,12 +52,6 @@ const NurseVitals = () => {
 
   const normalizeStatus = (status) => String(status || '').toLowerCase();
 
-  const formatConfidence = (score) => {
-    if (score === undefined || score === null || Number.isNaN(Number(score))) return 'N/A';
-    const numericScore = Number(score);
-    return numericScore <= 1 ? `${Math.round(numericScore * 100)}%` : `${Math.round(numericScore)}%`;
-  };
-
   const getStatusColor = (status) => {
     switch (normalizeStatus(status)) {
       case 'critical': return '#ef4444';

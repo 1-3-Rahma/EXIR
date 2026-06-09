@@ -198,12 +198,6 @@ const NurseDashboard = () => {
   const selectedPatient = assignedPatients.find(patient => patient._id === selectedPatientId);
   const selectedPatientName = selectedPatient?.fullName || '';
 
-  const formatConfidence = (score) => {
-    if (score === undefined || score === null || Number.isNaN(Number(score))) return 'N/A';
-    const numericScore = Number(score);
-    return numericScore <= 1 ? `${Math.round(numericScore * 100)}%` : `${Math.round(numericScore)}%`;
-  };
-
   const writeBraceletConfig = async (characteristic = configCharacteristic, patientId = selectedPatientId) => {
     if (!characteristic || !patientId) return;
 
