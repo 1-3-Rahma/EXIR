@@ -102,6 +102,7 @@ const NursePatients = () => {
         const vitalData = vitalsList.find(v => v._id === patient._id);
         const vitals = vitalData?.vitals;
         const latestVitals = vitalData?.latestVitals || null;
+        const braceletConnected = vitalData?.braceletConnected === true;
 
         const status = latestVitals?.riskLevel || patient.patientStatus || 'stable';
 
@@ -117,6 +118,8 @@ const NursePatients = () => {
           room: patient.room || vitalData?.room || 'N/A',
           condition: patient.condition || patient.diagnosis || 'Under Observation',
           status,
+          braceletConnected,
+          lastBraceletReadingAt: vitalData?.lastBraceletReadingAt || null,
           latestVitals,
           assignedDoctor: patient.assignedDoctor,
           vitals: vitals ? {
@@ -314,11 +317,13 @@ const NursePatients = () => {
       ) : (
         <div className="patients-grid">
           {filteredPatients.map((patient) => {
-            const statusColors = getStatusColor(patient.status);
+            const statusColors = patient.braceletConnected
+              ? getStatusColor(patient.status)
+              : { bg: '#e2e8f0', border: '#94a3b8', text: '#64748b' };
             return (
               <div
                 key={patient._id}
-                className="patient-card"
+                className={`patient-card ${patient.braceletConnected ? '' : 'bracelet-disconnected'}`}
                 style={{ background: statusColors.bg, borderColor: statusColors.border }}
               >
                 <div className="card-header">
@@ -328,7 +333,9 @@ const NursePatients = () => {
                     <span className="patient-meta">{patient.age}y · {patient.gender}</span>
                   </div>
                   <span className="status-badge" style={{ background: statusColors.text }}>
-                    {getStatusLabel(patient.status)}
+                    {patient.braceletConnected
+                      ? getStatusLabel(patient.status)
+                      : t('bracelet.disconnected')}
                   </span>
                 </div>
 

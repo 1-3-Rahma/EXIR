@@ -17,6 +17,8 @@ const NORMAL_VITAL_RANGES = {
   respiratoryRate: { min: 12, max: 20, unit: '/min' }
 };
 
+const BRACELET_ACTIVE_WINDOW_MS = 20 * 60 * 1000;
+
 // Helper to check vital status
 const getVitalStatus = (type, value, value2 = null) => {
   switch (type) {
@@ -432,13 +434,25 @@ const getFormattedVitalsOverview = async (req, res) => {
 
     const overview = await Promise.all(
       assignments.map(async (assignment) => {
-        const latestVital = await Vital.findOne({ patientId: assignment.patientId._id })
-          .sort({ createdAt: -1 });
+        const [latestVital, latestBraceletVital] = await Promise.all([
+          Vital.findOne({ patientId: assignment.patientId._id }).sort({ createdAt: -1 }),
+          Vital.findOne({
+            patientId: assignment.patientId._id,
+            $or: [
+              { source: 'bracelet-bluetooth' },
+              { deviceId: { $exists: true, $ne: '' } }
+            ]
+          }).sort({ createdAt: -1 })
+        ]);
 
         if (!latestVital) {
           return null;
         }
 
+        const braceletConnected = Boolean(
+          latestBraceletVital &&
+          Date.now() - new Date(latestBraceletVital.createdAt).getTime() <= BRACELET_ACTIVE_WINDOW_MS
+        );
         const patientStatus = statusByPatientId.get(assignment.patientId._id.toString()) || 'stable';
         const status = latestVital.riskLevel || patientStatus;
 
@@ -495,10 +509,15 @@ const getFormattedVitalsOverview = async (req, res) => {
           patientStatus,
           status,
           updatedAt: latestVital.createdAt,
+          braceletConnected,
+          lastBraceletReadingAt: latestBraceletVital?.createdAt || null,
+          braceletDeviceId: latestBraceletVital?.deviceId || null,
           latestVitals: {
             heartRate: latestVital.heartRate,
             spo2: latestVital.spo2,
             temperature: latestVital.temperature,
+            source: latestVital.source,
+            deviceId: latestVital.deviceId,
             riskLevel: latestVital.riskLevel,
             confidenceScore: latestVital.confidenceScore,
             aiAlert: latestVital.aiAlert,

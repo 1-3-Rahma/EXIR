@@ -17,6 +17,7 @@ const vitalSchema = new mongoose.Schema({
   respiratoryRate: { type: Number },
   recordedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   source: { type: String, default: 'sensor' },
+  deviceId: { type: String },
   aiPrediction: {
     predictedClass: { type: Number },
     predictedLabel: { type: String },
