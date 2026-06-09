@@ -31,6 +31,7 @@ const patientSessions = new Map();
 
 let parallelOwnerKey   = null;
 let sequentialOwnerKey = null;
+const SEQ_PRIME_DURATION_MS = 2000;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -43,9 +44,12 @@ function patientKey(patientId) {
 /** Total infusion duration in milliseconds for a sequential session. */
 function calcSeqDurationMs(steps) {
   if (!Array.isArray(steps) || !steps.length) return 0;
-  return steps.reduce((total, s) => {
+  return steps.reduce((total, s, index) => {
     const infusionMs = (Number(s.volumeMl) / Number(s.flowRateMlMin)) * 60 * 1000;
-    const delayMs    = Number(s.delaySeconds) > 0 ? Number(s.delaySeconds) * 1000 : 0;
+    const hasNextStep = index < steps.length - 1;
+    const delayMs = hasNextStep && Number(s.delaySeconds) > 0
+      ? Number(s.delaySeconds) * 1000
+      : 0;
     return total + infusionMs + delayMs;
   }, 0);
 }
@@ -365,6 +369,7 @@ router.post('/start', async (req, res) => {
           error: 'Another patient\'s sequential session is already running. Stop it first.',
         });
       }
+      if (!await tryCommand(res, 'SEQRESET')) return;
       for (const s of session.config.steps) {
         const delaySec = Number(s.delaySeconds) > 0 ? Math.round(Number(s.delaySeconds)) : null;
         const cmd = delaySec
@@ -378,7 +383,7 @@ router.post('/start', async (req, res) => {
       sequentialOwnerKey = pKey;
 
       // Start server-side auto-complete timer
-      const durationMs = calcSeqDurationMs(session.config.steps);
+      const durationMs = SEQ_PRIME_DURATION_MS + calcSeqDurationMs(session.config.steps);
       if (durationMs > 0) {
         startSeqTimer(pKey, durationMs);
       }

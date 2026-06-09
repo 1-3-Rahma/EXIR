@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { IV_BASE_URL } from '../../services/api';
 
+const SEQ_PRIME_DURATION_MS = 2000;
+
 /**
  * ControlButtons — mode-aware control panel.
  *
@@ -39,9 +41,12 @@ const ControlButtons = ({ sessionStatus, mode, configured, onStatusChange, onNew
 
   function calcTotalMs(stepsArr) {
     if (!stepsArr || !stepsArr.length) return 0;
-    return stepsArr.reduce((total, s) => {
+    return SEQ_PRIME_DURATION_MS + stepsArr.reduce((total, s, index) => {
       const infusionMs = (Number(s.volumeMl) / Number(s.flowRateMlMin)) * 60 * 1000;
-      const delayMs    = Number(s.delaySeconds) > 0 ? Number(s.delaySeconds) * 1000 : 0;
+      const hasNextStep = index < stepsArr.length - 1;
+      const delayMs = hasNextStep && Number(s.delaySeconds) > 0
+        ? Number(s.delaySeconds) * 1000
+        : 0;
       return total + infusionMs + delayMs;
     }, 0);
   }

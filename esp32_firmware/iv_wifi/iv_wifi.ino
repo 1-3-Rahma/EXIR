@@ -92,15 +92,18 @@ static int            currentStep   = 0;
 static bool           seqRunning    = false;
 static bool           seqPaused     = false;
 static unsigned long  stepStartMs   = 0;
+static unsigned long  stepRemainingMs = 0;
 
 // Non-blocking inter-step delay
 static bool           stepDelaying  = false;
 static unsigned long  delayStartMs  = 0;
 static unsigned long  pendingDelayMs = 0;
+static bool           pausedDuringDelay = false;
 
 // Non-blocking PRIME
 static bool           priming       = false;
 static unsigned long  primeStartMs  = 0;
+static bool           seqStartPending = false;
 
 // ---------------------------------------------------------------------------
 // WebSocket
@@ -163,7 +166,11 @@ void emergencyStop() {
   seqStepCount  = 0;
   currentStep   = 0;
   stepDelaying  = false;
+  stepRemainingMs = 0;
+  pendingDelayMs = 0;
+  pausedDuringDelay = false;
   priming       = false;
+  seqStartPending = false;
   Serial.println("[SAFETY] Emergency stop — all valves closed, all pumps off.");
 }
 
@@ -231,25 +238,85 @@ void handleWiFi() {
 // ---------------------------------------------------------------------------
 // Sequential step runner — non-blocking, called every loop()
 // ---------------------------------------------------------------------------
-void startStep(int idx) {
-  stepDelaying = false;
-  if (idx >= seqStepCount) {
+unsigned long remainingMs(unsigned long startedAt, unsigned long duration) {
+  const unsigned long elapsed = millis() - startedAt;
+  return elapsed >= duration ? 0 : duration - elapsed;
+}
+
+void runCurrentStep(bool announceStart) {
+  if (currentStep >= seqStepCount) {
     seqRunning = false;
+    seqPaused = false;
+    stepDelaying = false;
     stopAllSequential();
     if (wsConnected) webSocket.sendTXT("SEQ_COMPLETE");
     Serial.println("[SEQ] All steps complete.");
     return;
   }
+
   stopAllSequential();
-  SeqStep& s = seqSteps[idx];
+  SeqStep& s = seqSteps[currentStep];
   digitalWrite(valvePin(s.valve), LOW);
   runPump(PUMP4_PWM, PUMP4_IN1, PUMP4_IN2, flowToPWM(s.flowRate));
   stepStartMs = millis();
-  char msg[32];
-  snprintf(msg, sizeof(msg), "STEP_START %d", s.valve);
-  if (wsConnected) webSocket.sendTXT(msg);
-  Serial.printf("[SEQ] Step %d — valve %d  %.2f mL/min  %.1f mL\n",
-                idx + 1, s.valve, s.flowRate, s.volume);
+
+  if (announceStart) {
+    char msg[32];
+    snprintf(msg, sizeof(msg), "STEP_START %d", s.valve);
+    if (wsConnected) webSocket.sendTXT(msg);
+    Serial.printf("[SEQ] Step %d — valve %d  %.2f mL/min  %.1f mL\n",
+                  currentStep + 1, s.valve, s.flowRate, s.volume);
+  } else {
+    Serial.printf("[SEQ] Resumed step %d with %lu ms remaining.\n",
+                  currentStep + 1, stepRemainingMs);
+  }
+}
+
+void startStep(int idx) {
+  stepDelaying = false;
+  pausedDuringDelay = false;
+  if (idx >= seqStepCount) {
+    seqRunning = false;
+    seqPaused = false;
+    stopAllSequential();
+    if (wsConnected) webSocket.sendTXT("SEQ_COMPLETE");
+    Serial.println("[SEQ] All steps complete.");
+    return;
+  }
+
+  currentStep = idx;
+  SeqStep& s = seqSteps[idx];
+  stepRemainingMs = (unsigned long)((s.volume / s.flowRate) * 60000.0f);
+  runCurrentStep(true);
+}
+
+void completeCurrentStep() {
+  SeqStep& completedStep = seqSteps[currentStep];
+  digitalWrite(valvePin(completedStep.valve), HIGH);
+  runPump(PUMP4_PWM, PUMP4_IN1, PUMP4_IN2, 0);
+  Serial.printf("[SEQ] Step %d done.\n", currentStep + 1);
+
+  const unsigned long delayMs = completedStep.delayMs;
+  currentStep++;
+  if (delayMs > 0 && currentStep < seqStepCount) {
+    stepDelaying = true;
+    delayStartMs = millis();
+    pendingDelayMs = delayMs;
+    pausedDuringDelay = false;
+    Serial.printf("[SEQ] Inter-step delay: %lu ms\n", delayMs);
+  } else {
+    startStep(currentStep);
+  }
+}
+
+void beginSequentialRun() {
+  priming = false;
+  seqStartPending = false;
+  seqRunning = true;
+  seqPaused = false;
+  currentStep = 0;
+  startStep(0);
+  if (wsConnected) webSocket.sendTXT("SEQ_STARTED");
 }
 
 void tickSequential() {
@@ -265,21 +332,8 @@ void tickSequential() {
   }
 
   // Check if current step has finished
-  SeqStep& s = seqSteps[currentStep];
-  unsigned long durationMs = (unsigned long)((s.volume / s.flowRate) * 60000.0f);
-  if (millis() - stepStartMs >= durationMs) {
-    digitalWrite(valvePin(s.valve), HIGH);
-    runPump(PUMP4_PWM, PUMP4_IN1, PUMP4_IN2, 0);
-    Serial.printf("[SEQ] Step %d done.\n", currentStep + 1);
-    currentStep++;
-    if (s.delayMs > 0 && currentStep < seqStepCount) {
-      stepDelaying    = true;
-      delayStartMs    = millis();
-      pendingDelayMs  = s.delayMs;
-      Serial.printf("[SEQ] Inter-step delay: %lu ms\n", s.delayMs);
-    } else {
-      startStep(currentStep);
-    }
+  if (millis() - stepStartMs >= stepRemainingMs) {
+    completeCurrentStep();
   }
 }
 
@@ -288,9 +342,14 @@ void tickPrime() {
   if (!priming) return;
   if (millis() - primeStartMs >= PRIME_DURATION_MS) {
     priming = false;
-    runPump(PUMP4_PWM, PUMP4_IN1, PUMP4_IN2, 0);
+    stopAllSequential();
     if (wsConnected) webSocket.sendTXT("PRIME_DONE");
     Serial.println("[PRIME] Done.");
+    if (seqStartPending && !seqPaused) {
+      beginSequentialRun();
+    } else if (seqStartPending) {
+      Serial.println("[SEQ] Priming complete; waiting for RESUME.");
+    }
   }
 }
 
@@ -313,39 +372,118 @@ void handleCommand(const String& raw) {
     runPump(PUMP3_PWM, PUMP3_IN1, PUMP3_IN2, flowToPWM(f3));
     webSocket.sendTXT("PARALLEL_RUNNING");
 
+  } else if (cmd == "SEQRESET") {
+    if (seqRunning || priming) {
+      webSocket.sendTXT("ERROR: sequence active");
+      return;
+    }
+    stopAllSequential();
+    seqStepCount = 0;
+    currentStep = 0;
+    seqPaused = false;
+    stepDelaying = false;
+    stepRemainingMs = 0;
+    pendingDelayMs = 0;
+    pausedDuringDelay = false;
+    seqStartPending = false;
+    webSocket.sendTXT("SEQRESET_OK");
+
   } else if (cmd.startsWith("SEQSET ")) {
+    if (seqRunning || priming) { webSocket.sendTXT("ERROR: sequence active"); return; }
     if (seqStepCount >= 3) { webSocket.sendTXT("ERROR: max 3 steps"); return; }
     SeqStep s = {0, 0.0f, 0.0f, 0};
     unsigned long delaySec = 0;
     // Backend sends delay in SECONDS — convert to ms here
-    sscanf(cmd.c_str(), "SEQSET %d %f %f %lu", &s.valve, &s.flowRate, &s.volume, &delaySec);
+    const int parsed = sscanf(
+      cmd.c_str(), "SEQSET %d %f %f %lu",
+      &s.valve, &s.flowRate, &s.volume, &delaySec
+    );
+    if (parsed < 3 || s.valve < 5 || s.valve > 7 ||
+        s.flowRate <= 0.0f || s.volume <= 0.0f) {
+      webSocket.sendTXT("ERROR: invalid SEQSET");
+      return;
+    }
     s.delayMs = delaySec * 1000UL;
     seqSteps[seqStepCount++] = s;
     webSocket.sendTXT("SEQSET_OK");
 
   } else if (cmd == "PRIME") {
+    if (seqRunning || seqStepCount == 0) {
+      webSocket.sendTXT("ERROR: configure sequence first");
+      return;
+    }
+    stopAllSequential();
     priming      = true;
     primeStartMs = millis();
-    runPump(PUMP4_PWM, PUMP4_IN1, PUMP4_IN2, 100);
+    digitalWrite(valvePin(seqSteps[0].valve), LOW);
+    runPump(PUMP4_PWM, PUMP4_IN1, PUMP4_IN2, MIN_PWM);
     Serial.println("[PRIME] Running…");
 
   } else if (cmd == "START") {
     if (seqStepCount == 0) { webSocket.sendTXT("ERROR: no steps configured"); return; }
-    seqRunning  = true;
-    seqPaused   = false;
-    currentStep = 0;
-    startStep(0);
-    webSocket.sendTXT("SEQ_STARTED");
+    if (seqRunning) { webSocket.sendTXT("ERROR: sequence already running"); return; }
+    if (priming) {
+      seqStartPending = true;
+      webSocket.sendTXT("START_PENDING");
+      Serial.println("[SEQ] Start queued until priming completes.");
+    } else {
+      beginSequentialRun();
+    }
 
   } else if (cmd == "PAUSE") {
+    if (priming && seqStartPending && !seqPaused) {
+      seqPaused = true;
+      webSocket.sendTXT("PAUSED");
+      Serial.println("[SEQ] Start paused during priming.");
+      return;
+    }
+    if (!seqRunning || seqPaused) {
+      webSocket.sendTXT("ERROR: sequence not running");
+      return;
+    }
+
+    if (stepDelaying) {
+      pendingDelayMs = remainingMs(delayStartMs, pendingDelayMs);
+      pausedDuringDelay = true;
+    } else {
+      stepRemainingMs = remainingMs(stepStartMs, stepRemainingMs);
+      pausedDuringDelay = false;
+    }
+
     seqPaused = true;
-    if (stepDelaying) stepDelaying = false;  // freeze delay timer too
-    runPump(PUMP4_PWM, PUMP4_IN1, PUMP4_IN2, 0);
+    stopAllSequential();
     webSocket.sendTXT("PAUSED");
 
   } else if (cmd == "RESUME") {
+    if (seqStartPending && seqPaused) {
+      seqPaused = false;
+      if (!priming) {
+        beginSequentialRun();
+      }
+      webSocket.sendTXT("RESUMED");
+      return;
+    }
+    if (!seqRunning || !seqPaused) {
+      webSocket.sendTXT("ERROR: sequence not paused");
+      return;
+    }
+
     seqPaused = false;
-    startStep(currentStep);
+    if (pausedDuringDelay) {
+      pausedDuringDelay = false;
+      if (pendingDelayMs == 0) {
+        stepDelaying = false;
+        startStep(currentStep);
+      } else {
+        stepDelaying = true;
+        delayStartMs = millis();
+        Serial.printf("[SEQ] Resumed delay with %lu ms remaining.\n", pendingDelayMs);
+      }
+    } else if (stepRemainingMs == 0) {
+      completeCurrentStep();
+    } else {
+      runCurrentStep(false);
+    }
     webSocket.sendTXT("RESUMED");
 
   } else if (cmd == "STOPPARALLEL") {
@@ -358,6 +496,11 @@ void handleCommand(const String& raw) {
     seqStepCount = 0;
     currentStep  = 0;
     stepDelaying = false;
+    stepRemainingMs = 0;
+    pendingDelayMs = 0;
+    pausedDuringDelay = false;
+    priming = false;
+    seqStartPending = false;
     stopAllSequential();
     webSocket.sendTXT("SEQ_STOPPED");
 
