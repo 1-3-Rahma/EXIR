@@ -82,13 +82,66 @@ const NurseVitals = () => {
     }
   };
 
+  // Normal ranges with min/max values for validation
+  const normalRanges = {
+    bp: { systolicMin: 90, systolicMax: 120, diastolicMin: 60, diastolicMax: 80 },
+    hr: { min: 60, max: 100 },
+    temp: { min: 36.1, max: 37.2 },
+    o2: { min: 95, max: 100 }
+  };
+
+  // Reference display data
+  const normalRangesDisplay = () => [
+    { name: t('vitals.bloodPressure'), range: '90-120 / 60-80 mmHg', color: '#3b82f6', icon: 'bp' },
+    { name: t('vitals.heartRate'), range: '60-100 bpm', color: '#ef4444', icon: 'hr' },
+    { name: t('vitals.temperature'), range: '36.1-37.2 °C', color: '#f59e0b', icon: 'temp' },
+    { name: t('vitals.spo2'), range: '95-100 %', color: '#06b6d4', icon: 'o2' }
+  ];
+
   const criticalCount = patients.filter(patient => patient.latestVitals?.isCritical === true).length;
 
-  const getAiStatus = (patient) => {
-    const riskLevel = normalizeStatus(patient.latestVitals?.riskLevel);
-    if (riskLevel === 'critical') return 'critical';
-    if (riskLevel === 'abnormal' || riskLevel === 'warning') return 'warning';
-    return 'normal';
+  // Check if vital is out of range
+  const isOutOfRange = (type, value, value2 = null) => {
+    switch (type) {
+      case 'bp':
+        const systolic = value;
+        const diastolic = value2;
+        return systolic < normalRanges.bp.systolicMin || systolic > normalRanges.bp.systolicMax ||
+               diastolic < normalRanges.bp.diastolicMin || diastolic > normalRanges.bp.diastolicMax;
+      case 'hr':
+        return value < normalRanges.hr.min || value > normalRanges.hr.max;
+      case 'temp':
+        return value < normalRanges.temp.min || value > normalRanges.temp.max;
+      case 'o2':
+        return value < normalRanges.o2.min || value > normalRanges.o2.max;
+      default:
+        return false;
+    }
+  };
+
+  // Get warning severity based on how far out of range
+  const getWarningSeverity = (type, value, value2 = null) => {
+    if (!isOutOfRange(type, value, value2)) return 'normal';
+
+    switch (type) {
+      case 'bp': {
+        const systolic = value;
+        const diastolic = value2;
+        if (systolic < 80 || systolic > 140 || diastolic < 50 || diastolic > 100) return 'critical';
+        return 'warning';
+      }
+      case 'hr':
+        if (value < 50 || value > 120) return 'critical';
+        return 'warning';
+      case 'temp':
+        if (value < 35 || value > 39) return 'critical';
+        return 'warning';
+      case 'o2':
+        if (value < 90) return 'critical';
+        return 'warning';
+      default:
+        return 'warning';
+    }
   };
 
   return (
@@ -106,9 +159,58 @@ const NurseVitals = () => {
           <FiActivity style={{ fontSize: '48px', color: '#94a3b8', marginBottom: '16px' }} />
           <h3>{t('vitals.noVitals')}</h3>
           <p>{t('vitals.noPatients')}</p>
+          {/* Show normal ranges reference when no data */}
+          <div className="empty-reference-card">
+            <h3 className="reference-title">{t('vitals.normalRangesRef')}</h3>
+            <div className="empty-ranges-grid">
+              {normalRangesDisplay().map((item, index) => (
+                <div key={index} className="empty-range-item">
+                  <div className="range-icon" style={{ background: item.color + '20', color: item.color }}>
+                    {item.icon === 'bp' && <FiHeart />}
+                    {item.icon === 'hr' && <FiActivity />}
+                    {item.icon === 'temp' && <FiThermometer />}
+                    {item.icon === 'o2' && <FiWind />}
+                  </div>
+                  <div className="range-info">
+                    <span className="range-name">{item.name}</span>
+                    <span className="range-value">{item.range}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       ) : (
         <>
+          {/* Normal Vital Ranges Reference */}
+          <div className="reference-card">
+              <div className="reference-header">
+                <h3>{t('vitals.normalRangesRef')}</h3>
+                <div className="legend">
+                  <span className="legend-item normal"><span className="dot"></span> {t('vitals.normalLegend')}</span>
+                  <span className="legend-item warning"><span className="dot"></span> {t('vitals.warningLegend')}</span>
+                  <span className="legend-item critical"><span className="dot"></span> {t('vitals.criticalLegend')}</span>
+                </div>
+              </div>
+
+            <div className="ranges-grid">
+              {normalRangesDisplay().map((item, index) => (
+                <div key={index} className="range-item">
+                  <div className="range-icon" style={{ background: item.color + '20', color: item.color }}>
+                    {item.icon === 'bp' && <FiHeart />}
+                    {item.icon === 'hr' && <FiActivity />}
+                    {item.icon === 'temp' && <FiThermometer />}
+                    {item.icon === 'o2' && <FiWind />}
+                  </div>
+                  <div className="range-info">
+                    <span className="range-name">{item.name}</span>
+                    <span className="range-value">{item.range}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Patients Vitals List */}
           <div className="vitals-list">
             {patients.map((patient) => (
@@ -121,11 +223,11 @@ const NurseVitals = () => {
                   <span
                     className="ai-status-badge"
                     style={{
-                      color: getStatusColor(getAiStatus(patient)),
-                      background: getStatusBg(getAiStatus(patient))
+                      color: getStatusColor(patient.status),
+                      background: getStatusBg(patient.status)
                     }}
                   >
-                    {patient.latestVitals?.riskLevel || 'Normal'}
+                    {patient.latestVitals?.riskLevel || patient.patientStatus || 'stable'}
                   </span>
                   <span className="update-time">
                     <FiClock /> {formatTime(patient.updatedAt)}
@@ -134,80 +236,84 @@ const NurseVitals = () => {
 
                 <div className="vitals-grid">
                   {/* Blood Pressure */}
-                  <div className={`vital-card ${getAiStatus(patient)}`} style={{ background: getStatusBg(getAiStatus(patient)) }}>
+                  <div className={`vital-card ${getWarningSeverity('bp', patient.vitals.bp.systolic, patient.vitals.bp.diastolic)}`} style={{ background: getStatusBg(patient.vitals.bp.status) }}>
                     <div className="vital-header">
-                      <FiHeart style={{ color: getStatusColor(getAiStatus(patient)) }} />
-                      {getAiStatus(patient) !== 'normal' && (
+                      <FiHeart style={{ color: getStatusColor(patient.vitals.bp.status) }} />
+                      {isOutOfRange('bp', patient.vitals.bp.systolic, patient.vitals.bp.diastolic) && (
                         <FiAlertTriangle className="warning-icon" />
                       )}
                       {getTrendIcon(patient.vitals.bp.trend)}
                     </div>
                     <span className="vital-label">{t('vitals.bloodPressure')}</span>
-                    <span className="vital-value" style={{ color: getStatusColor(getAiStatus(patient)) }}>
+                    <span className="vital-value" style={{ color: getStatusColor(patient.vitals.bp.status) }}>
                       {patient.vitals.bp.systolic}/{patient.vitals.bp.diastolic}
                     </span>
                     <span className="vital-unit">mmHg</span>
+                    <span className="normal-range">{t('vitals.normalRangeLabel')} 90-120/60-80</span>
                   </div>
 
                   {/* Heart Rate */}
-                  <div className={`vital-card ${getAiStatus(patient)}`} style={{ background: getStatusBg(getAiStatus(patient)) }}>
+                  <div className={`vital-card ${getWarningSeverity('hr', patient.vitals.hr.value)}`} style={{ background: getStatusBg(patient.vitals.hr.status) }}>
                     <div className="vital-header">
-                      <FiActivity style={{ color: getStatusColor(getAiStatus(patient)) }} />
-                      {getAiStatus(patient) !== 'normal' && (
+                      <FiActivity style={{ color: getStatusColor(patient.vitals.hr.status) }} />
+                      {isOutOfRange('hr', patient.vitals.hr.value) && (
                         <FiAlertTriangle className="warning-icon" />
                       )}
                       {getTrendIcon(patient.vitals.hr.trend)}
                     </div>
                     <span className="vital-label">{t('vitals.heartRate')}</span>
-                    <span className="vital-value" style={{ color: getStatusColor(getAiStatus(patient)) }}>
+                    <span className="vital-value" style={{ color: getStatusColor(patient.vitals.hr.status) }}>
                       {patient.vitals.hr.value}
                     </span>
                     <span className="vital-unit">bpm</span>
+                    <span className="normal-range">{t('vitals.normalRangeLabel')} 60-100</span>
                   </div>
 
                   {/* Temperature */}
-                  <div className={`vital-card ${getAiStatus(patient)}`} style={{ background: getStatusBg(getAiStatus(patient)) }}>
+                  <div className={`vital-card ${getWarningSeverity('temp', patient.vitals.temp.value)}`} style={{ background: getStatusBg(patient.vitals.temp.status) }}>
                     <div className="vital-header">
-                      <FiThermometer style={{ color: getStatusColor(getAiStatus(patient)) }} />
-                      {getAiStatus(patient) !== 'normal' && (
+                      <FiThermometer style={{ color: getStatusColor(patient.vitals.temp.status) }} />
+                      {isOutOfRange('temp', patient.vitals.temp.value) && (
                         <FiAlertTriangle className="warning-icon" />
                       )}
                       {getTrendIcon(patient.vitals.temp.trend)}
                     </div>
                     <span className="vital-label">{t('vitals.temperature')}</span>
-                    <span className="vital-value" style={{ color: getStatusColor(getAiStatus(patient)) }}>
+                    <span className="vital-value" style={{ color: getStatusColor(patient.vitals.temp.status) }}>
                       {patient.vitals.temp.value}
                     </span>
                     <span className="vital-unit">°C</span>
+                    <span className="normal-range">{t('vitals.normalRangeLabel')} 36.1°C - 37.2°C</span>
                   </div>
 
                   {/* O2 Saturation */}
-                  <div className={`vital-card ${getAiStatus(patient)}`} style={{ background: getStatusBg(getAiStatus(patient)) }}>
+                  <div className={`vital-card ${getWarningSeverity('o2', patient.vitals.o2.value)}`} style={{ background: getStatusBg(patient.vitals.o2.status) }}>
                     <div className="vital-header">
-                      <FiWind style={{ color: getStatusColor(getAiStatus(patient)) }} />
-                      {getAiStatus(patient) !== 'normal' && (
+                      <FiWind style={{ color: getStatusColor(patient.vitals.o2.status) }} />
+                      {isOutOfRange('o2', patient.vitals.o2.value) && (
                         <FiAlertTriangle className="warning-icon" />
                       )}
                       {getTrendIcon(patient.vitals.o2.trend)}
                     </div>
                     <span className="vital-label">{t('vitals.o2Saturation')}</span>
-                    <span className="vital-value" style={{ color: getStatusColor(getAiStatus(patient)) }}>
+                    <span className="vital-value" style={{ color: getStatusColor(patient.vitals.o2.status) }}>
                       {patient.vitals.o2.value}
                     </span>
                     <span className="vital-unit">%</span>
+                    <span className="normal-range">{t('vitals.normalRangeLabel')} 95-100</span>
                   </div>
 
                 </div>
 
                 {/* Alert Banner */}
-                {getAiStatus(patient) !== 'normal' && patient.latestVitals?.aiAlert?.alertMessage && (
+                {patient.alert && (
                   <div className="alert-banner">
                     <div className="alert-icon">
                       <FiAlertTriangle />
                     </div>
                     <div className="alert-content">
-                      <strong>{patient.latestVitals.aiAlert.alertMessage}</strong>
-                      <p>{patient.latestVitals.aiAlert.recommendedAction}</p>
+                      <strong>{patient.alert.message}</strong>
+                      <p>{patient.alert.action}</p>
                     </div>
                     <button className="respond-btn">{t('vitals.respond')}</button>
                   </div>
