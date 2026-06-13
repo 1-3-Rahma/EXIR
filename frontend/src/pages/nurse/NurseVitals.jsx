@@ -119,29 +119,11 @@ const NurseVitals = () => {
     }
   };
 
-  // Get warning severity based on how far out of range
-  const getWarningSeverity = (type, value, value2 = null) => {
-    if (!isOutOfRange(type, value, value2)) return 'normal';
-
-    switch (type) {
-      case 'bp': {
-        const systolic = value;
-        const diastolic = value2;
-        if (systolic < 80 || systolic > 140 || diastolic < 50 || diastolic > 100) return 'critical';
-        return 'warning';
-      }
-      case 'hr':
-        if (value < 50 || value > 120) return 'critical';
-        return 'warning';
-      case 'temp':
-        if (value < 35 || value > 39) return 'critical';
-        return 'warning';
-      case 'o2':
-        if (value < 90) return 'critical';
-        return 'warning';
-      default:
-        return 'warning';
-    }
+  // Derive vital card severity from the AI model's classification
+  const getAiSeverity = (patient) => {
+    if (patient.latestVitals?.isCritical) return 'critical';
+    if (patient.latestVitals?.isAbnormal) return 'warning';
+    return 'normal';
   };
 
   return (
@@ -227,7 +209,7 @@ const NurseVitals = () => {
                       background: getStatusBg(patient.status)
                     }}
                   >
-                    {patient.latestVitals?.riskLevel || patient.patientStatus || 'stable'}
+                    {patient.braceletConnected ? (patient.latestVitals?.riskLevel || patient.patientStatus || 'stable') : '-'}
                   </span>
                   <span className="update-time">
                     <FiClock /> {formatTime(patient.updatedAt)}
@@ -235,74 +217,80 @@ const NurseVitals = () => {
                 </div>
 
                 <div className="vitals-grid">
-                  {/* Blood Pressure */}
-                  <div className={`vital-card ${getWarningSeverity('bp', patient.vitals.bp.systolic, patient.vitals.bp.diastolic)}`} style={{ background: getStatusBg(patient.vitals.bp.status) }}>
-                    <div className="vital-header">
-                      <FiHeart style={{ color: getStatusColor(patient.vitals.bp.status) }} />
-                      {isOutOfRange('bp', patient.vitals.bp.systolic, patient.vitals.bp.diastolic) && (
-                        <FiAlertTriangle className="warning-icon" />
-                      )}
-                      {getTrendIcon(patient.vitals.bp.trend)}
-                    </div>
-                    <span className="vital-label">{t('vitals.bloodPressure')}</span>
-                    <span className="vital-value" style={{ color: getStatusColor(patient.vitals.bp.status) }}>
-                      {patient.vitals.bp.systolic}/{patient.vitals.bp.diastolic}
-                    </span>
-                    <span className="vital-unit">mmHg</span>
-                    <span className="normal-range">{t('vitals.normalRangeLabel')} 90-120/60-80</span>
-                  </div>
+                  {(() => {
+                    const aiSeverity = getAiSeverity(patient);
+                    return (
+                      <>
+                        {/* Blood Pressure - not part of the AI model, uses its own threshold-based status */}
+                        <div className={`vital-card ${patient.vitals.bp.status}`} style={{ background: getStatusBg(patient.vitals.bp.status) }}>
+                          <div className="vital-header">
+                            <FiHeart style={{ color: getStatusColor(patient.vitals.bp.status) }} />
+                            {isOutOfRange('bp', patient.vitals.bp.systolic, patient.vitals.bp.diastolic) && (
+                              <FiAlertTriangle className="warning-icon" />
+                            )}
+                            {getTrendIcon(patient.vitals.bp.trend)}
+                          </div>
+                          <span className="vital-label">{t('vitals.bloodPressure')}</span>
+                          <span className="vital-value" style={{ color: getStatusColor(patient.vitals.bp.status) }}>
+                            {patient.braceletConnected ? `${patient.vitals.bp.systolic}/${patient.vitals.bp.diastolic}` : '-'}
+                          </span>
+                          <span className="vital-unit">mmHg</span>
+                          <span className="normal-range">{t('vitals.normalRangeLabel')} 90-120/60-80</span>
+                        </div>
 
-                  {/* Heart Rate */}
-                  <div className={`vital-card ${getWarningSeverity('hr', patient.vitals.hr.value)}`} style={{ background: getStatusBg(patient.vitals.hr.status) }}>
-                    <div className="vital-header">
-                      <FiActivity style={{ color: getStatusColor(patient.vitals.hr.status) }} />
-                      {isOutOfRange('hr', patient.vitals.hr.value) && (
-                        <FiAlertTriangle className="warning-icon" />
-                      )}
-                      {getTrendIcon(patient.vitals.hr.trend)}
-                    </div>
-                    <span className="vital-label">{t('vitals.heartRate')}</span>
-                    <span className="vital-value" style={{ color: getStatusColor(patient.vitals.hr.status) }}>
-                      {patient.vitals.hr.value}
-                    </span>
-                    <span className="vital-unit">bpm</span>
-                    <span className="normal-range">{t('vitals.normalRangeLabel')} 60-100</span>
-                  </div>
+                        {/* Heart Rate */}
+                        <div className={`vital-card ${aiSeverity}`} style={{ background: getStatusBg(aiSeverity) }}>
+                          <div className="vital-header">
+                            <FiActivity style={{ color: getStatusColor(aiSeverity) }} />
+                            {isOutOfRange('hr', patient.vitals.hr.value) && (
+                              <FiAlertTriangle className="warning-icon" />
+                            )}
+                            {getTrendIcon(patient.vitals.hr.trend)}
+                          </div>
+                          <span className="vital-label">{t('vitals.heartRate')}</span>
+                          <span className="vital-value" style={{ color: getStatusColor(aiSeverity) }}>
+                            {patient.braceletConnected ? patient.vitals.hr.value : '-'}
+                          </span>
+                          <span className="vital-unit">bpm</span>
+                          <span className="normal-range">{t('vitals.normalRangeLabel')} 60-100</span>
+                        </div>
 
-                  {/* Temperature */}
-                  <div className={`vital-card ${getWarningSeverity('temp', patient.vitals.temp.value)}`} style={{ background: getStatusBg(patient.vitals.temp.status) }}>
-                    <div className="vital-header">
-                      <FiThermometer style={{ color: getStatusColor(patient.vitals.temp.status) }} />
-                      {isOutOfRange('temp', patient.vitals.temp.value) && (
-                        <FiAlertTriangle className="warning-icon" />
-                      )}
-                      {getTrendIcon(patient.vitals.temp.trend)}
-                    </div>
-                    <span className="vital-label">{t('vitals.temperature')}</span>
-                    <span className="vital-value" style={{ color: getStatusColor(patient.vitals.temp.status) }}>
-                      {patient.vitals.temp.value}
-                    </span>
-                    <span className="vital-unit">°C</span>
-                    <span className="normal-range">{t('vitals.normalRangeLabel')} 36.1°C - 37.2°C</span>
-                  </div>
+                        {/* Temperature */}
+                        <div className={`vital-card ${aiSeverity}`} style={{ background: getStatusBg(aiSeverity) }}>
+                          <div className="vital-header">
+                            <FiThermometer style={{ color: getStatusColor(aiSeverity) }} />
+                            {isOutOfRange('temp', patient.vitals.temp.value) && (
+                              <FiAlertTriangle className="warning-icon" />
+                            )}
+                            {getTrendIcon(patient.vitals.temp.trend)}
+                          </div>
+                          <span className="vital-label">{t('vitals.temperature')}</span>
+                          <span className="vital-value" style={{ color: getStatusColor(aiSeverity) }}>
+                            {patient.braceletConnected ? patient.vitals.temp.value : '-'}
+                          </span>
+                          <span className="vital-unit">°C</span>
+                          <span className="normal-range">{t('vitals.normalRangeLabel')} 36.1°C - 37.2°C</span>
+                        </div>
 
-                  {/* O2 Saturation */}
-                  <div className={`vital-card ${getWarningSeverity('o2', patient.vitals.o2.value)}`} style={{ background: getStatusBg(patient.vitals.o2.status) }}>
-                    <div className="vital-header">
-                      <FiWind style={{ color: getStatusColor(patient.vitals.o2.status) }} />
-                      {isOutOfRange('o2', patient.vitals.o2.value) && (
-                        <FiAlertTriangle className="warning-icon" />
-                      )}
-                      {getTrendIcon(patient.vitals.o2.trend)}
-                    </div>
-                    <span className="vital-label">{t('vitals.o2Saturation')}</span>
-                    <span className="vital-value" style={{ color: getStatusColor(patient.vitals.o2.status) }}>
-                      {patient.vitals.o2.value}
-                    </span>
-                    <span className="vital-unit">%</span>
-                    <span className="normal-range">{t('vitals.normalRangeLabel')} 95-100</span>
-                  </div>
-
+                        {/* O2 Saturation */}
+                        <div className={`vital-card ${aiSeverity}`} style={{ background: getStatusBg(aiSeverity) }}>
+                          <div className="vital-header">
+                            <FiWind style={{ color: getStatusColor(aiSeverity) }} />
+                            {isOutOfRange('o2', patient.vitals.o2.value) && (
+                              <FiAlertTriangle className="warning-icon" />
+                            )}
+                            {getTrendIcon(patient.vitals.o2.trend)}
+                          </div>
+                          <span className="vital-label">{t('vitals.o2Saturation')}</span>
+                          <span className="vital-value" style={{ color: getStatusColor(aiSeverity) }}>
+                            {patient.braceletConnected ? patient.vitals.o2.value : '-'}
+                          </span>
+                          <span className="vital-unit">%</span>
+                          <span className="normal-range">{t('vitals.normalRangeLabel')} 95-100</span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Alert Banner */}
