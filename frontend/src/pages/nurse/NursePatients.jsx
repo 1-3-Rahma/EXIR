@@ -364,12 +364,12 @@ const NursePatients = () => {
                   <div className="vitals-grid">
                     <div className="vital-item">
                       <span className="vital-label">AI Risk</span>
-                      <span className="vital-value">{patient.latestVitals?.riskLevel || 'N/A'}</span>
+                      <span className="vital-value">{patient.braceletConnected ? (patient.latestVitals?.riskLevel || 'N/A') : '-'}</span>
                     </div>
                     <div className="vital-item">
                       <span className="vital-label">BP</span>
                       <span className="vital-value bp-value">
-                        {patient.vitals?.bp || 'N/A'}
+                        {patient.braceletConnected ? (patient.vitals?.bp || 'N/A') : '-'}
                         <button
                           className="edit-inline-btn"
                           onClick={(e) => { e.stopPropagation(); openBPModal(patient); }}
@@ -381,15 +381,15 @@ const NursePatients = () => {
                     </div>
                     <div className="vital-item">
                       <span className="vital-label">HR</span>
-                      <span className="vital-value">{patient.vitals?.hr || 'N/A'} bpm</span>
+                      <span className="vital-value">{patient.braceletConnected ? `${patient.vitals?.hr || 'N/A'} bpm` : '-'}</span>
                     </div>
                     <div className="vital-item">
                       <span className="vital-label">Temp</span>
-                      <span className="vital-value">{patient.vitals?.temp || 'N/A'}°C</span>
+                      <span className="vital-value">{patient.braceletConnected ? `${patient.vitals?.temp || 'N/A'}°C` : '-'}</span>
                     </div>
                     <div className="vital-item">
                       <span className="vital-label">O₂</span>
-                      <span className="vital-value">{patient.vitals?.o2 || 'N/A'}%</span>
+                      <span className="vital-value">{patient.braceletConnected ? `${patient.vitals?.o2 || 'N/A'}%` : '-'}</span>
                     </div>
                   </div>
                 </div>
